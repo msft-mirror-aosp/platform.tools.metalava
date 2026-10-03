@@ -24,6 +24,8 @@ import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class ApiFlagsConfigTest : BaseConfigParserTest() {
+    override val staxSupported: Boolean = true
+
     @Test
     fun `Test simple without defaults`() {
         roundTrip(

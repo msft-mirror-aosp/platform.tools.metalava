@@ -86,6 +86,8 @@ internal class StaxConfigParser private constructor(private val systemId: String
             allowSchemaLocation = true
         )
 
+        var apiFlags: ApiFlagsConfig? = null
+        val apiFlagKeys = mutableSetOf<String>()
         var buildProperties: BuildPropertiesConfig? = null
         val buildPropertyNames = mutableSetOf<String>()
         var issues: IssuesConfig? = null
@@ -102,6 +104,10 @@ internal class StaxConfigParser private constructor(private val systemId: String
                         continue
                     }
                     when (localName) {
+                        "api-flags" -> {
+                            val parsed = parseApiFlags(reader, apiFlagKeys)
+                            apiFlags = combine(apiFlags, parsed)
+                        }
                         "build-properties" -> {
                             val parsed = parseBuildProperties(reader, buildPropertyNames)
                             buildProperties = combine(buildProperties, parsed)
@@ -122,6 +128,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
                 }
                 XMLStreamConstants.END_ELEMENT ->
                     return Config(
+                        apiFlags = apiFlags,
                         buildProperties = buildProperties,
                         issues = issues,
                         annotationClasses = annotationClasses,
@@ -129,9 +136,130 @@ internal class StaxConfigParser private constructor(private val systemId: String
             }
         }
         return Config(
+            apiFlags = apiFlags,
             buildProperties = buildProperties,
             issues = issues,
             annotationClasses = annotationClasses,
+        )
+    }
+
+    /** Parse an `<api-flags>` element from [reader] into an [ApiFlagsConfig]. */
+    private fun parseApiFlags(
+        reader: XMLStreamReader,
+        apiFlagKeys: MutableSet<String>,
+    ): ApiFlagsConfig {
+        checkAttributes(reader, "api-flags", allowedAttributes = emptySet())
+        var unknownFlags: UnknownApiFlagsConfig? = null
+        val flags = mutableListOf<ApiFlagConfig>()
+        var seenApiFlag = false
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (reader.namespaceURI != CONFIG_NAMESPACE) {
+                        recordUnexpectedElement(reader, "api-flags")
+                        skipElement(reader)
+                        continue
+                    }
+                    when (reader.localName) {
+                        "unknown-flags" -> {
+                            if (unknownFlags != null || seenApiFlag) {
+                                recordUnexpectedElement(reader, "api-flags")
+                                skipElement(reader)
+                            } else {
+                                unknownFlags = parseUnknownFlags(reader)
+                            }
+                        }
+                        "api-flag" -> {
+                            seenApiFlag = true
+                            parseApiFlag(reader, apiFlagKeys)?.let { flags.add(it) }
+                        }
+                        else -> {
+                            recordUnexpectedElement(reader, "api-flags")
+                            skipElement(reader)
+                        }
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT ->
+                    return ApiFlagsConfig(unknownFlags = unknownFlags, flags = flags)
+            }
+        }
+        return ApiFlagsConfig(unknownFlags = unknownFlags, flags = flags)
+    }
+
+    /** Parse an `<unknown-flags>` element from [reader] into an [UnknownApiFlagsConfig]. */
+    private fun parseUnknownFlags(reader: XMLStreamReader): UnknownApiFlagsConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "unknown-flags", UNKNOWN_FLAGS_ATTRIBUTES)
+        val mutabilityStr = requiredAttribute(reader, lineNumber, "unknown-flags", "mutability")
+        val statusStr = requiredAttribute(reader, lineNumber, "unknown-flags", "status")
+        expectEmptyElement(reader, "unknown-flags")
+
+        if (mutabilityStr == null || statusStr == null) return null
+        val mutability =
+            validateEnum(
+                lineNumber,
+                "unknown-flags",
+                "mutability",
+                mutabilityStr,
+                MUTABILITY_MAP,
+                "Mutability",
+            )
+        val status =
+            validateEnum(lineNumber, "unknown-flags", "status", statusStr, STATUS_MAP, "Status")
+        if (mutability == null || status == null) return null
+        return UnknownApiFlagsConfig(mutability = mutability, status = status)
+    }
+
+    /** Parse an `<api-flag>` element from [reader] into an [ApiFlagConfig]. */
+    private fun parseApiFlag(
+        reader: XMLStreamReader,
+        apiFlagKeys: MutableSet<String>,
+    ): ApiFlagConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "api-flag", API_FLAG_ATTRIBUTES)
+        val pkg = requiredAttribute(reader, lineNumber, "api-flag", "package")
+        val name = requiredAttribute(reader, lineNumber, "api-flag", "name")
+        val mutabilityStr = requiredAttribute(reader, lineNumber, "api-flag", "mutability")
+        val statusStr = requiredAttribute(reader, lineNumber, "api-flag", "status")
+        val isExported =
+            optionalBooleanAttribute(reader, lineNumber, "api-flag", "is-exported", false)
+        expectEmptyElement(reader, "api-flag")
+
+        if (pkg == null || name == null || mutabilityStr == null || statusStr == null) return null
+        validatePattern(
+            lineNumber,
+            "api-flag",
+            "package",
+            pkg,
+            API_FLAG_PACKAGE_REGEX,
+            "ApiFlagPackageNameType",
+        )
+        validatePattern(
+            lineNumber,
+            "api-flag",
+            "name",
+            name,
+            API_FLAG_NAME_REGEX,
+            "ApiFlagNameType"
+        )
+        val mutability =
+            validateEnum(
+                lineNumber,
+                "api-flag",
+                "mutability",
+                mutabilityStr,
+                MUTABILITY_MAP,
+                "Mutability",
+            )
+        val status = validateEnum(lineNumber, "api-flag", "status", statusStr, STATUS_MAP, "Status")
+        checkUniqueKey(lineNumber, apiFlagKeys, "$pkg,$name", "ApiFlagByQualifiedName")
+        if (mutability == null || status == null || isExported == null) return null
+        return ApiFlagConfig(
+            pkg = pkg,
+            name = name,
+            mutability = mutability,
+            status = status,
+            isExported = isExported,
         )
     }
 
@@ -306,6 +434,34 @@ internal class StaxConfigParser private constructor(private val systemId: String
         return value
     }
 
+    /** Retrieve an optional boolean attribute, returning [defaultValue] if omitted. */
+    private fun optionalBooleanAttribute(
+        reader: XMLStreamReader,
+        lineNumber: Int,
+        elementName: String,
+        attrName: String,
+        defaultValue: Boolean,
+    ): Boolean? {
+        val value = reader.getAttributeValue(null, attrName) ?: return defaultValue
+        return when (value) {
+            "true",
+            "1" -> true
+            "false",
+            "0" -> false
+            else -> {
+                recordError(
+                    lineNumber,
+                    "cvc-datatype-valid.1.2.1: '$value' is not a valid value for 'boolean'.",
+                )
+                recordError(
+                    lineNumber,
+                    "cvc-attribute.3: The value '$value' of attribute '$attrName' on element '$elementName' is not valid with respect to its type, 'boolean'.",
+                )
+                null
+            }
+        }
+    }
+
     /**
      * Validate an attribute [value] against [regex], recording XSD-compatible errors on failure.
      */
@@ -447,6 +603,15 @@ internal class StaxConfigParser private constructor(private val systemId: String
         if (prefix.isNullOrEmpty()) localName else "$prefix:$localName"
 
     companion object : ConfigParser {
+        private val UNKNOWN_FLAGS_ATTRIBUTES = setOf("mutability", "status")
+        private val API_FLAG_ATTRIBUTES =
+            setOf("package", "name", "mutability", "status", "is-exported")
+        private val API_FLAG_PACKAGE_REGEX = Regex("[a-z0-9_.]+")
+        private val API_FLAG_NAME_REGEX = Regex("[a-z0-9_]+")
+        private val MUTABILITY_MAP =
+            ApiFlagActionConfig.Mutability.entries.associateBy { it.configFileValue }
+        private val STATUS_MAP =
+            ApiFlagActionConfig.Status.entries.associateBy { it.configFileValue }
         private val BUILD_PROPERTY_ATTRIBUTES = setOf("name", "value")
         private val BUILD_PROPERTY_NAME_REGEX = Regex("[a-zA-Z0-9_]+")
         private val ISSUE_ATTRIBUTES = setOf("name", "severity")

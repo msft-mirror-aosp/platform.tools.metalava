@@ -445,7 +445,7 @@
             </xs:annotation>
         </xs:attribute>
         <xs:attributeGroup ref="config:ApiFlagStateAttributes"/>
-        <xs:attribute name="is-exported" type="xs:boolean" default="true">
+        <xs:attribute name="is-exported" type="xs:boolean" default="false">
             <xs:annotation>
                 <xs:documentation>
                     If the flag is exported.
