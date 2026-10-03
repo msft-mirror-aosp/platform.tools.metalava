@@ -55,6 +55,15 @@ class Tokenizer(
         return lineMap.fileLocation(path, position)
     }
 
+    override fun fileLocation(charOffset: Int): FileLocation {
+        return lineMap.fileLocation(path, charOffset)
+    }
+
+    /** Get the [FileLocation] of the start of [token]. */
+    fun fileLocation(token: Token): FileLocation {
+        return fileLocation(token.startOffset)
+    }
+
     private fun throwException(message: String): Nothing {
         throw ApiParseException(message, this)
     }
@@ -340,4 +349,7 @@ enum class TokenPurpose {
 interface FileLocationTracker {
     /** Get the current [FileLocation]. */
     fun fileLocation(): FileLocation
+
+    /** Get the [FileLocation] at the 0-based [charOffset]. */
+    fun fileLocation(charOffset: Int): FileLocation
 }
