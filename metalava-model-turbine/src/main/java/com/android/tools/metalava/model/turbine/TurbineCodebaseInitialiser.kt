@@ -121,7 +121,10 @@ internal class TurbineCodebaseInitialiser(
 
         // Get the units from the source files provided on the command line.
         val commandLineSources = sourceSet.sources
-        val sourceFiles = getSourceFiles(commandLineSources.asSequence())
+        val sourceFiles =
+            tracer.trace("turbine.getSourceFiles") {
+                getSourceFiles(commandLineSources.asSequence())
+            }
         val units =
             tracer.trace("turbine.parseSourceFiles") { sourceFiles.mapNotNull { parse(log, it) } }
 
@@ -132,7 +135,7 @@ internal class TurbineCodebaseInitialiser(
                 scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
             }
         val sourcePathFiles =
-            tracer.trace("turbine.getSourceFiles") { getSourceFiles(scannedFiles) }
+            tracer.trace("turbine.getExtraSourceFiles") { getSourceFiles(scannedFiles) }
 
         // Get the set of qualified class names provided on the command line. If a `.java` file
         // contains multiple java classes then it just used the main class name.
@@ -234,7 +237,10 @@ internal class TurbineCodebaseInitialiser(
 
         // Create a cache from SourceFile to the TurbineSourceFile wrapper. The latter needs the
         // CompUnit associated with the SourceFile so pass in all the CompUnits so it can find it.
-        sourceFileCache = TurbineSourceFileCache(codebase, allUnits)
+        sourceFileCache =
+            tracer.trace("turbine.createSourceFileCache") {
+                TurbineSourceFileCache(codebase, allUnits)
+            }
 
         // Create the TurbineValueProviderFactory
         valueFactory = TurbineValueFactory(this)
@@ -249,7 +255,9 @@ internal class TurbineCodebaseInitialiser(
         // Get the map from ClassSymbol to SourceTypeBoundClass for only those classes provided on
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
-            topLevelAccessibleCommandLineClasses(allSourceClassMap, commandLineSources)
+            tracer.trace("turbine.topLevelAccessibleCommandLineClasses") {
+                topLevelAccessibleCommandLineClasses(allSourceClassMap, commandLineSources)
+            }
 
         // Scan the files looking for package.html and overview.html files and extract the
         // documentation just in case they are needed during package creation.
