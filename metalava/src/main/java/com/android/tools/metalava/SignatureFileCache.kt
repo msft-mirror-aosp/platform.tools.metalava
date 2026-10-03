@@ -21,22 +21,18 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.text.SignatureFile
 
-private data class CacheKey(
-    val signatureFiles: List<SignatureFile>,
-    val classPathResolver: ClassPathResolver?
-)
-
 /** Loads signature files, caching them for reuse where appropriate. */
-class SignatureFileCache(private val signatureFileLoader: SignatureFileLoader) {
-    private val map = mutableMapOf<CacheKey, Codebase>()
+class SignatureFileCache(
+    private val signatureFileLoader: SignatureFileLoader,
+    private val classPathResolverProvider: () -> ClassPathResolver?,
+) {
+    private val map = mutableMapOf<List<SignatureFile>, Codebase>()
 
     fun load(
         signatureFiles: List<SignatureFile>,
-        classPathResolver: ClassPathResolver? = null,
     ): Codebase {
-        val key = CacheKey(signatureFiles, classPathResolver)
-        return map.computeIfAbsent(key) { k ->
-            signatureFileLoader.load(k.signatureFiles, k.classPathResolver).apply {
+        return map.computeIfAbsent(signatureFiles) { files ->
+            signatureFileLoader.load(files, classPathResolverProvider()).apply {
                 // Freeze the classes before caching to avoid any changes being made to cached and
                 // potentially shared objects.
                 freezeClasses()

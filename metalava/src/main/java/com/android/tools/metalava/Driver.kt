@@ -260,7 +260,9 @@ class Driver(
         }
 
     internal val signatureFileCache by
-        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            SignatureFileCache(signatureFileLoader) { classPathResolver }
+        }
 
     /**
      * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once
@@ -421,7 +423,7 @@ class Driver(
     private val previouslyReleasedApiLintCodebase by lazy {
         tracer.trace("ApiLint.loadPreviouslyReleasedApi") {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolver)
+                signatureFileCache.load(signatureFiles)
             }
         }
     }
@@ -854,7 +856,7 @@ class Driver(
 
         val oldCodebase =
             check.previouslyReleasedApi.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolver)
+                signatureFileCache.load(signatureFiles)
             }
 
         val apiName =
