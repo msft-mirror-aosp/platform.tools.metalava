@@ -22,8 +22,6 @@ asmTree = { module = "org.ow2.asm:asm-tree", version = "8.0" }
 clikt = { module = "com.github.ajalt.clikt:clikt-jvm", version = "3.5.3" }
 errorProneAnnotations = { module = "com.google.errorprone:error_prone_annotations", version = "2.44.0" }
 gson = { module = "com.google.code.gson:gson", version = "2.8.9" }
-jacksonDataformatXml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version = "2.15.0" }
-jacksonModuleKotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version = "2.15.0" }
 jspecify = { module = "org.jspecify:jspecify", version = "1.0.0" }
 junit4 = { module = "junit:junit", version = "4.13.2" }
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }

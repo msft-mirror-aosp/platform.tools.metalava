@@ -52,7 +52,6 @@ java_binary_host {
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
         "prebuilts-metalava-guava",
-        "prebuilts-metalava-jackson-xml",
         "prebuilts-metalava-jsr305",
         "prebuilts-metalava-lint",
         "prebuilts-metalava-psi",
