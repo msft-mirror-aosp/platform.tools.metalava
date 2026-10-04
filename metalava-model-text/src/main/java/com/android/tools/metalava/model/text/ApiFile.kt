@@ -62,6 +62,8 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
+import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.type.MethodFingerprint
@@ -565,6 +567,21 @@ internal class SingleSignatureFileParser(
     private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
     private val classMerger = context.classMerger
+
+    /** Get the [FileLocation] of the start of [token]. */
+    private fun fileLocation(token: Token): FileLocation = tokenizer.fileLocation(token)
+
+    /** Get the contents of the file being parsed from [start] to [end]. */
+    private fun fileSubstring(start: Int, end: Int): String = tokenizer.substring(start, end)
+
+    /** Returns the next [Token] in [tokenizer] without consuming it. */
+    private fun peek(): Token = tokenizer.peek()
+
+    /** Returns the [TokenType] of the next [Token] in [tokenizer] without consuming it. */
+    private fun peekType(): TokenType = tokenizer.peekType()
+
+    /** Consumes and returns the next [Token] from [tokenizer]. */
+    private fun consume(): Token = tokenizer.consume()
 
     companion object {
         /**
