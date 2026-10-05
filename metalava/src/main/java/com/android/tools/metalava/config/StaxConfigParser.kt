@@ -973,7 +973,11 @@ internal class StaxConfigParser private constructor(private val systemId: String
         override fun parseInputSources(inputSources: List<InputSource>): Config {
             if (inputSources.isEmpty()) return Config()
 
-            val xmlInputFactory = XMLInputFactory.newDefaultFactory()
+            val xmlInputFactory =
+                XMLInputFactory.newDefaultFactory().apply {
+                    setProperty(XMLInputFactory.SUPPORT_DTD, false)
+                    setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false)
+                }
             val allErrors = StringBuilder()
             val configs = mutableListOf<Config>()
 

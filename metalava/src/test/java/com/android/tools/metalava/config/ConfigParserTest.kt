@@ -160,4 +160,28 @@ class ConfigParserTest : BaseConfigParserTest() {
                 """,
         )
     }
+
+    @Test
+    fun `DTD entity reference is rejected`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <!DOCTYPE config [
+                      <!ENTITY ext "Issue1">
+                    ]>
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <issues>
+                        <issue name="&ext;" severity="error"/>
+                      </issues>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:6: The entity "ext" was referenced, but not declared.
+                """,
+        )
+    }
 }
