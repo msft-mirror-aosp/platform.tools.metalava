@@ -39,7 +39,7 @@
             </xs:documentation>
         </xs:annotation>
         <xs:complexType>
-            <xs:choice>
+            <xs:choice maxOccurs="unbounded">
                 <xs:element name="api-surfaces" type="config:ApiSurfacesType" minOccurs="0">
                     <xs:annotation>
                         <xs:documentation>

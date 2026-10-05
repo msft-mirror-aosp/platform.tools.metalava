@@ -184,4 +184,39 @@ class ConfigParserTest : BaseConfigParserTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Config file with multiple sections`() {
+        roundTrip(
+            Config(
+                buildProperties =
+                    BuildPropertiesConfig(
+                        properties =
+                            listOf(
+                                BuildPropertyConfig(name = "PROP", value = "val"),
+                            ),
+                    ),
+                issues =
+                    IssuesConfig(
+                        issues =
+                            listOf(
+                                IssueConfig(
+                                    name = "Issue1",
+                                    severity = IssueConfig.SeverityConfig.ERROR,
+                                ),
+                            ),
+                    ),
+            ),
+            """
+                <config xmlns="http://www.google.com/tools/metalava/config">
+                  <build-properties>
+                    <build-property name="PROP" value="val"/>
+                  </build-properties>
+                  <issues>
+                    <issue name="Issue1" severity="error"/>
+                  </issues>
+                </config>
+            """,
+        )
+    }
 }
