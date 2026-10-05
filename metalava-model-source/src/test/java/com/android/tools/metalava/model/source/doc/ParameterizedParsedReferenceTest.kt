@@ -537,6 +537,46 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                     name = "just-parentheses",
                     reference = "(blah)",
                 ),
+                TestParams(
+                    name = "just-hash",
+                    reference = "#",
+                ),
+                TestParams(
+                    name = "just-double-hash",
+                    reference = "##",
+                ),
+                TestParams(
+                    name = "triple-hash-fragment",
+                    reference = "###frag",
+                ),
+                TestParams(
+                    name = "trailing-dot",
+                    reference = "java.util.",
+                ),
+                TestParams(
+                    name = "trailing-hash",
+                    reference = "Class#",
+                ),
+                TestParams(
+                    name = "trailing-double-hash",
+                    reference = "Class##",
+                ),
+                TestParams(
+                    name = "space-in-qualified-name",
+                    reference = "java . util",
+                ),
+                TestParams(
+                    name = "space-before-hash",
+                    reference = "Class #member",
+                ),
+                TestParams(
+                    name = "space-after-hash",
+                    reference = "Class# member",
+                ),
+                TestParams(
+                    name = "space-before-parentheses",
+                    reference = "Class#method ()",
+                ),
             )
 
         @JvmStatic @Parameterized.Parameters(name = "{0}") internal fun params() = params

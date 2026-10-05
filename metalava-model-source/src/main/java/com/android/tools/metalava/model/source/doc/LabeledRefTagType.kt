@@ -132,42 +132,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         /** Regex that matches one or more whitespace characters. */
         private val SOME_WHITESPACE = Regex("""\s+""")
 
-        /** A simple, unqualified, java name. */
-        private const val SIMPLE = """(?:\p{javaJavaIdentifierStart}\p{javaJavaIdentifierPart}*)"""
-
         /**
-         * A member name.
+         * Parse [sourceReference] into a [ParsedReference], or `null` if it was not valid.
          *
-         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
-         */
-        private const val MEMBER = SIMPLE
-
-        /**
-         * A method name.
-         *
-         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
-         */
-        private const val METHOD = SIMPLE
-
-        /**
-         * A qualified name.
-         *
-         * Can be one of:
-         * * `<simple>`
-         * * `<qualified>.<simple>`
-         */
-        private const val QUALIFIED = """(?:$SIMPLE(?:\.$SIMPLE)*)"""
-
-        /** A list of parameters. */
-        private const val PARAMETERS = """(?:\([^)]*\))"""
-
-        /** A URI fragment, consists of most characters except `#` and white spaces. */
-        private const val FRAGMENT = """[^ #]+"""
-
-        /**
-         * A valid reference.
-         *
-         * Can be one of:
+         * Valid reference forms:
          * * `<qualified>`
          * * `<qualified>(<parameters>)`
          * * `<qualified>#<member>`
@@ -177,99 +145,110 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * * `#<method>(<parameters>)`
          * * `##<uri-fragment>`
          *
-         * The following do not have their own pattern in the above list as they overlap with one of
+         * The following do not have their own form in the above list as they overlap with one of
          * the others:
          * * `<member>` - overlaps with `<qualified>`
          * * `<method>(<parameters>)` - overlaps with `<qualified>(<parameters>)`
          *
-         * This can also match an empty string and `(<parameters>)` but they are excluded by the
-         * [parseReference] method as that keeps the pattern as simple as possible.
+         * Outside `(<parameters>)`, all tokens must be contiguous with no intervening whitespace.
          */
-        private val VALID_REFERENCE =
-            Regex("""($QUALIFIED)?(#$MEMBER|(?:#$METHOD)?$PARAMETERS|##$FRAGMENT)?""")
-
-        /** The index of the qualified name group in [VALID_REFERENCE]. */
-        private const val QUALIFIED_INDEX = 1
-
-        /**
-         * The index of the relative name group in [VALID_REFERENCE], i.e. anything that can come
-         * after [QUALIFIED] in [VALID_REFERENCE].
-         */
-        private const val RELATIVE_INDEX = 2
-
-        /** Parse [sourceReference], to a [ParsedReference], or `null` if it was not valid. */
         internal fun parseReference(
             sourceReference: String,
-            docTypeParser: DocTypeParser
+            docTypeParser: DocTypeParser,
         ): ParsedReference? {
-            // Check some edge cases that are not caught by the pattrern.
-            if (sourceReference == "" || sourceReference[0] == '(') return null
+            if (sourceReference.isEmpty() || sourceReference[0].isWhitespace()) return null
 
-            // Apply the pattern and extract the qualified and relative parts.
-            val result = VALID_REFERENCE.matchEntire(sourceReference) ?: return null
-            val qualified = result.groups[QUALIFIED_INDEX]?.value
-            val relative = result.groups[RELATIVE_INDEX]?.value
+            val tokens = DocRefLexer(sourceReference).tokenize()
 
-            // Construct the appropriate [ParsedReference] instance, if possible.
-            val parsedReference =
-                when {
-                    relative == null -> {
-                        // qualified cannot be `null` as the only way for relative and qualified to
-                        // be `null` is if sourceReference is empty but that is rejected above.
-                        AmbiguousSourceReference(qualified!!)
+            // Parse optional leading `<qualified>` (`<simple>('.' <simple>)*`).
+            val qualified: String?
+            var expectedOffset = 0
+            if (tokens.peekType().canBeIdentifier) {
+                val firstToken = tokens.consume()
+                expectedOffset = firstToken.endOffset
+                while (
+                    tokens.peekType() == SharedTokenType.DOT &&
+                        tokens.peek().startOffset == expectedOffset
+                ) {
+                    val dotToken = tokens.consume()
+                    expectedOffset = dotToken.endOffset
+                    val segmentToken = tokens.peek()
+                    if (
+                        !segmentToken.type.canBeIdentifier ||
+                            segmentToken.startOffset != expectedOffset
+                    ) {
+                        return null
                     }
-                    relative[0] == '(' -> {
-                        // qualified cannot be `null` as the only way for relative to start with `(`
-                        // and qualified to be `null` is if sourceReference starts with '(' but that
-                        // is rejected above.
-                        val tokens = DocRefLexer(relative).tokenize()
-                        val parameters =
-                            parseParameters(tokens, relative, docTypeParser) ?: return null
-                        if (tokens.peekType() != SharedTokenType.EOF) return null
-                        CallableSourceReference(qualified!!, parameters)
-                    }
-                    relative.last() == ')' -> {
-                        require(relative[0] == '#') {
-                            // This should never happen as the pattern will only match a trailing
-                            // ')' if there was a starting '('.
-                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have started with a #"
-                        }
-                        val index = relative.indexOf('(')
-                        require(index != -1) {
-                            // This should never happen as the pattern will only match a trailing
-                            // ')' if there was a starting '('.
-                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have contained a ("
-                        }
-
-                        val methodName = relative.substring(1, index)
-                        val parametersString = relative.substring(index)
-                        val tokens = DocRefLexer(parametersString).tokenize()
-                        val parameters =
-                            parseParameters(tokens, parametersString, docTypeParser) ?: return null
-                        if (tokens.peekType() != SharedTokenType.EOF) return null
-
-                        CallableSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
-                    }
-                    relative.startsWith("##") -> {
-                        UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
-                    }
-                    relative[0] == '#' -> {
-                        AmbiguousMemberSourceReference(relative.substring(1))
-                            .qualifyIfNeeded(qualified)
-                    }
-                    else ->
-                        error(
-                            "internal error: could not handle qualified='$qualified' and relative='$relative'"
-                        )
+                    tokens.consume()
+                    expectedOffset = segmentToken.endOffset
                 }
+                qualified = sourceReference.substring(firstToken.startOffset, expectedOffset)
+            } else {
+                qualified = null
+            }
 
-            return parsedReference
+            // Parse the relative suffix (if any) immediately following `<qualified>`.
+            val next = tokens.peek()
+            if (next.startOffset != expectedOffset) return null
+
+            return when (next.type) {
+                SharedTokenType.EOF -> {
+                    AmbiguousSourceReference(qualified ?: return null)
+                }
+                SharedTokenType.PAREN_OPEN -> {
+                    if (qualified == null) return null
+                    val parameters =
+                        parseParameters(tokens, sourceReference, docTypeParser) ?: return null
+                    CallableSourceReference(qualified, parameters)
+                }
+                DocRefTokenType.HASH -> {
+                    val hashToken = tokens.consume()
+                    val memberToken = tokens.peek()
+                    if (
+                        !memberToken.type.canBeIdentifier ||
+                            memberToken.startOffset != hashToken.endOffset
+                    ) {
+                        return null
+                    }
+                    tokens.consume()
+                    val memberName = memberToken.text
+
+                    val afterMember = tokens.peek()
+                    if (afterMember.startOffset != memberToken.endOffset) return null
+
+                    when (afterMember.type) {
+                        SharedTokenType.EOF -> {
+                            AmbiguousMemberSourceReference(memberName).qualifyIfNeeded(qualified)
+                        }
+                        SharedTokenType.PAREN_OPEN -> {
+                            val parameters =
+                                parseParameters(tokens, sourceReference, docTypeParser)
+                                    ?: return null
+                            CallableSourceReference(memberName, parameters)
+                                .qualifyIfNeeded(qualified)
+                        }
+                        else -> null
+                    }
+                }
+                DocRefTokenType.URI_FRAGMENT -> {
+                    val fragmentToken = tokens.consume()
+                    if (
+                        fragmentToken.text.isEmpty() ||
+                            tokens.peekType() != SharedTokenType.EOF ||
+                            fragmentToken.endOffset != sourceReference.length
+                    ) {
+                        return null
+                    }
+                    UriFragmentSourceReference(fragmentToken.text).qualifyIfNeeded(qualified)
+                }
+                else -> null
+            }
         }
 
         /**
          * Parse a parenthesized parameter list from [tokens] into a list of [SourceParameter]
          * objects, separating the parameter names and types, or `null` if the parameter list is
-         * malformed.
+         * malformed or not followed immediately by the end of [sourceText].
          */
         private fun parseParameters(
             tokens: TokenStream,
@@ -280,7 +259,13 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             tokens.consume()
 
             if (tokens.peekType() == SharedTokenType.PAREN_CLOSE) {
-                tokens.consume()
+                val closeParen = tokens.consume()
+                if (
+                    tokens.peekType() != SharedTokenType.EOF ||
+                        closeParen.endOffset != sourceText.length
+                ) {
+                    return null
+                }
                 return emptyList()
             }
 
@@ -313,7 +298,13 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
             }
 
             if (tokens.peekType() != SharedTokenType.PAREN_CLOSE) return null
-            tokens.consume()
+            val closeParen = tokens.consume()
+            if (
+                tokens.peekType() != SharedTokenType.EOF ||
+                    closeParen.endOffset != sourceText.length
+            ) {
+                return null
+            }
             return parameters
         }
     }
