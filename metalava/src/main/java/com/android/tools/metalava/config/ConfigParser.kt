@@ -31,7 +31,22 @@ import org.xml.sax.helpers.DefaultHandler
 const val CONFIG_NAMESPACE = "http://www.google.com/tools/metalava/config"
 
 /** Parser for XML configuration files. */
-class ConfigParser private constructor() : DefaultHandler() {
+interface ConfigParser {
+    /** Parse a list of configuration files in order, returning a single [Config] object. */
+    fun parse(files: List<File>): Config {
+        return parseInputSources(files.map { InputSource(it.path) })
+    }
+
+    /**
+     * Parse a list of configuration [InputSource]s in order, returning a single [Config] object.
+     */
+    fun parseInputSources(inputSources: List<InputSource>): Config
+
+    companion object : ConfigParser by JacksonConfigParser
+}
+
+/** Legacy Jackson-based parser for XML configuration files. */
+internal class JacksonConfigParser private constructor() : DefaultHandler() {
     /** Errors that were reported while parsing a configuration file. */
     private val errors = StringBuilder()
 
@@ -69,17 +84,10 @@ class ConfigParser private constructor() : DefaultHandler() {
         recordParseException(exception)
     }
 
-    companion object {
-        /** Parse a list of configuration files in order, returning a single [Config] object. */
-        fun parse(files: List<File>): Config {
-            return parseInputSources(files.map { InputSource(it.path) })
-        }
+    companion object : ConfigParser {
+        override fun toString(): String = "jackson"
 
-        /**
-         * Parse a list of configuration [InputSource]s in order, returning a single [Config]
-         * object.
-         */
-        fun parseInputSources(inputSources: List<InputSource>): Config {
+        override fun parseInputSources(inputSources: List<InputSource>): Config {
             val schemaUrl = ConfigParser::class.java.getResource("/schemas/config.xsd")
             val schemafactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
             val schema = schemafactory.newSchema(schemaUrl)
@@ -87,7 +95,7 @@ class ConfigParser private constructor() : DefaultHandler() {
             val saxParserFactory = SAXParserFactory.newNSInstance()
             saxParserFactory.schema = schema
             val saxParser = saxParserFactory.newSAXParser()
-            val configParser = ConfigParser()
+            val configParser = JacksonConfigParser()
             val xmlMapper = configXmlMapper()
 
             // Parse all the configuration files, validating against the schema, collating any
