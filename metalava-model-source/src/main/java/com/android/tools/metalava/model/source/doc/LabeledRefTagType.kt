@@ -27,6 +27,8 @@ import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.parser.SharedTokenType
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
@@ -220,7 +222,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         // qualified cannot be `null` as the only way for relative to start with `(`
                         // and qualified to be `null` is if sourceReference starts with '(' but that
                         // is rejected above.
-                        val parameters = parseParameters(relative, docTypeParser)
+                        val tokens = DocRefLexer(relative).tokenize()
+                        val parameters =
+                            parseParameters(tokens, relative, docTypeParser) ?: return null
+                        if (tokens.peekType() != SharedTokenType.EOF) return null
                         CallableSourceReference(qualified!!, parameters)
                     }
                     relative.last() == ')' -> {
@@ -237,7 +242,11 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         }
 
                         val methodName = relative.substring(1, index)
-                        val parameters = parseParameters(relative.substring(index), docTypeParser)
+                        val parametersString = relative.substring(index)
+                        val tokens = DocRefLexer(parametersString).tokenize()
+                        val parameters =
+                            parseParameters(tokens, parametersString, docTypeParser) ?: return null
+                        if (tokens.peekType() != SharedTokenType.EOF) return null
 
                         CallableSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
                     }
@@ -258,156 +267,54 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
         }
 
         /**
-         * Parse [parametersWithParentheses] into a list of [SourceParameter] objects, separating
-         * the parameter names and types.
+         * Parse a parenthesized parameter list from [tokens] into a list of [SourceParameter]
+         * objects, separating the parameter names and types, or `null` if the parameter list is
+         * malformed.
          */
         private fun parseParameters(
-            parametersWithParentheses: String,
-            docTypeParser: DocTypeParser
-        ): List<SourceParameter> {
-            require(
-                parametersWithParentheses.first() == '(' && parametersWithParentheses.last() == ')'
-            ) {
-                "internal error: parameters should start with `(` and end with `)` but was '$parametersWithParentheses'"
+            tokens: TokenStream,
+            sourceText: String,
+            docTypeParser: DocTypeParser,
+        ): List<SourceParameter>? {
+            if (tokens.peekType() != SharedTokenType.PAREN_OPEN) return null
+            tokens.consume()
+
+            if (tokens.peekType() == SharedTokenType.PAREN_CLOSE) {
+                tokens.consume()
+                return emptyList()
             }
 
-            var startInclusive = 1
-            return buildList {
+            val parameters = buildList {
                 while (true) {
-                    // Get the next parameter, if any. Exiting the loop if there was none.
-                    val (parameter, endExclusive) =
-                        parametersWithParentheses.nextParameter(startInclusive, docTypeParser)
-                            ?: break
-
-                    // Add the parameter to the list.
-                    add(parameter)
-
-                    // Move onto the next parameter.
-                    startInclusive = endExclusive + 1
-                }
-            }
-        }
-
-        /**
-         * Get the next parameter from this [String] starting from [startInclusive].
-         *
-         * If there is no next parameter then this returns `null`. Otherwise, it returns the
-         * [SourceParameter] for it and the index of the character (',' or ')') immediately
-         * following the parameter.
-         */
-        fun String.nextParameter(
-            startInclusive: Int,
-            docTypeParser: DocTypeParser
-        ): Pair<SourceParameter, Int>? {
-            var inTypeArgumentList = 0
-            for (index in startInclusive until length) {
-                val c = this[index]
-
-                // Track whether inside a type argument list as a ',' inside that does not end the
-                // parameter.
-                if (c == '<') {
-                    inTypeArgumentList += 1
-                    continue
-                } else if (c == '>') {
-                    inTypeArgumentList -= 1
-                    continue
-                } else if (inTypeArgumentList > 0) {
-                    continue
-                }
-
-                // Check for the end of the parameter.
-                if (c == ',' || c == ')') {
-                    // This is the end of the parameter.
-
-                    // Trim any leading whitespace from the start of the parameter.
-                    val parameterStartInclusive = skipForwardsOverLeadingWhitespace(startInclusive)
-                    if (parameterStartInclusive == index) {
-                        // There is no parameter.
+                    val nextType = tokens.peekType()
+                    if (
+                        nextType == SharedTokenType.PAREN_CLOSE ||
+                            nextType == SharedTokenType.COMMA ||
+                            nextType == SharedTokenType.EOF
+                    ) {
                         return null
                     }
 
-                    // Trim any trailing whitespace from the end.
-                    val parameterEndExclusive = skipBackwardsOverTrailingWhitespace(index - 1) + 1
-
-                    // See if the parameter ends with a name.
-                    val nameStartInclusive =
-                        skipBackwardsOverParameterName(
-                            parameterEndExclusive - 1,
-                            parameterStartInclusive
-                        )
-
-                    val parameter =
-                        if (nameStartInclusive > parameterStartInclusive) {
-                            val typeEndExclusive =
-                                skipBackwardsOverTrailingWhitespace(nameStartInclusive - 1) + 1
-                            val typeString = substring(parameterStartInclusive, typeEndExclusive)
-                            val name = substring(nameStartInclusive, parameterEndExclusive)
-                            val parsedType = docTypeParser.parse(typeString)
-                            SourceParameter(parsedType, name)
+                    val parsedType = docTypeParser.parseFromStream(tokens, sourceText)
+                    val name =
+                        if (tokens.peekType().canBeIdentifier) {
+                            tokens.consume().text
                         } else {
-                            val typeString =
-                                substring(parameterStartInclusive, parameterEndExclusive)
-                            val parsedType = docTypeParser.parse(typeString)
-                            SourceParameter(parsedType)
+                            null
                         }
+                    add(SourceParameter(parsedType, name))
 
-                    return parameter to index
+                    if (tokens.peekType() == SharedTokenType.COMMA) {
+                        tokens.consume()
+                    } else {
+                        break
+                    }
                 }
             }
 
-            return null
-        }
-
-        /**
-         * Starting with the character at position [endInclusive] and searching backwards, return
-         * the position of the beginning of a parameter name, or -1 if none could be found.
-         */
-        internal fun CharSequence.skipBackwardsOverParameterName(
-            endInclusive: Int,
-            toInclusive: Int
-        ): Int {
-            var end = endInclusive
-            while (end >= toInclusive) {
-                val c = this[end]
-                // Skip back over anything that could be part of a parameter name.
-                if (!c.isJavaIdentifierPart()) {
-                    // Check to see if anything that looked like a parameter (i.e. a java identifier
-                    // of length > 0) was found. If it was not then there is no parameter.
-                    if (end == endInclusive) {
-                        return -1
-                    }
-
-                    // An identifier was found at the end of the type which could be a parameter so
-                    // check if it is.
-
-                    // If it was preceded by something that is the end of an array or generic type
-                    // then it must be a parameter.
-                    if (c == ']' || c == '>') {
-                        return end + 1
-                    }
-
-                    // If it is a whitespace then the identifier at the end of the parameter could
-                    // be a parameter name but first check to make sure that it is not part of a
-                    // qualified type name.
-                    if (c.isWhitespace()) {
-                        // Skip backwards over any whitespace.
-                        val lastIndex = skipBackwardsOverTrailingWhitespace(end - 1)
-
-                        // If the character is '.' then the identifier is part of a qualified type
-                        // name, otherwise it is a parameter name.
-                        if (this[lastIndex] != '.') {
-                            return end + 1
-                        }
-                    }
-
-                    // No parameter was found.
-                    return -1
-                }
-                end -= 1
-            }
-
-            // Reached the beginning and no parameter was found.
-            return -1
+            if (tokens.peekType() != SharedTokenType.PAREN_CLOSE) return null
+            tokens.consume()
+            return parameters
         }
     }
 }

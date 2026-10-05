@@ -52,10 +52,6 @@ private constructor(
             errorReporter = this,
         )
 
-    /** Parse [sourceType] into a [TypeItem]. */
-    fun parse(sourceType: String): TypeItem =
-        parser.obtainTypeFromString(sourceType, typeParameterScope)
-
     /** Parse the next type from [tokens] into a [TypeItem], leaving any trailing tokens. */
     fun parseFromStream(tokens: TokenStream, sourceText: String): TypeItem =
         parser.obtainTypeFromStream(tokens, sourceText, typeParameterScope)
