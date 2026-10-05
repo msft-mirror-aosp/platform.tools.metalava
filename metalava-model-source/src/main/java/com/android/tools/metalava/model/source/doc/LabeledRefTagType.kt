@@ -62,7 +62,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 .substring(referenceStart, referenceEndExclusive)
                 // Normalize whitespace by replacing blocks of whitespace with a single space.
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
-                .replace(SOME_WHITESPACE, " ")
+                .collapseSpaces()
 
         // Parse the source reference, reporting an error if it could not be done.
         val parsedReference = parseReference(sourceReference, context.docTypeParser)
@@ -129,9 +129,6 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
     }
 
     companion object {
-        /** Regex that matches one or more whitespace characters. */
-        private val SOME_WHITESPACE = Regex("""\s+""")
-
         /**
          * Parse [sourceReference] into a [ParsedReference], or `null` if it was not valid.
          *
