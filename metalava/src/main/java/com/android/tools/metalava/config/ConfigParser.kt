@@ -42,7 +42,7 @@ interface ConfigParser {
      */
     fun parseInputSources(inputSources: List<InputSource>): Config
 
-    companion object : ConfigParser by JacksonConfigParser
+    companion object : ConfigParser by StaxConfigParser
 }
 
 /** Legacy Jackson-based parser for XML configuration files. */
