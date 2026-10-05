@@ -328,6 +328,63 @@ class ParameterizedParsedReferenceTest : BaseDocCommentTest() {
                         ),
                     expectedNormalized = "#bar(int[],List<String>)",
                 ),
+                TestParams(
+                    name = "#foo(String...)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
+                TestParams(
+                    name = "#foo(String... args)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    // TODO: skipBackwardsOverParameterName mistakes the trailing
+                                    //  '.' of '...' for a package/class separator and fails to
+                                    //  extract the parameter name "args".
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
+                TestParams(
+                    name = "#foo(String...args)",
+                    expectedParsed =
+                        CurrentClassSourceReference(
+                            member =
+                                methodSourceReference(
+                                    name = "foo",
+                                    // TODO: skipBackwardsOverParameterName only checks for ']' or
+                                    //  '>' immediately preceding an identifier without whitespace,
+                                    //  failing to extract the parameter name "args" after '...'.
+                                    SourceParameter(
+                                        arrayTypeItem(
+                                            classTypeItem("String"),
+                                            isVarargs = true,
+                                        ),
+                                    ),
+                                ),
+                        ),
+                    expectedNormalized = "#foo(String...)",
+                ),
 
                 // Methods with generic parameter types.
                 TestParams(
