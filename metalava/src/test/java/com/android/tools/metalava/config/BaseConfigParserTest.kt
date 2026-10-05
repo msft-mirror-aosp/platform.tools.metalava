@@ -23,20 +23,10 @@ import javax.xml.XMLConstants
 import javax.xml.transform.stream.StreamSource
 import javax.xml.validation.SchemaFactory
 import org.intellij.lang.annotations.Language
-import org.junit.runner.RunWith
-import org.junit.runners.Parameterized
 
 /** Base for tests for objects that are loaded from a configuration file. */
-@RunWith(Parameterized::class)
 abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
-    @Parameterized.Parameter(0) lateinit var configParser: ConfigParser
-
     companion object {
-        /** Provide the [ConfigParser] implementations for running tests. */
-        @JvmStatic
-        @Parameterized.Parameters(name = "{0}")
-        fun params(): List<ConfigParser> = listOf(JacksonConfigParser, StaxConfigParser)
-
         /** The XSD schema used to validate written configuration XML. */
         private val schema by
             lazy(LazyThreadSafetyMode.NONE) {
@@ -79,7 +69,7 @@ abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
         var errors = ""
         try {
             val files = configFiles.map { it.indented().createFile(dir) }.toList()
-            val config = configParser.parse(files)
+            val config = ConfigParser.parse(files)
             val context = TestContext(config = config)
             if (body != null) context.body()
         } catch (e: Exception) {
@@ -111,7 +101,7 @@ abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
         // ConfigWriter/ConfigParser stay in sync.
         schema.newValidator().validate(StreamSource(configFile))
 
-        val readConfig = configParser.parse(listOf(configFile))
+        val readConfig = ConfigParser.parse(listOf(configFile))
         assertThat(readConfig).isEqualTo(config)
     }
 }
