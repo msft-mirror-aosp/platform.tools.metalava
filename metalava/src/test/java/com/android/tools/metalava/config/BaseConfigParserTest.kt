@@ -20,9 +20,21 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
 import org.intellij.lang.annotations.Language
+import org.junit.runner.RunWith
+import org.junit.runners.Parameterized
 
 /** Base for tests for objects that are loaded from a configuration file. */
-open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
+@RunWith(Parameterized::class)
+abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
+    @Parameterized.Parameter(0) lateinit var configParser: ConfigParser
+
+    companion object {
+        /** Provide the [ConfigParser] implementations for running tests. */
+        @JvmStatic
+        @Parameterized.Parameters(name = "{0}")
+        fun params(): List<ConfigParser> = listOf(JacksonConfigParser)
+    }
+
     /** Context for the tests. */
     data class TestContext(
         /** The created [Config] being tested. */
@@ -56,7 +68,7 @@ open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
         var errors = ""
         try {
             val files = configFiles.map { it.indented().createFile(dir) }.toList()
-            val config = ConfigParser.parse(files)
+            val config = configParser.parse(files)
             val context = TestContext(config = config)
             if (body != null) context.body()
         } catch (e: Exception) {
@@ -84,7 +96,7 @@ open class BaseConfigParserTest : BaseTemporaryFolderOwner() {
             assertThat(configFile.readText().trimEnd()).isEqualTo(xml.trimIndent())
         }
 
-        val readConfig = ConfigParser.parse(listOf(configFile))
+        val readConfig = configParser.parse(listOf(configFile))
         assertThat(readConfig).isEqualTo(config)
     }
 }
