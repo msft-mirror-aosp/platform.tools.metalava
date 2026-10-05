@@ -1350,14 +1350,9 @@ internal class SingleSignatureFileParser(
      */
     private fun getAnnotations(): List<AnnotationItem> = buildList {
         while (peekType() == SharedTokenType.AT) {
-            // Record the start of the annotation, skip its tokens, and extract the raw source span.
-            val startOffset = peek().startOffset
-            val endOffset = skipAnnotation()
-            val annotationSource = fileSubstring(startOffset, endOffset)
-
-            // Parse the annotation from the source, unshortening the class name if necessary, and
-            // add it to the list if it is recognized.
-            valueParser.parseAnnotationItem(annotationSource, unshorten = true)?.let {
+            // Parse the annotation from the tokenStream, unshortening the class name if necessary,
+            // and add it to the list if it is recognized.
+            valueParser.parseAnnotationItem(tokenStream, apiText, unshorten = true)?.let {
                 annotationItem ->
                 add(annotationItem)
             }

@@ -37,7 +37,6 @@ import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.value.ValueParser
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Recursive-descent parser for [TypeItem]s that consumes [Token]s from a [TokenStream] produced by
@@ -58,7 +57,7 @@ open class DefaultTypeItemParser(
     private val errorReporter: TypeItemParserErrorReporter = TypeItemParserErrorReporter.THROWING,
     private val unshortenAnnotations: Boolean = false,
 ) : TypeItemParser {
-    /** Parser for parameterized type-use annotations (e.g. `@IntRange(from = 5, to = 10)`). */
+    /** Parser for type-use annotations. */
     private val valueParser by
         lazy(LazyThreadSafetyMode.NONE) {
             ValueParser(
@@ -919,7 +918,9 @@ open class DefaultTypeItemParser(
         if (tokens.peekType() != SharedTokenType.AT) return emptyList()
         val list = mutableListOf<AnnotationItem>()
         while (tokens.peekType() == SharedTokenType.AT) {
-            parseAnnotation(tokens, sourceText, unshortenAnnotations)?.let { list.add(it) }
+            valueParser
+                .parseAnnotationItem(tokens, sourceText, unshorten = unshortenAnnotations)
+                ?.let { list.add(it) }
         }
         return list
     }
@@ -930,74 +931,6 @@ open class DefaultTypeItemParser(
             if (sourceText[i].isUpperCase()) return true
         }
         return false
-    }
-
-    /**
-     * Parses a single `@QualifiedName` or `@QualifiedName(...)` annotation from [tokens].
-     *
-     * Marker annotations without parentheses are constructed directly via
-     * [AnnotationItem.createWithAttributes]; annotations with attribute lists `(...)` are sliced
-     * from [sourceText] and delegated to [ValueParser.parseAnnotationItem].
-     */
-    private fun parseAnnotation(
-        tokens: TokenStream,
-        sourceText: String,
-        unshortenAnnotations: Boolean,
-    ): AnnotationItem? {
-        val atToken = tokens.consume() // consume '@'
-        var endOffset = atToken.endOffset
-
-        // Parse the simple or dot-qualified annotation name.
-        val firstIdent = tokens.consume()
-        endOffset = firstIdent.endOffset
-        val rawName =
-            if (tokens.peekType() == SharedTokenType.DOT) {
-                buildString {
-                    append(firstIdent.text(sourceText))
-                    while (tokens.peekType() == SharedTokenType.DOT) {
-                        tokens.consume() // consume '.'
-                        append('.')
-                        val nextIdent = tokens.consume()
-                        append(nextIdent.text(sourceText))
-                        endOffset = nextIdent.endOffset
-                    }
-                }
-            } else {
-                firstIdent.text(sourceText)
-            }
-
-        // If followed by `(`, consume balanced parentheses and delegate attribute parsing to
-        // ValueParser.
-        if (tokens.peekType() == SharedTokenType.PAREN_OPEN) {
-            val openParen = tokens.consume()
-            endOffset = openParen.endOffset
-            var parenDepth = 1
-            while (parenDepth > 0 && tokens.peekType() != SharedTokenType.EOF) {
-                val token = tokens.consume()
-                endOffset = token.endOffset
-                if (token.type == SharedTokenType.PAREN_OPEN) {
-                    parenDepth++
-                } else if (token.type == SharedTokenType.PAREN_CLOSE) {
-                    parenDepth--
-                }
-            }
-            val annotationSource = sourceText.substring(atToken.startOffset, endOffset)
-            return valueParser.parseAnnotationItem(
-                annotationSource,
-                unshorten = unshortenAnnotations,
-            )
-        }
-
-        // Fast path for marker annotations without attributes: construct directly without invoking
-        // ValueParser.
-        val qualifiedName =
-            if (unshortenAnnotations) AnnotationItem.unshortenAnnotation(rawName) else rawName
-        return AnnotationItem.createWithAttributes(
-            annotationContext,
-            FileLocation.UNKNOWN,
-            qualifiedName,
-            emptyList(),
-        )
     }
 
     /**

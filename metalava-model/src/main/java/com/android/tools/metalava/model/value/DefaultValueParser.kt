@@ -807,16 +807,10 @@ class DefaultValueParser(
         }
     }
 
-    /**
-     * Parses a single `@QualifiedName` or `@QualifiedName(...)` (or without `@`) annotation from
-     * [tokens] (backed by [sourceText]) to create an [AnnotationItem], if possible.
-     *
-     * On exit, [tokens] is positioned at the token immediately following the annotation.
-     */
-    fun parseAnnotationItem(
+    override fun parseAnnotationItem(
         tokens: TokenStream,
         sourceText: String,
-        unshorten: Boolean = false,
+        unshorten: Boolean,
     ): AnnotationItem? {
         // Consume optional leading '@'.
         tokens.match(SharedTokenType.AT)

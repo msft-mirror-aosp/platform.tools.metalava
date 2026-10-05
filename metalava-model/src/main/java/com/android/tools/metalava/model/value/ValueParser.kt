@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassResolver
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.type.TypeItemParser
 
 /**
@@ -49,6 +50,18 @@ interface ValueParser {
 
     /** Parse [text] to produce an [AnnotationItem], if possible. */
     fun parseAnnotationItem(text: String, unshorten: Boolean = false): AnnotationItem?
+
+    /**
+     * Parses a single `@QualifiedName` or `@QualifiedName(...)` (or without `@`) annotation from
+     * [tokens] (backed by [sourceText]) to create an [AnnotationItem], if possible.
+     *
+     * On exit, [tokens] is positioned at the token immediately following the annotation.
+     */
+    fun parseAnnotationItem(
+        tokens: TokenStream,
+        sourceText: String,
+        unshorten: Boolean = false,
+    ): AnnotationItem?
 
     /**
      * Companion object providing factory and utility functions that delegate to
