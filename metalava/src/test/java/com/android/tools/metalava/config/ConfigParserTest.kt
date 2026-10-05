@@ -22,6 +22,8 @@ import org.junit.Test
 
 /** Tests of the [ConfigParser]. */
 class ConfigParserTest : BaseConfigParserTest() {
+    override val staxSupported: Boolean = true
+
     @Test
     fun `Empty config file`() {
         roundTrip(

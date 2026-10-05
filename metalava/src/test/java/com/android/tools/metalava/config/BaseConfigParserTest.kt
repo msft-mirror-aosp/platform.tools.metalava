@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.google.common.truth.Truth.assertThat
 import org.intellij.lang.annotations.Language
+import org.junit.Assume
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
@@ -28,11 +29,14 @@ import org.junit.runners.Parameterized
 abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
     @Parameterized.Parameter(0) lateinit var configParser: ConfigParser
 
+    /** Whether this test class supports the [StaxConfigParser] yet. */
+    protected open val staxSupported: Boolean = false
+
     companion object {
         /** Provide the [ConfigParser] implementations for running tests. */
         @JvmStatic
         @Parameterized.Parameters(name = "{0}")
-        fun params(): List<ConfigParser> = listOf(JacksonConfigParser)
+        fun params(): List<ConfigParser> = listOf(JacksonConfigParser, StaxConfigParser)
     }
 
     /** Context for the tests. */
@@ -54,6 +58,10 @@ abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
         expectedFail: String = "",
         body: (TestContext.() -> Unit)? = null,
     ) {
+        if (configParser === StaxConfigParser) {
+            Assume.assumeTrue(staxSupported)
+        }
+
         val dir = temporaryFolder.newFolderWithTestLabel(testLabel = "TESTROOT")
         val expectingFailure = expectedFail != ""
         val hasBody = body != null
@@ -89,6 +97,10 @@ abstract class BaseConfigParserTest : BaseTemporaryFolderOwner() {
      * useful to test what is written to a file as that is what can be read from the file.
      */
     protected fun roundTrip(config: Config, @Language("xml") xml: String?) {
+        if (configParser === StaxConfigParser) {
+            Assume.assumeTrue(staxSupported)
+        }
+
         val configFile = temporaryFolder.newFile("round-trip-config.xml")
 
         config.writeTo(configFile)
