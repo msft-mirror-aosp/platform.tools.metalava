@@ -47,9 +47,7 @@ import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterList
-import com.android.tools.metalava.model.TypeParameterScope
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -569,7 +567,6 @@ internal class SingleSignatureFileParser(
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
 
-    private val typeParser = context.typeParser
     private val globalTypeItemFactory = context.globalTypeItemFactory
     private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
@@ -653,55 +650,6 @@ internal class SingleSignatureFileParser(
         }
 
         return fileSubstring(firstToken.startOffset, endOffset)
-    }
-
-    companion object {
-        /**
-         * Extracts the bounds string list from the [typeParameterString].
-         *
-         * Given `T extends a.B & b.C<? super T>` this will return a list of `a.B` and `b.C<? super
-         * T>`.
-         */
-        fun extractTypeParameterBoundsStringList(typeParameterString: String?): List<String> {
-            val s = typeParameterString ?: return emptyList()
-            val index = s.indexOf("extends ")
-            if (index == -1) {
-                return emptyList()
-            }
-            val list = mutableListOf<String>()
-            var angleBracketBalance = 0
-            var start = index + "extends ".length
-            val length = s.length
-            for (i in start until length) {
-                val c = s[i]
-                if (c == '&' && angleBracketBalance == 0) {
-                    addNonBlankStringToList(list, typeParameterString, start, i)
-                    start = i + 1
-                } else if (c == '<') {
-                    angleBracketBalance++
-                } else if (c == '>') {
-                    angleBracketBalance--
-                    if (angleBracketBalance == 0) {
-                        addNonBlankStringToList(list, typeParameterString, start, i + 1)
-                        start = i + 1
-                    }
-                }
-            }
-            if (start < length) {
-                addNonBlankStringToList(list, typeParameterString, start, length)
-            }
-            return list
-        }
-
-        private fun addNonBlankStringToList(
-            list: MutableList<String>,
-            s: String,
-            from: Int,
-            to: Int
-        ) {
-            val element = s.substring(from, to).trim()
-            if (element.isNotEmpty()) list.add(element)
-        }
     }
 
     /**
@@ -826,18 +774,8 @@ internal class SingleSignatureFileParser(
     ) {
         // Parse the typealias name and optional `<...>` type parameter list.
         val name = parseQualifiedName()
-        val typeParameterListString = scanTypeParameterListString()
-
         val (typeParameterList, typeItemFactory) =
-            if (typeParameterListString == null) {
-                TypeParameterListAndFactory(TypeParameterList.NONE, globalTypeItemFactory)
-            } else {
-                createTypeParameterList(
-                    globalTypeItemFactory,
-                    "typealias $name",
-                    typeParameterListString
-                )
-            }
+            parseTypeParameterList(globalTypeItemFactory, "typealias $name")
         val qualifiedClassName = pkg.qualifiedName() + "." + name
 
         // Consume `=`, scan the aliased type, and consume the terminating `;`.
@@ -1239,7 +1177,6 @@ internal class SingleSignatureFileParser(
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
         val fullName = parseQualifiedName()
-        val typeParameterListString = scanTypeParameterListString()
         val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
 
@@ -1262,16 +1199,12 @@ internal class SingleSignatureFileParser(
         // Get the [TextTypeItemFactory] for the outer class, if any.
         val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
 
-        // Create type parameter list and factory from the string and optional outer class factory.
+        // Parse the optional `<...>` type parameter list from [tokenStream].
         val (typeParameterList, typeItemFactory) =
-            if (typeParameterListString == null)
-                TypeParameterListAndFactory(TypeParameterList.NONE, outerClassTypeItemFactory)
-            else
-                createTypeParameterList(
-                    outerClassTypeItemFactory,
-                    "class $qualifiedName",
-                    typeParameterListString,
-                )
+            parseTypeParameterList(
+                outerClassTypeItemFactory,
+                "class $qualifiedName",
+            )
 
         // Decide which type parameter list and factory to actually use.
         //
@@ -2025,122 +1958,93 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Scans a balanced `<...>` type parameter list from [tokenStream] if the next token is `<`,
-     * returning the [TypeString] or `null` if not present.
-     */
-    private fun scanTypeParameterListString(): TypeString? {
-        if (peekType() != SharedTokenType.ANGLE_OPEN) {
-            return null
-        }
-        // Record the start of `<`, skip the balanced `<...>` list, and slice the substring.
-        val startOffset = peek().startOffset
-        val endOffset = skipAngleBracketList()
-        return TypeString(fileSubstring(startOffset, endOffset), startOffset)
-    }
-
-    /**
-     * Parses a type parameter list enclosed in "<>", if one exists.
+     * Parses a `<...>` type parameter list from [tokenStream] if the next token is `<`, returning
+     * the [TypeParameterListAndFactory].
      *
      * If the next token in [tokenStream] is not `<`, returns an empty type parameter list without
-     * consuming any tokens. Otherwise, consumes the balanced `<...>` tokens and returns the parsed
-     * [TypeParameterListAndFactory].
+     * consuming any tokens.
      */
     private fun parseTypeParameterList(
         enclosingTypeItemFactory: TextTypeItemFactory,
+        scopeDescription: String? = null,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        val firstToken = peek()
-        val typeParameterListString = scanTypeParameterListString()
-        return if (typeParameterListString == null) {
-            TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
-        } else {
-            // Use the file location as a part of the description of the scope as at this point
-            // there is no other information available.
-            val scopeDescription = "${fileLocation(firstToken)}"
-            createTypeParameterList(
-                enclosingTypeItemFactory,
-                scopeDescription,
-                typeParameterListString
-            )
+        if (peekType() != SharedTokenType.ANGLE_OPEN) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
         }
-    }
 
-    /**
-     * Creates a [TypeParameterList] and accompanying [TypeParameterScope].
-     *
-     * The [typeParameterListString] should be the string representation of a list of type
-     * parameters, like "<A>" or "<A, B extends java.lang.String, C>".
-     *
-     * @return a [Pair] of [TypeParameterList] and [TextTypeItemFactory] that contains those type
-     *   parameters.
-     */
-    private fun createTypeParameterList(
-        enclosingTypeItemFactory: TextTypeItemFactory,
-        scopeDescription: String,
-        typeParameterListString: TypeString
-    ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        // Split the type parameter list string into a list of strings, one for each type
-        // parameter.
-        val typeParameterStrings = typeParser.typeParameterStrings(typeParameterListString.type)
+        val openAngle = consume() // consume '<'
+        val actualScopeDescription = scopeDescription ?: "${fileLocation(openAngle)}"
+
+        if (match(SharedTokenType.ANGLE_CLOSE)) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
+        data class ParsedTypeParameter(
+            val item: SkeletonTypeParameterItem,
+            val bounds: List<TypeString>,
+        )
+
+        val parsedTypeParameters = buildList {
+            while (true) {
+                val isReified = match(SharedTokenType.REIFIED)
+                val nameToken = requireNonEofToken()
+                assertIdent(nameToken)
+                val name = text(nameToken)
+
+                val bounds =
+                    if (match(SharedTokenType.EXTENDS)) {
+                        buildList {
+                            do {
+                                add(scanForTypeString())
+                            } while (match(SharedTokenType.AMPERSAND))
+                        }
+                    } else {
+                        emptyList()
+                    }
+
+                // TODO: Type use annotations support will need to handle annotations on the
+                //  parameter.
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
+                val item =
+                    itemFactory.createTypeParameterItem(
+                        modifiers = modifiers,
+                        name = name,
+                        isReified = isReified,
+                    )
+                add(ParsedTypeParameter(item, bounds))
+
+                val delimiter = requireNonEofToken()
+                when (delimiter.type) {
+                    SharedTokenType.COMMA -> {
+                        if (match(SharedTokenType.ANGLE_CLOSE)) {
+                            break
+                        }
+                    }
+                    SharedTokenType.ANGLE_CLOSE -> break
+                    else -> {
+                        throw parseException(
+                            "expected , or >, found ${text(delimiter)}",
+                            delimiter,
+                        )
+                    }
+                }
+            }
+        }
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
         return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
-            scopeDescription,
-            typeParameterStrings,
-            // Create a `TextTypeParameterItem` from the type parameter string.
-            { createTypeParameterItem(it) },
-            // Create, set and return the [BoundsTypeItem] list.
-            { typeItemFactory, typeParameterString ->
-                val boundsStringList = extractTypeParameterBoundsStringList(typeParameterString)
-                if (boundsStringList.isEmpty()) {
+            actualScopeDescription,
+            parsedTypeParameters,
+            { it.item },
+            { typeItemFactory, parsed ->
+                if (parsed.bounds.isEmpty()) {
                     WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
                 } else {
-                    boundsStringList.map {
-                        typeItemFactory.getBoundsType(
-                            TypeString(it, typeParameterListString.offset)
-                        )
-                    }
+                    parsed.bounds.map { typeItemFactory.getBoundsType(it) }
                 }
             },
-        )
-    }
-
-    /**
-     * Create a partially initialized [SkeletonTypeParameterItem].
-     *
-     * This extracts the [TypeParameterItem.isReified] and [TypeParameterItem.name] from the
-     * [typeParameterString] and creates a [SkeletonTypeParameterItem] with those properties
-     * initialized but the [SkeletonTypeParameterItem.bounds] is not.
-     */
-    private fun createTypeParameterItem(typeParameterString: String): SkeletonTypeParameterItem {
-        val length = typeParameterString.length
-        var nameEnd = length
-
-        val isReified = typeParameterString.startsWith("reified ")
-        val nameStart =
-            if (isReified) {
-                8 // "reified ".length
-            } else {
-                0
-            }
-
-        for (i in nameStart until length) {
-            val c = typeParameterString[i]
-            if (!Character.isJavaIdentifierPart(c)) {
-                nameEnd = i
-                break
-            }
-        }
-        val name = typeParameterString.substring(nameStart, nameEnd)
-
-        // TODO: Type use annotations support will need to handle annotations on the parameter.
-        val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
-
-        return itemFactory.createTypeParameterItem(
-            modifiers = modifiers,
-            name = name,
-            isReified = isReified,
         )
     }
 

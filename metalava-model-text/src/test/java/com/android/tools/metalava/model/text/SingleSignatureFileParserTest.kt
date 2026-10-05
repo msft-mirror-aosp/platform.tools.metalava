@@ -19,34 +19,31 @@ package com.android.tools.metalava.model.text
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
-class SingleSignatureFileParserTest {
+class SingleSignatureFileParserTest : BaseTextCodebaseTest() {
 
     @Test
     fun testTypeParameterNames() {
-        assertThat(SingleSignatureFileParser.extractTypeParameterBoundsStringList(null).toString())
-            .isEqualTo("[]")
-        assertThat(SingleSignatureFileParser.extractTypeParameterBoundsStringList("").toString())
-            .isEqualTo("[]")
-        assertThat(SingleSignatureFileParser.extractTypeParameterBoundsStringList("X").toString())
-            .isEqualTo("[]")
-        assertThat(
-                SingleSignatureFileParser.extractTypeParameterBoundsStringList("DEF extends T")
-                    .toString()
-            )
-            .isEqualTo("[T]")
-        assertThat(
-                SingleSignatureFileParser.extractTypeParameterBoundsStringList(
-                        "T extends java.lang.Comparable<? super T>"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.lang.Comparable<? super T>]")
-        assertThat(
-                SingleSignatureFileParser.extractTypeParameterBoundsStringList(
-                        "T extends java.util.List<Number> & java.util.RandomAccess"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
+        runSignatureTest(
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                        public class Foo<X, DEF extends X, T extends java.lang.Comparable<? super T>, U extends java.util.List<java.lang.Number> & java.util.RandomAccess> {
+                        }
+                    }
+                """
+            ),
+        ) {
+            val typeParams = codebase.assertClass("test.pkg.Foo").typeParameterList
+            assertThat(typeParams.map { it.name() }).containsExactly("X", "DEF", "T", "U").inOrder()
+            assertThat(typeParams[0].typeBounds().map { it.toTypeString() })
+                .containsExactly("java.lang.Object")
+            assertThat(typeParams[1].typeBounds().map { it.toTypeString() }).containsExactly("X")
+            assertThat(typeParams[2].typeBounds().map { it.toTypeString() })
+                .containsExactly("java.lang.Comparable<? super T>")
+            assertThat(typeParams[3].typeBounds().map { it.toTypeString() })
+                .containsExactly("java.util.List<java.lang.Number>", "java.util.RandomAccess")
+                .inOrder()
+        }
     }
 }
