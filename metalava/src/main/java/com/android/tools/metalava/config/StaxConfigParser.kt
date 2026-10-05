@@ -86,6 +86,9 @@ internal class StaxConfigParser private constructor(private val systemId: String
             allowSchemaLocation = true
         )
 
+        var apiSurfaces: ApiSurfacesConfig? = null
+        val apiSurfaceNames = mutableSetOf<String>()
+        val apiSurfaceExtends = mutableListOf<String>()
         var apiFlags: ApiFlagsConfig? = null
         val apiFlagKeys = mutableSetOf<String>()
         var buildProperties: BuildPropertiesConfig? = null
@@ -104,6 +107,11 @@ internal class StaxConfigParser private constructor(private val systemId: String
                         continue
                     }
                     when (localName) {
+                        "api-surfaces" -> {
+                            val parsed =
+                                parseApiSurfaces(reader, apiSurfaceNames, apiSurfaceExtends)
+                            apiSurfaces = combine(apiSurfaces, parsed)
+                        }
                         "api-flags" -> {
                             val parsed = parseApiFlags(reader, apiFlagKeys)
                             apiFlags = combine(apiFlags, parsed)
@@ -126,21 +134,310 @@ internal class StaxConfigParser private constructor(private val systemId: String
                         }
                     }
                 }
-                XMLStreamConstants.END_ELEMENT ->
+                XMLStreamConstants.END_ELEMENT -> {
+                    val endLine = reader.location.lineNumber
+                    for (ext in apiSurfaceExtends) {
+                        if (ext !in apiSurfaceNames) {
+                            recordError(
+                                endLine,
+                                "cvc-identity-constraint.4.3: Key 'ApiSurfaceExtendsKeyRef' with value '$ext' not found for identity constraint of element 'config'.",
+                            )
+                        }
+                    }
                     return Config(
+                        apiSurfaces = apiSurfaces,
                         apiFlags = apiFlags,
                         buildProperties = buildProperties,
                         issues = issues,
                         annotationClasses = annotationClasses,
                     )
+                }
             }
         }
         return Config(
+            apiSurfaces = apiSurfaces,
             apiFlags = apiFlags,
             buildProperties = buildProperties,
             issues = issues,
             annotationClasses = annotationClasses,
         )
+    }
+
+    /** Parse an `<api-surfaces>` element from [reader] into an [ApiSurfacesConfig]. */
+    private fun parseApiSurfaces(
+        reader: XMLStreamReader,
+        apiSurfaceNames: MutableSet<String>,
+        apiSurfaceExtends: MutableList<String>,
+    ): ApiSurfacesConfig {
+        checkAttributes(reader, "api-surfaces", allowedAttributes = emptySet())
+        val apiSurfaceList = mutableListOf<ApiSurfaceConfig>()
+        var docOnly: ApiVariantTypeRuleConfig? = null
+        var removed: ApiVariantTypeRuleConfig? = null
+        var stage = 0 // 0: api-surface, 1: doc-only, 2: removed
+
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (reader.namespaceURI != CONFIG_NAMESPACE) {
+                        recordUnexpectedElement(reader, "api-surfaces")
+                        skipElement(reader)
+                        continue
+                    }
+                    when (reader.localName) {
+                        "api-surface" -> {
+                            if (stage > 0) {
+                                recordUnexpectedElement(reader, "api-surfaces")
+                                skipElement(reader)
+                            } else {
+                                parseApiSurface(reader, apiSurfaceNames, apiSurfaceExtends)?.let {
+                                    apiSurfaceList.add(it)
+                                }
+                            }
+                        }
+                        "doc-only" -> {
+                            if (stage > 1) {
+                                recordUnexpectedElement(reader, "api-surfaces")
+                                skipElement(reader)
+                            } else {
+                                stage = 1
+                                val parsed = parseApiVariantTypeRule(reader, "doc-only")
+                                docOnly = combine(docOnly, parsed)
+                            }
+                        }
+                        "removed" -> {
+                            stage = 2
+                            val parsed = parseApiVariantTypeRule(reader, "removed")
+                            removed = combine(removed, parsed)
+                        }
+                        else -> {
+                            recordUnexpectedElement(reader, "api-surfaces")
+                            skipElement(reader)
+                        }
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT ->
+                    return ApiSurfacesConfig(
+                        apiSurfaceList = apiSurfaceList,
+                        docOnly = docOnly,
+                        removed = removed,
+                    )
+            }
+        }
+        return ApiSurfacesConfig(
+            apiSurfaceList = apiSurfaceList,
+            docOnly = docOnly,
+            removed = removed,
+        )
+    }
+
+    /** Parse an `<api-surface>` element from [reader] into an [ApiSurfaceConfig]. */
+    private fun parseApiSurface(
+        reader: XMLStreamReader,
+        apiSurfaceNames: MutableSet<String>,
+        apiSurfaceExtends: MutableList<String>,
+    ): ApiSurfaceConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "api-surface", API_SURFACE_ATTRIBUTES)
+        val name = requiredAttribute(reader, lineNumber, "api-surface", "name")
+        val extends = reader.getAttributeValue(null, "extends")
+        val contentsStr = reader.getAttributeValue(null, "contents")
+
+        if (name != null) {
+            validatePattern(
+                lineNumber,
+                "api-surface",
+                "name",
+                name,
+                API_SURFACE_NAME_REGEX,
+                "ApiSurfaceNameType",
+            )
+            checkUniqueKey(lineNumber, apiSurfaceNames, name, "ApiSurfaceByName")
+        }
+        if (extends != null) {
+            validatePattern(
+                lineNumber,
+                "api-surface",
+                "extends",
+                extends,
+                API_SURFACE_NAME_REGEX,
+                "ApiSurfaceNameType",
+            )
+            apiSurfaceExtends.add(extends)
+        }
+        val contents =
+            if (contentsStr != null) {
+                validateEnum(
+                    lineNumber,
+                    "api-surface",
+                    "contents",
+                    contentsStr,
+                    CONTENTS_MAP,
+                    "ContentsConfig",
+                )
+            } else {
+                null
+            }
+
+        var selectionCriteria: SelectionCriteriaConfig? = null
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "selection-criteria" &&
+                            selectionCriteria == null
+                    ) {
+                        selectionCriteria = parseSelectionCriteria(reader)
+                    } else {
+                        recordUnexpectedElement(reader, "api-surface")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> {
+                    if (selectionCriteria == null) {
+                        recordIncompleteElement(
+                            reader.location.lineNumber,
+                            "api-surface",
+                            "selection-criteria",
+                        )
+                    }
+                    if (name == null || (contentsStr != null && contents == null)) return null
+                    return ApiSurfaceConfig(
+                        name = name,
+                        extends = extends,
+                        contents = contents,
+                        selectionCriteria = selectionCriteria ?: SelectionCriteriaConfig(),
+                    )
+                }
+            }
+        }
+        if (name == null || (contentsStr != null && contents == null)) return null
+        return ApiSurfaceConfig(
+            name = name,
+            extends = extends,
+            contents = contents,
+            selectionCriteria = selectionCriteria ?: SelectionCriteriaConfig(),
+        )
+    }
+
+    /** Parse a `<selection-criteria>` element from [reader] into a [SelectionCriteriaConfig]. */
+    private fun parseSelectionCriteria(reader: XMLStreamReader): SelectionCriteriaConfig {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "selection-criteria", SELECTION_CRITERIA_ATTRIBUTES)
+        val unannotatedStr = reader.getAttributeValue(null, "unannotated")
+        val unannotated =
+            if (unannotatedStr != null) {
+                validateEnum(
+                    lineNumber,
+                    "selection-criteria",
+                    "unannotated",
+                    unannotatedStr,
+                    EFFECT_MAP,
+                    "SelectionCriteriaEffectType",
+                )
+            } else {
+                null
+            }
+
+        val annotationRules = mutableListOf<AnnotationRuleConfig>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "annotation-rule"
+                    ) {
+                        parseAnnotationRule(reader)?.let { annotationRules.add(it) }
+                    } else {
+                        recordUnexpectedElement(reader, "selection-criteria")
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT ->
+                    return SelectionCriteriaConfig(
+                        unannotated = unannotated,
+                        annotationRules = annotationRules,
+                    )
+            }
+        }
+        return SelectionCriteriaConfig(
+            unannotated = unannotated,
+            annotationRules = annotationRules,
+        )
+    }
+
+    /** Parse an `<annotation-rule>` element from [reader] into an [AnnotationRuleConfig]. */
+    private fun parseAnnotationRule(reader: XMLStreamReader): AnnotationRuleConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "annotation-rule", ANNOTATION_RULE_ATTRIBUTES)
+        val pattern = requiredAttribute(reader, lineNumber, "annotation-rule", "pattern")
+        val effectStr = reader.getAttributeValue(null, "effect")
+        val recursive =
+            optionalBooleanAttribute(reader, lineNumber, "annotation-rule", "recursive", true)
+        expectEmptyElement(reader, "annotation-rule")
+
+        if (pattern == null || recursive == null) return null
+        val effect =
+            if (effectStr != null) {
+                validateEnum(
+                    lineNumber,
+                    "annotation-rule",
+                    "effect",
+                    effectStr,
+                    EFFECT_MAP,
+                    "SelectionCriteriaEffectType",
+                ) ?: return null
+            } else {
+                EffectConfig.SHOW
+            }
+        return AnnotationRuleConfig(
+            pattern = pattern,
+            effect = effect,
+            recursive = recursive,
+        )
+    }
+
+    /**
+     * Parse an API variant type rule element (`<doc-only>` or `<removed>`) named [elementName] from
+     * [reader] into an [ApiVariantTypeRuleConfig].
+     */
+    private fun parseApiVariantTypeRule(
+        reader: XMLStreamReader,
+        elementName: String,
+    ): ApiVariantTypeRuleConfig {
+        checkAttributes(reader, elementName, allowedAttributes = emptySet())
+        val annotationRules = mutableListOf<AnnotationPatternRuleConfig>()
+        while (reader.hasNext()) {
+            when (reader.next()) {
+                XMLStreamConstants.START_ELEMENT -> {
+                    if (
+                        reader.namespaceURI == CONFIG_NAMESPACE &&
+                            reader.localName == "annotation-rule"
+                    ) {
+                        parseAnnotationPatternRule(reader)?.let { annotationRules.add(it) }
+                    } else {
+                        recordUnexpectedElement(reader, elementName)
+                        skipElement(reader)
+                    }
+                }
+                XMLStreamConstants.END_ELEMENT -> return ApiVariantTypeRuleConfig(annotationRules)
+            }
+        }
+        return ApiVariantTypeRuleConfig(annotationRules)
+    }
+
+    /**
+     * Parse an `<annotation-rule>` pattern element inside `<doc-only>` or `<removed>` from [reader]
+     * into an [AnnotationPatternRuleConfig].
+     */
+    private fun parseAnnotationPatternRule(reader: XMLStreamReader): AnnotationPatternRuleConfig? {
+        val lineNumber = reader.location.lineNumber
+        checkAttributes(reader, "annotation-rule", ANNOTATION_PATTERN_RULE_ATTRIBUTES)
+        val pattern = requiredAttribute(reader, lineNumber, "annotation-rule", "pattern")
+        expectEmptyElement(reader, "annotation-rule")
+
+        if (pattern == null) return null
+        return AnnotationPatternRuleConfig(pattern = pattern)
     }
 
     /** Parse an `<api-flags>` element from [reader] into an [ApiFlagsConfig]. */
@@ -603,6 +900,13 @@ internal class StaxConfigParser private constructor(private val systemId: String
         if (prefix.isNullOrEmpty()) localName else "$prefix:$localName"
 
     companion object : ConfigParser {
+        private val API_SURFACE_ATTRIBUTES = setOf("name", "extends", "contents")
+        private val API_SURFACE_NAME_REGEX = Regex("[a-z-]+")
+        private val CONTENTS_MAP = ContentsConfig.entries.associateBy { it.configFileValue }
+        private val SELECTION_CRITERIA_ATTRIBUTES = setOf("unannotated")
+        private val ANNOTATION_RULE_ATTRIBUTES = setOf("pattern", "effect", "recursive")
+        private val ANNOTATION_PATTERN_RULE_ATTRIBUTES = setOf("pattern")
+        private val EFFECT_MAP = EffectConfig.entries.associateBy { it.configFileValue }
         private val UNKNOWN_FLAGS_ATTRIBUTES = setOf("mutability", "status")
         private val API_FLAG_ATTRIBUTES =
             setOf("package", "name", "mutability", "status", "is-exported")
