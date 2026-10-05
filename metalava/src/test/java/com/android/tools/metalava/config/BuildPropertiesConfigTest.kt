@@ -20,8 +20,6 @@ import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 class BuildPropertiesConfigTest : BaseConfigParserTest() {
-    override val staxSupported: Boolean = true
-
     @Test
     fun `Empty build-properties config should error`() {
         runTest(

@@ -22,8 +22,6 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ApiSurfacesConfigTest : BaseConfigParserTest() {
-    override val staxSupported: Boolean = true
-
     @Test
     fun `Empty api-surfaces config`() {
         roundTrip(
