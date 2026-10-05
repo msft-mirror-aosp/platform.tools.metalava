@@ -102,4 +102,44 @@ class ConfigParserTest : BaseConfigParserTest() {
             assertThat(config).isEqualTo(Config())
         }
     }
+
+    @Test
+    fun `Unexpected character content in element-only element`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      foo
+                    </config>
+                """,
+            ),
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:2: cvc-complex-type.2.3: Element 'config' cannot have character [children], because the type's content type is element-only.
+                """,
+        )
+    }
+
+    @Test
+    fun `Unexpected character content in empty element`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config">
+                      <issues>
+                        <issue name="Issue1" severity="error">bar</issue>
+                      </issues>
+                    </config>
+                """,
+            ),
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:3: cvc-complex-type.2.1: Element 'issue' must have no character or element information item [children], because the type's content type is empty.
+                """,
+        )
+    }
 }

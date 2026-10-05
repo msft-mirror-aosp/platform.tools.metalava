@@ -98,7 +98,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         val annotationClassNames = mutableSetOf<String>()
 
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "config")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     val localName = reader.localName
                     if (reader.namespaceURI != CONFIG_NAMESPACE) {
@@ -176,7 +176,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         var stage = 0 // 0: api-surface, 1: doc-only, 2: removed
 
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "api-surfaces")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (reader.namespaceURI != CONFIG_NAMESPACE) {
                         recordUnexpectedElement(reader, "api-surfaces")
@@ -280,7 +280,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
 
         var selectionCriteria: SelectionCriteriaConfig? = null
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "api-surface")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (
                         reader.namespaceURI == CONFIG_NAMESPACE &&
@@ -341,7 +341,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
 
         val annotationRules = mutableListOf<AnnotationRuleConfig>()
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "selection-criteria")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (
                         reader.namespaceURI == CONFIG_NAMESPACE &&
@@ -408,7 +408,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         checkAttributes(reader, elementName, allowedAttributes = emptySet())
         val annotationRules = mutableListOf<AnnotationPatternRuleConfig>()
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, elementName)) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (
                         reader.namespaceURI == CONFIG_NAMESPACE &&
@@ -450,7 +450,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         val flags = mutableListOf<ApiFlagConfig>()
         var seenApiFlag = false
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "api-flags")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (reader.namespaceURI != CONFIG_NAMESPACE) {
                         recordUnexpectedElement(reader, "api-flags")
@@ -568,7 +568,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         checkAttributes(reader, "build-properties", allowedAttributes = emptySet())
         val properties = mutableListOf<BuildPropertyConfig>()
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "build-properties")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (
                         reader.namespaceURI == CONFIG_NAMESPACE &&
@@ -624,7 +624,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         checkAttributes(reader, "issues", allowedAttributes = emptySet())
         val issues = mutableListOf<IssueConfig>()
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "issues")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (reader.namespaceURI == CONFIG_NAMESPACE && reader.localName == "issue") {
                         parseIssue(reader)?.let { issues.add(it) }
@@ -669,7 +669,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
         checkAttributes(reader, "annotation-classes", allowedAttributes = emptySet())
         val annotationClasses = mutableListOf<AnnotationClassConfig>()
         while (reader.hasNext()) {
-            when (reader.next()) {
+            when (nextElementEvent(reader, "annotation-classes")) {
                 XMLStreamConstants.START_ELEMENT -> {
                     if (
                         reader.namespaceURI == CONFIG_NAMESPACE &&
@@ -834,13 +834,46 @@ internal class StaxConfigParser private constructor(private val systemId: String
         )
     }
 
-    /** Consume an element that must not have any child elements. */
+    /**
+     * Advance [reader] to the next [XMLStreamConstants.START_ELEMENT] or
+     * [XMLStreamConstants.END_ELEMENT] inside [elementName], recording an error if any
+     * non-whitespace character content is encountered.
+     */
+    private fun nextElementEvent(reader: XMLStreamReader, elementName: String): Int {
+        while (reader.hasNext()) {
+            when (val event = reader.next()) {
+                XMLStreamConstants.START_ELEMENT,
+                XMLStreamConstants.END_ELEMENT -> return event
+                XMLStreamConstants.CHARACTERS,
+                XMLStreamConstants.CDATA -> {
+                    if (!reader.isWhiteSpace && reader.text.isNotBlank()) {
+                        recordError(
+                            reader.location.lineNumber,
+                            "cvc-complex-type.2.3: Element '$elementName' cannot have character [children], because the type's content type is element-only.",
+                        )
+                    }
+                }
+            }
+        }
+        return XMLStreamConstants.END_DOCUMENT
+    }
+
+    /** Consume an element that must not have any child elements or character content. */
     private fun expectEmptyElement(reader: XMLStreamReader, elementName: String) {
         while (reader.hasNext()) {
             when (reader.next()) {
                 XMLStreamConstants.START_ELEMENT -> {
                     recordUnexpectedElement(reader, elementName)
                     skipElement(reader)
+                }
+                XMLStreamConstants.CHARACTERS,
+                XMLStreamConstants.CDATA -> {
+                    if (!reader.isWhiteSpace && reader.text.isNotBlank()) {
+                        recordError(
+                            reader.location.lineNumber,
+                            "cvc-complex-type.2.1: Element '$elementName' must have no character or element information item [children], because the type's content type is empty.",
+                        )
+                    }
                 }
                 XMLStreamConstants.END_ELEMENT -> return
             }
