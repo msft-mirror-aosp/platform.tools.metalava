@@ -620,9 +620,7 @@ open class DefaultTypeItemParser(
         // Check for unexpected trailing tokens immediately following a `<...>` type argument list
         // (e.g. `Comparable<test.pkg.Foo>blah2`).
         if (
-            lastSegmentHadTypeArgs &&
-                (expectEndOfStream || tokens.peek().startOffset == baseEndOffset) &&
-                !isValidAfterBaseType(tokens.peekType(), expectEndOfStream)
+            lastSegmentHadTypeArgs && expectEndOfStream && !isValidAfterBaseType(tokens.peekType())
         ) {
             val remainderStart = baseEndOffset
             val lastUnexpected = consumeUntilTypeBoundary(tokens)
@@ -1008,13 +1006,8 @@ open class DefaultTypeItemParser(
             type == SharedTokenType.ELLIPSIS
     }
 
-    /**
-     * Returns `true` if [type] can validly follow a parameterized class type.
-     *
-     * When [expectEndOfStream] is `false` (i.e. [obtainTypeFromStream]), non-identifier delimiter
-     * tokens (such as `)` at the end of a parameter list) are also permitted immediately after `>`.
-     */
-    private fun isValidAfterBaseType(type: TokenType, expectEndOfStream: Boolean): Boolean =
+    /** Returns `true` if [type] can validly follow a parameterized class type. */
+    private fun isValidAfterBaseType(type: TokenType): Boolean =
         type == SharedTokenType.EOF ||
             type == SharedTokenType.QUESTION ||
             type == SharedTokenType.EXCLAMATION ||
@@ -1022,8 +1015,7 @@ open class DefaultTypeItemParser(
             type == SharedTokenType.BRACKET_OPEN ||
             type == SharedTokenType.ELLIPSIS ||
             type == SharedTokenType.COMMA ||
-            type == SharedTokenType.ANGLE_CLOSE ||
-            (!expectEndOfStream && !type.canBeIdentifier)
+            type == SharedTokenType.ANGLE_CLOSE
 
     /**
      * Consumes and discards tokens from [tokens] up to the end of the current type (stopping before

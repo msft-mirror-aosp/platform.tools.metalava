@@ -23,6 +23,9 @@ import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterScope
+import com.android.tools.metalava.model.WildcardTypeItem
+import com.android.tools.metalava.model.parser.SharedLexer
+import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.testing.arrayTypeItem
 import com.android.tools.metalava.model.testing.classTypeItem
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
@@ -35,6 +38,7 @@ import com.android.tools.metalava.testing.EntryPoint
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.EntryPointCallerTracker
 import kotlin.test.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -486,5 +490,42 @@ class ParameterizedTypeItemParserTest {
             )
         assertEquals(testCase.expectedType, actual)
         assertEquals(testCase.expectedIssues, errorReporter.toString())
+    }
+
+    @Test
+    fun `Test obtainTypeFromStream with trailing identifier`() {
+        assumeTrue(
+            testCase.expectedType !is WildcardTypeItem &&
+                (testCase.expectedIssues.isEmpty() || testCase.typeString.endsWith("blah2"))
+        )
+        val errorReporter = CollatingErrorReporter()
+        val typeParser =
+            parserProvider.createParser(
+                unqualifiedClassHandler = testCase.unqualifiedClassHandler,
+                kotlinStyleNulls = testCase.kotlinStyleNulls,
+                errorReporter = errorReporter,
+            ) as DefaultTypeItemParser
+        val (sourceText, expectedTrailingIdentifier) =
+            if (testCase.typeString.endsWith("blah2")) {
+                testCase.typeString to "blah2"
+            } else {
+                val separator =
+                    if (testCase.typeString.endsWith(">") || testCase.typeString.endsWith("]")) ""
+                    else " "
+                "${testCase.typeString}${separator}paramName" to "paramName"
+            }
+        val tokens = SharedLexer(sourceText).tokenize()
+        val actual =
+            typeParser.obtainTypeFromStream(
+                tokens = tokens,
+                sourceText = sourceText,
+                typeParameterScope = testCase.typeParameterScope,
+                contextNullability = testCase.contextNullability,
+            )
+        assertEquals(testCase.expectedType, actual)
+        assertEquals("", errorReporter.toString())
+        val trailingToken = tokens.consume()
+        assertEquals(SharedTokenType.IDENTIFIER, trailingToken.type)
+        assertEquals(expectedTrailingIdentifier, trailingToken.text)
     }
 }
