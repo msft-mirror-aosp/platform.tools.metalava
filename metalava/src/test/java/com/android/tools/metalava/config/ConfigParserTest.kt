@@ -142,4 +142,22 @@ class ConfigParserTest : BaseConfigParserTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Trailing content after closing config tag`() {
+        runTest(
+            xml(
+                "config.xml",
+                """
+                    <config xmlns="http://www.google.com/tools/metalava/config"/>
+                    <extra/>
+                """,
+            ),
+            expectedFail =
+                """
+                    Errors found while parsing configuration file(s):
+                        file:TESTROOT/config.xml:2: The markup in the document following the root element must be well-formed.
+                """,
+        )
+    }
 }

@@ -59,11 +59,12 @@ internal class StaxConfigParser private constructor(private val systemId: String
 
     /** Parse a single XML configuration stream from [reader] into a [Config] object. */
     private fun parseFile(reader: XMLStreamReader): Config {
+        var config: Config? = null
         while (reader.hasNext()) {
             val event = reader.next()
             if (event == XMLStreamConstants.START_ELEMENT) {
                 if (reader.namespaceURI == CONFIG_NAMESPACE && reader.localName == "config") {
-                    return parseConfig(reader)
+                    config = parseConfig(reader)
                 } else {
                     val qName = formatQName(reader.prefix, reader.localName)
                     recordError(
@@ -74,7 +75,7 @@ internal class StaxConfigParser private constructor(private val systemId: String
                 }
             }
         }
-        return Config()
+        return config ?: Config()
     }
 
     /** Parse the root `<config>` element from [reader] into a [Config] object. */
