@@ -17,7 +17,6 @@
 package com.android.tools.metalava.model.source
 
 import androidx.tracing.Tracer
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.reporter.Reporter
 import java.io.Closeable
@@ -56,33 +55,6 @@ interface EnvironmentManager : Closeable {
         reporter: Reporter,
         tracer: Tracer,
     ): Environment
-
-    /**
-     * Create a [SourceParser] that can be used to create [Codebase] related objects.
-     *
-     * @param codebaseConfig the [Codebase.Config] to pass through to the created [Codebase]s.
-     * @param javaLanguageLevel the java language level as a string, e.g. 1.8, 17, etc.
-     * @param kotlinLanguageLevel the kotlin language level as a string, e.g. 1.8, etc.
-     * @param modelOptions a set of model specific options provided by the caller.
-     * @param jdkHome the optional path to the jdk home directory.
-     */
-    fun createSourceParser(
-        codebaseConfig: Codebase.Config,
-        tracer: Tracer,
-        javaLanguageLevel: String = DEFAULT_JAVA_LANGUAGE_LEVEL,
-        kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
-        modelOptions: ModelOptions = ModelOptions.empty,
-        jdkHome: File? = null,
-    ): SourceParser =
-        createEnvironment(
-                javaLanguageLevel = javaLanguageLevel,
-                kotlinLanguageLevel = kotlinLanguageLevel,
-                modelOptions = modelOptions,
-                jdkHome = jdkHome,
-                reporter = codebaseConfig.reporter,
-                tracer = tracer,
-            )
-            .createSourceParser(codebaseConfig)
 }
 
 const val DEFAULT_JAVA_LANGUAGE_LEVEL = "1.8"
