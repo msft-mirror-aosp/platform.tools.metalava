@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.parser
 
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import org.junit.Test
 
@@ -296,12 +295,12 @@ class SharedLexerTest {
     }
 
     @Test
-    fun `Test EOF token is cached on subsequent nextToken calls`() {
+    fun `Test EOF token is returned on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)
         val eof1 = lexer.nextToken()
         val eof2 = lexer.nextToken()
         assertEquals(SharedTokenType.EOF, eof1.type)
-        assertSame(eof1, eof2)
+        assertEquals(eof1, eof2)
     }
 }

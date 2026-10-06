@@ -27,23 +27,60 @@ class TokenType(
     val name: String,
     val canBeIdentifier: Boolean = false,
 ) {
+    /** Unique 8-bit identifier (0..254) assigned on creation for packing into [Token]. */
+    internal val id: Int = register(this)
+
     override fun toString(): String = name
+
+    companion object {
+        private const val MAX_TOKEN_TYPES = 255
+        private val registry = arrayOfNulls<TokenType>(MAX_TOKEN_TYPES)
+        private var nextId = 0
+
+        @Synchronized
+        private fun register(type: TokenType): Int {
+            val id = nextId++
+            check(id < MAX_TOKEN_TYPES) {
+                "Exceeded maximum number of TokenTypes ($MAX_TOKEN_TYPES)"
+            }
+            registry[id] = type
+            return id
+        }
+
+        internal fun byId(id: Int): TokenType = registry[id]!!
+    }
 }
 
 /**
- * A lexical token produced by a lexer.
- *
- * @property type the [TokenType] representing the kind of token.
- * @property startOffset 0-based start index of this token relative to the start of the parsed text
- *   range.
- * @property endOffset 0-based exclusive end index of this token relative to the start of the parsed
- *   text range.
+ * A lexical token produced by a lexer, represented as a packed 64-bit value:
+ * - Bits 56..63 (8 bits): [TokenType.id]
+ * - Bits 32..55 (24 bits): token length (`endOffset - startOffset`)
+ * - Bits 0..31 (32 bits): [startOffset]
  */
-data class Token(
-    val type: TokenType,
-    val startOffset: Int,
-    val endOffset: Int,
-) {
+@JvmInline
+value class Token private constructor(private val packed: Long) {
+    constructor(
+        type: TokenType,
+        startOffset: Int,
+        endOffset: Int,
+    ) : this(
+        (type.id.toLong() shl 56) or
+            (((endOffset - startOffset).toLong() and 0xFFFFFFL) shl 32) or
+            (startOffset.toLong() and 0xFFFFFFFFL)
+    )
+
+    /** The [TokenType] representing the kind of token. */
+    val type: TokenType
+        get() = TokenType.byId((packed ushr 56).toInt())
+
+    /** 0-based start index of this token relative to the start of the parsed text range. */
+    val startOffset: Int
+        get() = packed.toInt()
+
+    /** 0-based exclusive end index of this token relative to the start of the parsed text range. */
+    val endOffset: Int
+        get() = packed.toInt() + ((packed ushr 32).toInt() and 0xFFFFFF)
+
     /** Returns the raw string content of this token sliced from [sourceText]. */
     fun text(sourceText: String): String = sourceText.substring(startOffset, endOffset)
 
@@ -69,6 +106,6 @@ data class Token(
         /**
          * Sentinel value representing the absence of a token, avoiding nullable `Token?` boxing.
          */
-        val NONE = Token(TokenType("NONE"), -1, -1)
+        val NONE = Token(-1L)
     }
 }

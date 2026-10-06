@@ -82,22 +82,15 @@ open class SharedLexer(
         startInclusive,
         endExclusive,
     ) {
-    /** Cached [SharedTokenType.EOF] token returned once the end of input is reached. */
-    private var eofToken: Token? = null
-
     override fun nextToken(): Token {
         skipWhitespaceAndComments()
 
         if (index >= endExclusive) {
-            eofToken?.let {
-                return it
-            }
             return createToken(
-                    SharedTokenType.EOF,
-                    endExclusive,
-                    endExclusive,
-                )
-                .also { eofToken = it }
+                SharedTokenType.EOF,
+                endExclusive,
+                endExclusive,
+            )
         }
 
         val additional = tryMatchAdditionalToken()
