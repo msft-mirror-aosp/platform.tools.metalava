@@ -36,7 +36,7 @@ class DocRefLexerTest {
                 add(token)
             } while (token.type != SharedTokenType.EOF)
         }
-        val actual = tokens.joinToString("\n") { it.format(includePosition) }
+        val actual = tokens.joinToString("\n") { it.format(text, includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
     }
 

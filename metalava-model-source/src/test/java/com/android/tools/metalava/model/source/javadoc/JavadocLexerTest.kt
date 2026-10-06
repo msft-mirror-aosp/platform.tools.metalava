@@ -54,7 +54,7 @@ class JavadocLexerTest : BaseDocCommentTest() {
                 add(token)
             } while (token.type != JavadocTokenType.EOF)
         }
-        val actual = tokens.joinToString("\n") { it.format(includePosition) }
+        val actual = tokens.joinToString("\n") { it.format(text, includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
         assertJavadocParserIssues(expectedIssues)
     }

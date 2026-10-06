@@ -45,7 +45,9 @@ class SignatureFileLexerTest {
      */
     private fun assertTokenTypes(text: String, vararg expected: Pair<TokenType, String>) {
         val tokens = tokenize(text).dropLast(1) // Drop EOF
-        assertThat(tokens.map { it.type to it.text }).containsExactlyElementsIn(expected).inOrder()
+        assertThat(tokens.map { it.type to it.text(text) })
+            .containsExactlyElementsIn(expected)
+            .inOrder()
     }
 
     @Test

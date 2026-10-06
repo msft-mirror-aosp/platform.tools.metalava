@@ -46,13 +46,17 @@ data class Token(
     val startOffset: Int,
     val endOffset: Int,
 ) {
+    /** Returns the raw string content of this token sliced from [sourceText]. */
+    fun text(sourceText: String): String = sourceText.substring(startOffset, endOffset)
+
     /**
-     * Formats this token as a human-readable string, escaping `\r`, `\n`, and `\t` in [text], and
-     * optionally appending the token's character offset range `([startOffset]..[endOffset])` when
-     * [includePosition] is `true`.
+     * Formats this token as a human-readable string, escaping `\r`, `\n`, and `\t` in the token
+     * text sliced from [sourceText], and optionally appending the token's character offset range
+     * `([startOffset]..[endOffset])` when [includePosition] is `true`.
      */
-    fun format(includePosition: Boolean = true): String {
-        val escaped = text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
+    fun format(sourceText: String, includePosition: Boolean = true): String {
+        val escaped =
+            text(sourceText).replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
         return if (includePosition) {
             "$type '$escaped' ($startOffset..$endOffset)"
         } else {
@@ -60,5 +64,5 @@ data class Token(
         }
     }
 
-    override fun toString(): String = format()
+    override fun toString(): String = "$type ($startOffset..$endOffset)"
 }

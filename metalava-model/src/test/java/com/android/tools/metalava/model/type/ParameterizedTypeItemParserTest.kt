@@ -526,6 +526,6 @@ class ParameterizedTypeItemParserTest {
         assertEquals("", errorReporter.toString())
         val trailingToken = tokens.consume()
         assertEquals(SharedTokenType.IDENTIFIER, trailingToken.type)
-        assertEquals(expectedTrailingIdentifier, trailingToken.text)
+        assertEquals(expectedTrailingIdentifier, trailingToken.text(sourceText))
     }
 }
