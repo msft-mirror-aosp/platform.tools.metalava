@@ -17,10 +17,13 @@
 package com.android.tools.metalava.model.psi
 
 import androidx.tracing.Tracer
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.AbstractEnvironment
 import com.android.tools.metalava.model.source.Environment
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
+import com.intellij.pom.java.LanguageLevel
 import java.io.File
 
 /** PSI implementation of [Environment]. */
@@ -45,4 +48,25 @@ internal class PsiEnvironment(
         jdkHome = jdkHome,
         reporter = reporter,
         tracer = tracer,
-    )
+    ) {
+    override fun createSourceParser(codebaseConfig: Codebase.Config): SourceParser =
+        PsiSourceParser(
+            psiEnvironment = this,
+            codebaseConfig = codebaseConfig,
+            tracer = tracer,
+            javaLanguageLevel = javaLanguageLevelFromString(javaLanguageLevel),
+            kotlinLanguageLevel = kotlinLanguageVersionSettings(kotlinLanguageLevel),
+            jdkHome = jdkHome,
+        )
+}
+
+private fun javaLanguageLevelFromString(value: String): LanguageLevel {
+    val level = LanguageLevel.parse(value)
+    when {
+        level == null ->
+            throw IllegalStateException("$value is not a valid or supported Java language level")
+        level.isLessThan(LanguageLevel.JDK_1_7) ->
+            throw IllegalStateException("$value must be at least 1.7")
+        else -> return level
+    }
+}
