@@ -53,15 +53,22 @@ abstract class AbstractSourceParser(
         description: String,
         includeKotlinInCodebase: Boolean,
     ): DefaultCodebase {
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet = SourceSet.empty(),
-                description = description,
+        val jarEnvironment =
+            environment.environmentManager.createEnvironment(
                 classPath = jars,
-                includeKotlinInCodebase = includeKotlinInCodebase,
+                javaLanguageLevel = environment.javaLanguageLevel,
+                kotlinLanguageLevel = environment.kotlinLanguageLevel,
+                jdkHome = environment.jdkHome,
+                reporter = reporter,
+                tracer = tracer,
             )
-
-        val codebase = parseSources(inputs) ?: error("Could not create codebase from $jars")
+        val codebase =
+            jarEnvironment
+                .createSourceParser(codebaseConfig)
+                .parseSources(
+                    description = description,
+                    includeKotlinInCodebase = includeKotlinInCodebase,
+                ) ?: error("Could not create codebase from $jars")
 
         return codebase as DefaultCodebase
     }
