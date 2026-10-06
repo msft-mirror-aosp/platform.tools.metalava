@@ -20,6 +20,7 @@ import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
 import com.android.tools.metalava.JVM_DEFAULT_WITH_COMPATIBILITY
 import com.android.tools.metalava.cli.common.cliError
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
@@ -31,6 +32,8 @@ import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JAVA_LANG_ERROR
+import com.android.tools.metalava.model.JAVA_LANG_RUNTIME_EXCEPTION
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -48,10 +51,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.api.surface.ApiSurface
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.findAnnotation
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.visitors.ApiPredicate
 import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.IssueConfiguration
@@ -64,8 +68,19 @@ import com.android.tools.metalava.reporter.Severity
  * Compares the current API with a previous version and makes sure the changes are compatible. For
  * example, you can make a previously nullable parameter non null, but not vice versa.
  */
-class CompatibilityCheck(
-    private val filterReference: FilterPredicate,
+class CompatibilityCheck
+private constructor(
+    /**
+     * Filter that matches items in the specific API surface being checked (e.g. the delta surface
+     * excluding base surfaces).
+     */
+    private val surfaceFilter: FilterPredicate,
+
+    /**
+     * Filter that matches the reference API (e.g. the full surface hierarchy including base
+     * surfaces).
+     */
+    private val referenceFilter: FilterPredicate,
     private val reporter: Reporter,
     private val issueConfiguration: IssueConfiguration,
     private val apiCompatAnnotations: Set<String>,
@@ -349,12 +364,7 @@ class CompatibilityCheck(
             is MethodItem ->
                 newContainingClass
                     ?.filteredMethods(
-                        { candidate ->
-                            isCompatibleKotlinOverload(
-                                original = original,
-                                candidate = candidate as CallableItem,
-                            )
-                        },
+                        CompatibleKotlinOverloadPredicate(original),
                         includeSuperClassMethods = true
                     )
                     ?.firstOrNull()
@@ -364,6 +374,20 @@ class CompatibilityCheck(
                 }
             else -> error("Unknown callable $original")
         }
+    }
+
+    /**
+     * [FilterPredicate] that matches callable items that are compatible Kotlin overloads for
+     * [original].
+     */
+    private inner class CompatibleKotlinOverloadPredicate(
+        private val original: CallableItem,
+    ) : FilterPredicate() {
+        override fun test(t: SelectableItem): Boolean =
+            isCompatibleKotlinOverload(
+                original = original,
+                candidate = t as CallableItem,
+            )
     }
 
     /**
@@ -636,7 +660,7 @@ class CompatibilityCheck(
         }
 
         val newCodebase = new.codebase
-        for (iface in new.filteredInterfaceTypes(filterReference)) {
+        for (iface in new.filteredInterfaceTypes(referenceFilter)) {
             val qualifiedName = iface.resolveClass(newCodebase)?.qualifiedName() ?: continue
             if (!old.implements(qualifiedName)) {
                 report(
@@ -1040,21 +1064,30 @@ class CompatibilityCheck(
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
-            val throwableClass = throwType.asErasedClass(old.codebase) ?: continue
-            if (!new.throws(throwableClass.qualifiedName())) {
+            val oldThrowableClass = throwType.asErasedClass(old.codebase) ?: continue
+            if (!new.throws(oldThrowableClass.qualifiedName())) {
                 // exclude 'throws' changes to finalize() overrides with no arguments
                 if (old.name() != "finalize" || old.parameters().isNotEmpty()) {
-                    report(
-                        Issues.CHANGED_THROWS,
-                        new,
-                        "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
-                        oldItem = old,
-                    )
+                    // Check whether the exception is unchecked in the new codebase, because if a
+                    // previously checked exception became unchecked, callers no longer need to
+                    // catch or declare it, so removing it from the throws list is not breaking.
+                    val newThrowableClass = throwType.asErasedClass(new.codebase)
+
+                    // Removing an unchecked exception from a throws list is not a breaking change
+                    // because callers are not required to catch or declare unchecked exceptions.
+                    if (newThrowableClass == null || !newThrowableClass.isUncheckedException()) {
+                        report(
+                            Issues.CHANGED_THROWS,
+                            new,
+                            "${new.describeCallableItem(capitalize = true)} no longer throws exception ${throwType.description()}",
+                            oldItem = old,
+                        )
+                    }
                 }
             }
         }
 
-        for (throwType in new.filteredThrowsTypes(filterReference)) {
+        for (throwType in new.filteredThrowsTypes(referenceFilter)) {
             // Get the throwable class, if none could be found then it is either because there is an
             // error in the codebase or the codebase is incomplete, either way reporting an error
             // would be unhelpful.
@@ -1069,6 +1102,12 @@ class CompatibilityCheck(
             }
         }
     }
+
+    /**
+     * Returns true if this class is an unchecked exception (subclass of RuntimeException or Error).
+     */
+    private fun ClassItem.isUncheckedException() =
+        extends(JAVA_LANG_RUNTIME_EXCEPTION) || extends(JAVA_LANG_ERROR)
 
     /** Describe the value for use in [compareMethodItems]. */
     private fun Value?.description() = this?.toValueString() ?: "nothing"
@@ -1118,7 +1157,8 @@ class CompatibilityCheck(
         }
 
         // Check for changes in abstract, but only for regular classes; older signature files
-        // sometimes describe interface methods as abstract
+        // sometimes describe interface methods as abstract, and interface method dispatch is
+        // dynamic (invokeinterface) rather than invoking super on an abstract class method.
         if (new.containingClass().isClass()) {
             if (!oldModifiers.isAbstract() && newModifiers.isAbstract()) {
                 report(
@@ -1127,6 +1167,19 @@ class CompatibilityCheck(
                     "${new.describeCallableItem(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the method was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden methods were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describeCallableItem(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         }
 
@@ -1355,6 +1408,19 @@ class CompatibilityCheck(
                     "${new.describe(capitalize = true)} has changed 'abstract' qualifier",
                     oldItem = old,
                 )
+            } else if (oldModifiers.isAbstract() && !newModifiers.isAbstract()) {
+                // Changing from abstract to concrete is only an issue if the property was directly
+                // declared on this class in the old API. If old was inherited from an ancestor
+                // (e.g. in older signature files where overridden properties were omitted), new is
+                // just an explicit override in the subclass.
+                if (!old.inheritedFromAncestor) {
+                    report(
+                        Issues.CHANGED_ABSTRACT_TO_CONCRETE,
+                        new,
+                        "${new.describe(capitalize = true)} has changed from abstract to concrete",
+                        oldItem = old,
+                    )
+                }
             }
         } else {
             if (oldModifiers.isDefault() && newModifiers.isAbstract()) {
@@ -1390,14 +1456,7 @@ class CompatibilityCheck(
     }
 
     private fun handleAdded(issue: Issue, item: SelectableItem) {
-        if (item.originallyHidden) {
-            // This is an element which is hidden but is referenced from
-            // some public API. This is an error, but some existing code
-            // is doing this. This is not an API addition.
-            return
-        }
-
-        if (!filterReference.test(item)) {
+        if (!surfaceFilter.test(item)) {
             // This item is something we weren't asked to verify
             return
         }
@@ -1416,10 +1475,8 @@ class CompatibilityCheck(
     }
 
     private fun handleRemoved(issue: Issue, item: SelectableItem) {
-        if (!item.emit) {
-            // It's a stub; this can happen when analyzing partial APIs
-            // such as a signature file for a library referencing types
-            // from the upstream library dependencies.
+        if (!surfaceFilter.test(item)) {
+            // This item is something we weren't asked to verify
             return
         }
 
@@ -1847,40 +1904,54 @@ class CompatibilityCheck(
         fun checkCompatibility(
             newCodebase: Codebase,
             oldCodebase: Codebase,
-            apiType: ApiType,
+            checkType: CheckType,
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
             apiName: String?,
-            apiPredicateConfig: ApiPredicate.Config,
-            showUnannotated: Boolean,
+            apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiPredicateConfig)
-
+            val surfaceFilter = getSurfaceFilter(checkType.apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(checkType.apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    filter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
-                    apiName,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
+                    apiName = apiName,
                 )
 
+            // When checking compatibility against a base public API that does not extend
+            // another surface, oldCodebase is expected to be complete and self-contained.
+            //
+            // However, for non-public APIs or surfaces that extend another surface (e.g. system
+            // or test APIs), oldCodebase may be a partial/delta signature file that only contains
+            // APIs specific to that surface and lacks declarations from the underlying base API.
+            // In that case, newCodebase is merged in as a fallback to fill any gaps (such as
+            // inherited methods or superclasses) to avoid spurious compatibility errors.
+            // Because oldCodebase is listed first, its definitions take precedence ("master")
+            // and are not modified by newCodebase.
             val oldFullCodebase =
-                if (showUnannotated && apiType == ApiType.PUBLIC_API) {
+                if (apiSurface.extends == null && checkType == CheckType.PUBLIC_API) {
                     MergedCodebase(listOf(oldCodebase))
                 } else {
-                    // To avoid issues with partial oldCodeBase we fill gaps with newCodebase, the
-                    // first parameter is master, so we don't change values of oldCodeBase
                     MergedCodebase(listOf(oldCodebase, newCodebase))
                 }
             val newFullCodebase = MergedCodebase(listOf(newCodebase))
 
-            CodebaseComparator.compare(checker, oldFullCodebase, newFullCodebase, filter)
+            CodebaseComparator.compare(
+                checker,
+                oldFullCodebase,
+                newFullCodebase,
+                surfaceFilter,
+                referenceFilter,
+            )
 
             val message =
                 "Found compatibility problems checking " +
-                    "the ${apiType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
+                    "the ${checkType.displayName} API (${newCodebase.location}) against the API in ${oldCodebase.location}"
 
             if (checker.foundProblems) {
                 cliError(message)
@@ -1895,19 +1966,27 @@ class CompatibilityCheck(
             reporter: Reporter,
             issueConfiguration: IssueConfiguration,
             apiCompatAnnotations: Set<String>,
-            apiPredicateConfig: ApiPredicate.Config,
+            apiSurface: ApiSurface,
         ) {
-            val filter = getFilter(apiType, apiPredicateConfig)
+            val surfaceFilter = getSurfaceFilter(apiType, apiSurface)
+            val referenceFilter = getReferenceFilter(apiType, apiSurface)
             val checker =
                 CompatibilityCheck(
-                    filter,
-                    reporter,
-                    issueConfiguration,
-                    apiCompatAnnotations,
+                    surfaceFilter = surfaceFilter,
+                    referenceFilter = referenceFilter,
+                    reporter = reporter,
+                    issueConfiguration = issueConfiguration,
+                    apiCompatAnnotations = apiCompatAnnotations,
                     apiName = null,
                 )
 
-            CodebaseComparator.compareMultiplatform(checker, oldCodebase, newCodebase, filter)
+            CodebaseComparator.compareMultiplatform(
+                checker,
+                oldCodebase,
+                newCodebase,
+                surfaceFilter,
+                referenceFilter,
+            )
 
             if (checker.foundProblems) {
                 cliError("Found problems checking multiplatform codebase compatibility")
@@ -1915,16 +1994,25 @@ class CompatibilityCheck(
         }
 
         /**
-         * Returns a filter which includes the [ApiType.getReferenceFilter] and
-         * [ApiType.getEmitFilter] for both the [apiType] and [ApiType.PUBLIC_API] based on the
-         * [apiPredicateConfig]. This is used to filter which items are included in compatibility
-         * checks.
+         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
+         * methods. This is used to filter which items are included in compatibility checks.
          */
-        private fun getFilter(apiType: ApiType, apiPredicateConfig: ApiPredicate.Config) =
-            apiType
-                .getReferenceFilter(apiPredicateConfig)
-                .or(apiType.getEmitFilter(apiPredicateConfig))
-                .or(ApiType.PUBLIC_API.getReferenceFilter(apiPredicateConfig))
-                .or(ApiType.PUBLIC_API.getEmitFilter(apiPredicateConfig))
+        private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            ApiSurfacePredicate.forDelta(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
+
+        /**
+         * Returns a reference filter based on the [apiType] and [apiSurface] which includes
+         * overriding methods. This is used to check referenced types (interfaces, throws).
+         */
+        private fun getReferenceFilter(apiType: ApiType, apiSurface: ApiSurface) =
+            ApiSurfacePredicate.referenceFilter(
+                apiType,
+                apiSurface,
+                includeOverridingMethods = true,
+            )
     }
 }

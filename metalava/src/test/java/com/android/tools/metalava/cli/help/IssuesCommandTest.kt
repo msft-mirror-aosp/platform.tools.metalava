@@ -70,6 +70,7 @@ Available Issues                             |  Category                        
   CallbackMethodName                         |  api_lint                             |   error
   CallbackName                               |  api_lint                             |   warning
   ChangedAbstract                            |  binary_and_source_compatibility      |   error
+  ChangedAbstractToConcrete                  |  other_compatibility                  |   hidden
   ChangedAnnotationRetention                 |  other_compatibility                  |   error
   ChangedClass                               |  binary_and_source_compatibility      |   error
   ChangedDefault                             |  binary_and_source_compatibility      |   error
@@ -149,6 +150,7 @@ Available Issues                             |  Category                        
   InvalidNullabilityAnnotationWarning        |  unknown                              |   warning
   InvalidNullabilityOverride                 |  api_lint                             |   error
   InvalidPackage                             |  unknown                              |   error
+  InvalidParamOrReturn                       |  unknown                              |   hidden
   InvalidSources                             |  unknown                              |   error
   InvalidSyntax                              |  unknown                              |   error
   InvalidTagForm                             |  documentation                        |   warning_error_when_new

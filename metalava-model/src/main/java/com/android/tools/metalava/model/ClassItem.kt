@@ -106,7 +106,7 @@ interface ClassItem :
      */
     fun isEffectivelySealed(): Boolean {
         return modifiers.isSealed() ||
-            (isClass() && (constructors().none { (it.isPublic || it.isProtected) && !it.hidden }))
+            (isClass() && constructors().none { it.selectedApi.itemApiVariants.isNotEmpty() })
     }
 
     /**
@@ -186,13 +186,13 @@ interface ClassItem :
     /** The fields in this class */
     @MetalavaApi fun fields(): List<FieldItem>
 
-    /** The members in this class: constructors, methods, fields/enum constants, properties */
+    /** The members in this class: constructors, methods, properties, fields/enum constants */
     fun members(): Sequence<MemberItem> {
-        return fields()
+        return constructors()
             .asSequence()
-            .plus(constructors().asSequence())
             .plus(methods().asSequence())
             .plus(properties().asSequence())
+            .plus(fields().asSequence())
     }
 
     val classKind: ClassKind
@@ -326,7 +326,13 @@ interface ClassItem :
         private val qualifiedComparator: Comparator<ClassItem> =
             Comparator.comparing { it.qualifiedName() }
 
-        fun classNameSorter(): Comparator<in ClassItem> = qualifiedComparator
+        /**
+         * A comparator that orders [ClassItem]s by [ClassItem.qualifiedName], placing all
+         * [ClassKind.TYPEALIAS] items after all non-typealias classes.
+         */
+        fun classNameSorterTypeAliasesLast(): Comparator<in ClassItem> =
+            Comparator.comparing<ClassItem, Boolean> { it.classKind == ClassKind.TYPEALIAS }
+                .thenComparing(qualifiedComparator)
 
         /**
          * The name used for a fake class which is a container for top level functions and

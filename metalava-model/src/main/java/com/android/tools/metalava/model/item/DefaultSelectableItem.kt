@@ -16,15 +16,12 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectors
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
@@ -36,7 +33,6 @@ internal sealed class DefaultSelectableItem(
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     override var targetLanguages: Set<TargetLanguage>,
 ) :
     DefaultItem(
@@ -77,57 +73,6 @@ internal sealed class DefaultSelectableItem(
             return _selectedApi
         }
 
-    /** Delegate to [selectedApi]'s [SelectedApi.itemApiVariants]. */
-    final override var selectedApiVariants
-        get() = selectedApi.itemApiVariants
-        set(value) {
-            selectedApi.itemApiVariants = value
-        }
-
     // Default to true, may be updated later
     final override var emit = true
-
-    /**
-     * Create an [ApiVariantSelectors] appropriate for this [SelectableItem].
-     *
-     * The leaking of `this` is safe as the implementations do not access anything that has not been
-     * initialized.
-     */
-    override val variantSelectors = @Suppress("LeakingThis") variantSelectorsFactory(this)
-
-    /**
-     * Manually delegate to [ApiVariantSelectors.originallyHidden] as property delegates are
-     * expensive.
-     */
-    final override val originallyHidden
-        get() = variantSelectors.originallyHidden
-
-    /** Manually delegate to [ApiVariantSelectors.hidden] as property delegates are expensive. */
-    final override val hidden
-        get() = variantSelectors.hidden
-
-    /** Manually delegate to [ApiVariantSelectors.removed] as property delegates are expensive. */
-    final override val removed: Boolean
-        get() = variantSelectors.removed
-
-    final override val showability: Showability
-        get() = variantSelectors.showability
-
-    override fun includeOnlyForStubPurposes(): Boolean {
-        return variantSelectors.includeOnlyForStubPurposes
-    }
-
-    override fun updateDeprecatedFromJavadocIfNeeded() {
-        // Only Java items can get deprecated status from javadoc.
-        if (sourceLanguage != SourceLanguage.JAVA) return
-
-        // If the item is already deprecated then no point in checking javadoc, at least no here.
-        if (modifiers.isDeprecated()) return
-
-        // If the documentation does not have an @deprecated block then the item is not deprecated.
-        if (documentation?.hasBlockTagOfType("deprecated") != true) return
-
-        // The item is deprecated.
-        mutateModifiers { setDeprecated(true) }
-    }
 }

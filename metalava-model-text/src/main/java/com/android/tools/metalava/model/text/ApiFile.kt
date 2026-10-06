@@ -92,9 +92,8 @@ sealed class SignatureFile {
     abstract val file: File
 
     /**
-     * Indicates whether [file] is for the main API surface, i.e. the one that is being created.
-     *
-     * This will be stored in [SelectableItem.emit].
+     * Indicates whether [file] is for the main API surface, i.e. the one that is being created, or
+     * a base API surface that it extends.
      */
     protected open val forMainApiSurface: Boolean
         get() = true
@@ -517,56 +516,15 @@ private constructor(
         codebase.reporter.report(issue, null, message, location)
     }
 
-    /** See [SignatureFile.forMainApiSurface]. */
-    private val forMainApiSurface
-        get() = apiVariant.surface.isMain
-
-    /**
-     * Mark this [SelectableItem] as being part of the main API surface, i.e. the one that is being
-     * created.
-     *
-     * This will set [SelectableItem.emit] to [forMainApiSurface] and should only be called on
-     * [SelectableItem]s which have been created from the main signature file.
-     */
-    private fun SelectableItem.markForMainApiSurface() {
-        emit = forMainApiSurface
-        markSelectedApiVariant()
-    }
-
     /**
      * Record that this [SelectableItem] was loaded from a signature file that contains
      * [apiVariant].
+     *
+     * If this class was already defined in a different API surface, this will not add the new
+     * surface.
      */
     private fun SelectableItem.markSelectedApiVariant() {
-        if (apiVariant !in selectedApiVariants) {
-            selectedApiVariants += apiVariant
-        }
-    }
-
-    /**
-     * It is only necessary to mark an existing class as being part of the main API surface, if it
-     * should be but is not already.
-     *
-     * This will set [SelectableItem.emit] to `true` iff it was previously `false` and
-     * [forMainApiSurface] is `true`. That ensures that a class that is not in the main API surface
-     * can be included in it by another signature file, but once it is included it cannot be
-     * removed.
-     *
-     * e.g. Imagine that there are two files, `public.txt` and `system.txt` where the second extends
-     * the first. When generating the system API classes in the `public.txt` will not be considered
-     * part of it but any classes defined in `system.txt` will be, even if they were initially
-     * created in `public.txt`. While `public.txt` should come first this ensures the correct
-     * behavior irrespective of the order.
-     */
-    private fun ClassItem.markExistingClassForMainApiSurface() {
-        if (!emit && forMainApiSurface) {
-            markForMainApiSurface()
-        }
-
-        // Always record the ApiVariants to which this belongs, even if this was previously loaded.
-        // This is safe because unlike `emit` which is Boolean the `selectedApiVariants` property is
-        // a set of ApiVariants and this just adds an ApiVariant.
-        markSelectedApiVariant()
+        selectedApi.addItemApiVariant(apiVariant)
     }
 
     /**
@@ -712,8 +670,9 @@ private constructor(
 
         val pkg = findOrCreatePackage(tokenizer, name, annotations)
 
-        // Make sure that the package records the ApiVariants to which it belongs.
-        pkg.markSelectedApiVariant()
+        // Note: pkg.markSelectedApiVariant() is not called here because packages do not belong to
+        // an API surface in their own right; their API variants are populated via propagation from
+        // their contained classes and members.
 
         token = tokenizer.requireToken()
         if ("{" != token) {
@@ -799,16 +758,19 @@ private constructor(
             return
         }
 
-        itemFactory.createTypeAliasItem(
-            fileLocation = location,
-            modifiers = modifiers,
-            qualifiedName = pkg.qualifiedName() + "." + name,
-            containingPackage = pkg,
-            aliasedType = type,
-            typeParameterList = typeParameterList,
-            // All signature files have to be explicitly specified.
-            origin = ClassOrigin.COMMAND_LINE,
-        )
+        val typeAlias =
+            itemFactory.createTypeAliasItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                qualifiedName = pkg.qualifiedName() + "." + name,
+                containingPackage = pkg,
+                aliasedType = type,
+                typeParameterList = typeParameterList,
+                // All signature files have to be explicitly specified.
+                origin = ClassOrigin.COMMAND_LINE,
+            )
+        // Mark type alias as belonging to the main API surface of this signature file.
+        typeAlias.markSelectedApiVariant()
     }
 
     /** Parse a class starting with [Tokenizer.current]. */
@@ -979,7 +941,7 @@ private constructor(
                             }
                         }
             )
-        cl.markForMainApiSurface()
+        cl.markSelectedApiVariant()
 
         // Store the [TypeItemFactory] for this [ClassItem] so it can be retrieved later in
         // [typeItemFactoryForClass].
@@ -1010,10 +972,6 @@ private constructor(
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
             parseClassBody(tokenizer, existingClass, typeItemFactoryForClass(existingClass))
         }
-
-        // Although the class was first defined in a separate file it is being modified in the
-        // current file so that may include it in the main API surface.
-        existingClass.markExistingClassForMainApiSurface()
 
         // Perform any merge checks after loading all the files. That is needed because merging
         // may resolve classes and doing that during parsing can lead to issues.
@@ -1324,15 +1282,25 @@ private constructor(
      *
      * When the method returns, the [tokenizer] will point to the token after the end of the
      * returned string.
+     *
+     * @param tokenizer the [Tokenizer] from which to read tokens.
+     * @return the complete token string.
      */
     private fun getAnnotationCompleteToken(tokenizer: Tokenizer): String {
         val startingToken = tokenizer.current
-        return if (startingToken.contains('@')) {
-            val prefix = startingToken.substringBefore('@')
-            val annotationStart = startingToken.substring(startingToken.indexOf('@'))
+        val atIndex = startingToken.indexOf('@')
+        return if (atIndex != -1) {
+            // An annotation starts at or within this token (e.g. `@Nullable` or
+            // `prefix.@Nullable`).
+            // Parse the complete annotation (including any arguments) from the tokenizer.
+            val annotationStart = startingToken.substring(atIndex)
             val annotation = getAnnotationSource(tokenizer, annotationStart)
-            "$prefix$annotation"
+            buildString {
+                append(startingToken, 0, atIndex)
+                append(annotation)
+            }
         } else {
+            // No annotation is present; advance the tokenizer and return the token directly.
             tokenizer.requireToken()
             startingToken
         }
@@ -1473,7 +1441,7 @@ private constructor(
                 implicitConstructor = false,
                 targetLanguages = targetLanguages,
             )
-        method.markForMainApiSurface()
+        method.markSelectedApiVariant()
 
         if (appending) {
             // If there is already a constructor with the same signature from a previous file,
@@ -1588,7 +1556,7 @@ private constructor(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        method.markForMainApiSurface()
+        method.markSelectedApiVariant()
 
         if (appending) {
             // If the method already exists in the class item because it was defined in a previous
@@ -1705,7 +1673,7 @@ private constructor(
                 constantValueProvider = constantValueProvider,
                 targetLanguages = targetLanguages,
             )
-        field.markForMainApiSurface()
+        field.markSelectedApiVariant()
         if (appending) {
             // If the field already exists in the class item because it was defined in a previous
             // signature file then replace it with this one, otherwise just add this field.
@@ -1939,7 +1907,7 @@ private constructor(
                     contextParameters.map { it.create(propertyItem, typeItemFactory) }
                 },
             )
-        property.markForMainApiSurface()
+        property.markSelectedApiVariant()
 
         if (appending) {
             // If there is already a property with the same signature from a previous file, replaces
@@ -2474,23 +2442,43 @@ private constructor(
      *
      * To handle arrays with type-use annotations, this looks forward at the next token and includes
      * it if it contains an annotation. This is necessary to handle type strings like "Foo @A []".
+     *
+     * @param tokenizer the [Tokenizer] from which to read tokens.
+     * @return the complete type string.
      */
     private fun scanForTypeString(tokenizer: Tokenizer): String {
-        var prev = getAnnotationCompleteToken(tokenizer)
-        var type = prev
+        val prev = getAnnotationCompleteToken(tokenizer)
+        var prevIsIncomplete = isIncompleteTypeToken(prev)
         var token = tokenizer.current
-        // Look both at the last used token and the next one:
-        // If the last token has annotations, the type string was broken up by annotations, and the
-        // next token is also part of the type.
-        // If the next token has annotations, this is an array type like "Foo @A []", so the next
-        // token is part of the type.
-        while (isIncompleteTypeToken(prev) || isIncompleteTypeToken(token)) {
-            token = getAnnotationCompleteToken(tokenizer)
-            type += " $token"
-            prev = token
-            token = tokenizer.current
+        var tokenIsIncomplete = isIncompleteTypeToken(token)
+
+        // If neither the initial token nor the next token has annotations that break up the type,
+        // the initial token is the entire type string (the common case, avoiding StringBuilder).
+        if (!prevIsIncomplete && !tokenIsIncomplete) {
+            return prev
         }
-        return type
+
+        return buildString {
+            append(prev)
+
+            // Look both at the last used token and the next one:
+            // 1. If the last token has annotations, the type string was broken up by annotations
+            //    and the next token is also part of the type.
+            // 2. If the next token has annotations, this is an array type like "Foo @A []",
+            //    so the next token is part of the type.
+            while (prevIsIncomplete || tokenIsIncomplete) {
+                token = getAnnotationCompleteToken(tokenizer)
+                append(' ').append(token)
+
+                // The token just consumed becomes `prev`. Its incompleteness was already evaluated
+                // as `tokenIsIncomplete`, so transfer that status without scanning again.
+                prevIsIncomplete = tokenIsIncomplete
+
+                // Look ahead at the next token and evaluate only this new token.
+                token = tokenizer.current
+                tokenIsIncomplete = isIncompleteTypeToken(token)
+            }
+        }
     }
 
     /**
@@ -2530,17 +2518,25 @@ private constructor(
      * Determines whether the [type] is an incomplete type string broken up by annotations. This is
      * the case when there's an annotation that isn't contained within a parameter list (because
      * [Tokenizer.requireToken] handles not breaking in the middle of a parameter list).
+     *
+     * @param type the type token to check.
+     * @return true if the token is an incomplete type string broken up by annotations.
      */
     private fun isIncompleteTypeToken(type: String): Boolean {
+        // If there is no '@' at all, the token cannot have type annotations.
         val firstAnnotationIndex = type.indexOf('@')
+        if (firstAnnotationIndex == -1) return false
+
+        // If there are no type parameters ('<') or the first annotation appears before '<',
+        // then the annotation is outside the parameter list and breaks up the type string.
         val paramStartIndex = type.indexOf('<')
+        if (paramStartIndex == -1 || firstAnnotationIndex < paramStartIndex) return true
+
+        // Otherwise, the first annotation is inside '<...>'. Check whether any annotation
+        // appears after the parameter list (e.g. `List<String> @Nullable []`).
         val lastAnnotationIndex = type.lastIndexOf('@')
         val paramEndIndex = type.lastIndexOf('>')
-        return firstAnnotationIndex != -1 &&
-            (paramStartIndex == -1 ||
-                firstAnnotationIndex < paramStartIndex ||
-                paramEndIndex == -1 ||
-                paramEndIndex < lastAnnotationIndex)
+        return paramEndIndex == -1 || paramEndIndex < lastAnnotationIndex
     }
 
     /**

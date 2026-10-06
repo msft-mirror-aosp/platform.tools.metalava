@@ -804,7 +804,11 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            barClass.updateDeprecatedFromJavadocIfNeeded()
+            // Getting `selectedApi` lazily initializes `SourceSelectedApi`, which checks
+            // if the item is emitted and belongs to an API variant, and if so, updates
+            // its deprecated status from Javadoc. For snapshot codebases, the deprecated
+            // status was already copied from the source codebase.
+            barClass.selectedApi
             barClass.assertExplicitlyDeprecated()
         }
     }
@@ -826,6 +830,9 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
+            // Getting `selectedApi` triggers the deprecation update from Javadoc to verify
+            // that `@deprecatedSince` does not mark it as deprecated.
+            barClass.selectedApi
             barClass.assertNotDeprecated()
         }
     }
@@ -848,7 +855,8 @@ class CommonClassItemTest : BaseModelTest() {
             ),
         ) {
             val barClass = codebase.assertClass("test.pkg.Bar")
-            barClass.updateDeprecatedFromJavadocIfNeeded()
+            // Getting `selectedApi` triggers the deprecation update from Javadoc.
+            barClass.selectedApi
             barClass.assertExplicitlyDeprecated()
         }
     }

@@ -40,7 +40,7 @@ internal class PsiSourceModelProvider : SourceModelProvider {
             Capability.IMPORTS,
             Capability.PACKAGE_HTML_FILES,
             Capability.HIDDEN_ITEMS,
-            Capability.API_VARIANT_SELECTORS,
+            Capability.REVERTED_ITEMS,
             Capability.MULTIPLATFORM,
         )
 

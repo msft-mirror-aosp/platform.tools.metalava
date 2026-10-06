@@ -25,7 +25,6 @@ import com.android.tools.metalava.config.ContentsConfig
 import com.android.tools.metalava.config.EffectConfig
 import com.android.tools.metalava.config.SelectionCriteriaConfig
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.api.surface.ApiSurface.Contents
 import com.android.tools.metalava.model.testing.api.assertState
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
@@ -72,20 +71,17 @@ class ApiSelectionOptionsTest :
 
     @Test
     fun `Test no --show-unannotated no show annotations`() {
-        runTest { assertThat(options.showUnannotated).isTrue() }
+        runTest { assertThat(options.compute().showUnannotated).isTrue() }
     }
 
     @Test
     fun `Test no --show-unannotated with --show-annotation`() {
         runTest(ARG_SHOW_ANNOTATION, "test.pkg.Show") {
-            assertThat(options.showUnannotated).isFalse()
+            assertThat(options.compute().showUnannotated).isFalse()
         }
     }
 
-    /**
-     * Run the test, providing an optional [ApiSurfacesConfig] to
-     * [ApiSelectionOptions.apiSurfacesConfigProvider].
-     */
+    /** Run the test, providing an optional [ApiSurfacesConfig] to [ApiSelectionOptions.compute]. */
     private fun runTestWithConfig(
         vararg args: String,
         apiSurfacesConfig: ApiSurfacesConfig? =
@@ -97,13 +93,15 @@ class ApiSelectionOptionsTest :
                         ApiSurfaceConfig(name = "module-lib", extends = "system"),
                     )
             ),
-        test: Result<ApiSelectionOptions>.() -> Unit,
+        test: ComputedApiSelectionOptions.() -> Unit,
     ) {
-        val optionGroup =
-            ApiSelectionOptions(
-                apiSurfacesConfigProvider = { apiSurfacesConfig },
-            )
-        runTest(args = args, optionGroup = optionGroup, test = test)
+        val optionGroup = ApiSelectionOptions()
+
+        runTest(
+            args = args,
+            optionGroup = optionGroup,
+            test = { options.compute(apiSurfacesConfig).test() }
+        )
     }
 
     /**
@@ -124,7 +122,7 @@ class ApiSelectionOptionsTest :
             assertThrowsCliError(
                 "--api-surface requires at least one <api-surface> to have been configured in a --config-file"
             ) {
-                options.apiSurfaces
+                apiSurfaces
             }
         }
     }
@@ -133,7 +131,7 @@ class ApiSelectionOptionsTest :
     fun `Test configuring API surfaces no --api-surface option`() {
         runTestWithConfig {
             // Configuration is ignored when no --api-surface is provided.
-            options.apiSurfaces.assertBaseWasNotCreated()
+            apiSurfaces.assertBaseWasNotCreated()
         }
     }
 
@@ -143,7 +141,7 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "unknown",
         ) {
-            val exception = assertThrows(IllegalStateException::class.java) { options.apiSurfaces }
+            val exception = assertThrows(IllegalStateException::class.java) { apiSurfaces }
             assertThat(exception.message)
                 .isEqualTo(
                     "--api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`, `module-lib`"
@@ -162,9 +160,9 @@ class ApiSelectionOptionsTest :
             // using the configuration. As they cannot be differentiated the consistency check is
             // not run and if the inconsistency is significant it will affect some of the output
             // files.
-            options.apiSurfaces.assertBaseWasCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("system")
-            assertThat(options.apiSurfaces.base?.name).isEqualTo("public")
+            apiSurfaces.assertBaseWasCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("system")
+            assertThat(apiSurfaces.base?.name).isEqualTo("public")
         }
     }
 
@@ -178,7 +176,7 @@ class ApiSelectionOptionsTest :
             assertThrowsCliError(
                 """--api-surface is mutually exclusive with --show-unannotated, --show-annotation and --hide-annotation"""
             ) {
-                options.apiSurfaces
+                apiSurfaces
             }
         }
     }
@@ -212,8 +210,8 @@ class ApiSelectionOptionsTest :
             ARG_API_SURFACE,
             "public",
         ) {
-            options.apiSurfaces.assertBaseWasNotCreated()
-            assertThat(options.apiSurfaces.main.name).isEqualTo("public")
+            apiSurfaces.assertBaseWasNotCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("public")
         }
     }
 
@@ -276,36 +274,122 @@ class ApiSelectionOptionsTest :
                     ),
                 )
         ) {
-            assertThat(options.apiSurfaces.main.name).isEqualTo("restricted")
-            assertThat(options.apiSurfaces.main.contents).isEqualTo(Contents.STANDALONE)
+            apiSurfaces.assertBaseWasNotCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("restricted")
 
-            // TODO(b/512837535): The restricted surface is supposed to include everything from the
-            //  public and intermediate surfaces. Currently, it does not. The @IntermediateApi
-            //  annotated items are in the `intermediate` API and unannotated items are in th
-            //  `public` API.
-            options.apiSurfaceSelector.assertState(
+            apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
                             test.api.IntermediateApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=SHOW, recursive=true)
                                 )
                             }
                             test.api.OtherApi -> {
                                 Entry(
-                                    result: HIDE
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=HIDE, recursive=true)
                                 )
                             }
                             test.api.RestrictedApi -> {
                                 Entry(
-                                    result: SHOW
+                                    result: SurfaceAnnotationData(surface=ApiSurface(restricted), effect=SHOW, recursive=true)
                                 )
                             }
                         )
                     """,
                 expectedShowUnannotated = true,
                 expectedUnannotatedSurfaceName = "restricted",
+            )
+        }
+    }
+
+    @Test
+    fun `Test configuring delta surface extending standalone surface`() {
+        runTestWithConfig(
+            ARG_API_SURFACE,
+            "other",
+            apiSurfacesConfig =
+                ApiSurfacesConfig(
+                    listOf(
+                        ApiSurfaceConfig(
+                            name = "public",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    unannotated = EffectConfig.SHOW,
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "intermediate",
+                            extends = "public",
+                            contents = ContentsConfig.STANDALONE,
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.IntermediateApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "restricted",
+                            extends = "intermediate",
+                            contents = ContentsConfig.STANDALONE,
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.RestrictedApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                        ApiSurfaceConfig(
+                            name = "other",
+                            extends = "intermediate",
+                            selectionCriteria =
+                                SelectionCriteriaConfig(
+                                    annotationRules =
+                                        listOf(
+                                            AnnotationRuleConfig(
+                                                pattern = "test.api.OtherApi",
+                                            ),
+                                        ),
+                                ),
+                        ),
+                    ),
+                ),
+        ) {
+            apiSurfaces.assertBaseWasCreated()
+            assertThat(apiSurfaces.main.name).isEqualTo("other")
+            assertThat(apiSurfaces.base?.name).isEqualTo("intermediate")
+
+            apiSurfaceSelector.assertState(
+                expectedMatcherState =
+                    """
+                        AnnotationMatcher(
+                            test.api.IntermediateApi -> {
+                                Entry(
+                                    result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=SHOW, recursive=true)
+                                )
+                            }
+                            test.api.OtherApi -> {
+                                Entry(
+                                    result: SurfaceAnnotationData(surface=ApiSurface(other), effect=SHOW, recursive=true)
+                                )
+                            }
+                            test.api.RestrictedApi -> {
+                                Entry(
+                                    result: SurfaceAnnotationData(surface=ApiSurface(intermediate), effect=HIDE, recursive=true)
+                                )
+                            }
+                        )
+                    """,
+                expectedShowUnannotated = false,
+                expectedUnannotatedSurfaceName = "intermediate",
             )
         }
     }
@@ -344,13 +428,13 @@ class ApiSelectionOptionsTest :
                     ),
                 )
         ) {
-            options.apiSurfaceSelector.assertState(
+            apiSurfaceSelector.assertState(
                 expectedMatcherState =
                     """
                         AnnotationMatcher(
                             android.annotation.SystemApi -> {
                                 Entry(
-                                    result: HIDE
+                                    result: SurfaceAnnotationData(surface=ApiSurface(public), effect=HIDE, recursive=true)
                                 )
                             }
                         )

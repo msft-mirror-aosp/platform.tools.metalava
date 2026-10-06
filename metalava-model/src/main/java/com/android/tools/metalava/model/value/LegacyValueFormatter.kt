@@ -28,8 +28,8 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.isAccessible
 import com.android.tools.metalava.model.javaEscapeString
 import java.lang.StringBuilder
 
@@ -93,12 +93,6 @@ class LegacyValueFormatter(
     enum class InlineFieldValue {
         /** Always inline the [FieldReferenceValue], if possible. */
         ALWAYS,
-
-        /**
-         * Only inline the [FieldReferenceValue], if it is hidden or removed (as determined by
-         * [SelectableItem.isHiddenOrRemoved]).
-         */
-        WHEN_HIDDEN_OR_REMOVED,
 
         /**
          * Only inline the [FieldReferenceValue], if it is inaccessible, i.e. hidden, removed or not
@@ -223,11 +217,6 @@ class LegacyValueFormatter(
                     // The field should be inlined only when it is inaccessible.
                     InlineFieldValue.WHEN_INACCESSIBLE ->
                         if (field.resolve().isAccessible()) field else field.asLiteralValue()
-
-                    // The field should be inlined only when it is hidden or removed.
-                    InlineFieldValue.WHEN_HIDDEN_OR_REMOVED ->
-                        if (field.resolve()?.isHiddenOrRemoved() != true) field
-                        else field.asLiteralValue()
                 }
             } ?: value
 
@@ -247,9 +236,6 @@ class LegacyValueFormatter(
             }
         }
     }
-
-    /** True if this [FieldItem] is not-null, is not hidden or removed and is public. */
-    private fun FieldItem?.isAccessible() = this != null && !isHiddenOrRemoved() && isPublic
 
     /** Format the [annotationItem] name for [purpose]. */
     private fun formatAnnotationClassName(
@@ -495,10 +481,6 @@ class LegacyValueFormatter(
                 // Legacy AnnotationItem.toSource() does not add long or float suffixes for values
                 // obtained from Kotlin sources.
                 dropLongAndFloatTypeSuffix = false,
-
-                // Legacy AnnotationItem.toSource() only inlined hidden or removed fields used in
-                // Kotlin sources. It would keep non-public fields.
-                inlineFields = InlineFieldValue.WHEN_HIDDEN_OR_REMOVED,
             )
 
         /** Settings for [ANNOTATION_SOURCE_FORMATTER] for Jar classes. */

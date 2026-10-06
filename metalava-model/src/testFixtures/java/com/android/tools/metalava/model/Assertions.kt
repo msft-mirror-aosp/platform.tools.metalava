@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformMethodItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPackageItem
 import com.android.tools.metalava.model.multiplatform.MultiplatformPropertyItem
 import com.android.tools.metalava.model.multiplatform.SourceSetDependent
+import com.android.tools.metalava.model.testing.surfaces.initializeSelectedApiInstances
 import com.android.tools.metalava.model.testing.testTypeString
 import com.google.common.truth.Truth.assertThat
 import java.io.PrintWriter
@@ -108,10 +109,15 @@ interface Assertions {
         return typeAliasItem
     }
 
-    /**
-     * Return a dump of the state of [SelectableItem.selectedApiVariants] across this [Codebase].
-     */
+    /** Return a dump of the state of [SelectedApi] variants across this [Codebase]. */
     private fun Codebase.dumpSelectedApiVariants() = buildString {
+        // SelectedApi instances are initialized on demand and initializing child SelectedApi
+        // instances can change the variants for the parent. That means that dumping the
+        // SelectedApi variants immediately after initializing the parent and before the child will
+        // produce an invalid result. So, to avoid that this initializes all the SelectedApi
+        // instances first before dumping any of them.
+        initializeSelectedApiInstances()
+
         val apiSurfaces = apiSurfaces
         accept(
             object :
@@ -123,10 +129,33 @@ interface Assertions {
 
                 override fun visitSelectableItem(item: SelectableItem) {
                     append("$indent${item.describe()}\n")
+                    if (!item.emit) {
+                        append("$indent       emit - false\n")
+                    }
                     val selectedApi = item.selectedApi
                     append(
                         "$indent       self - ${selectedApi.itemApiVariants.formatFor(apiSurfaces)}\n"
                     )
+                    if (selectedApi.contentApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent    content - ${selectedApi.contentApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
+                    if (selectedApi.superClassApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent superClass - ${selectedApi.superClassApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
+                    if (selectedApi.superMethodApiVariants.isNotEmpty()) {
+                        append(
+                            "${indent}superMethod - ${selectedApi.superMethodApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
+                    if (selectedApi.elidableApiVariants.isNotEmpty()) {
+                        append(
+                            "$indent   elidable - ${selectedApi.elidableApiVariants.formatFor(apiSurfaces)}\n"
+                        )
+                    }
                     indent += "  "
                 }
 
@@ -139,8 +168,19 @@ interface Assertions {
 
     /** Assert that the [dumpSelectedApiVariants] matches [expected]. */
     fun Codebase.assertSelectedApiVariants(expected: String, message: String? = null) {
+        dumpSelectedApiVariants()
         val actual = dumpSelectedApiVariants()
         assertEquals(expected.trimIndent(), actual.trimEnd(), message)
+    }
+
+    /**
+     * Assert that the [SelectedApi.itemApiVariants] of this [SelectableItem], formatted for
+     * [Codebase.apiSurfaces], matches [expected].
+     */
+    fun SelectableItem.assertItemApiVariants(expected: String, message: String? = null) {
+        val apiSurfaces = codebase.apiSurfaces
+        val actual = selectedApi.itemApiVariants.formatFor(apiSurfaces)
+        assertEquals(expected, actual, message)
     }
 
     /** Get the field from the [ClassItem], failing if it does not exist. */
@@ -603,7 +643,7 @@ interface Assertions {
         return methodItem
     }
 
-    companion object : Assertions {}
+    companion object : Assertions
 }
 
 private inline fun <reified T> Any?.assertIsInstanceOf(body: (T).() -> Unit) {

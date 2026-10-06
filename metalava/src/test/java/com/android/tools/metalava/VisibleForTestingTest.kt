@@ -20,7 +20,6 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.text.FileFormat
-import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import org.junit.Test
@@ -61,7 +60,6 @@ class VisibleForTestingTest : DriverTest() {
                         "androidx.annotation.VisibleForTesting(otherwise=androidx.annotation.VisibleForTesting.PROTECTED)",
                         "--show-annotation",
                         "androidx.annotation.VisibleForTesting(otherwise=4)",
-                        *hiddenIssues(Issues.UNHIDDEN_SYSTEM_API),
                     )
                 } else {
                     emptyArray()

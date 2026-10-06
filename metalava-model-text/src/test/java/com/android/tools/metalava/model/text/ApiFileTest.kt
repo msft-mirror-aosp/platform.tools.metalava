@@ -24,8 +24,12 @@ import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.testing.value.literalValue
+import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.getAndroidJar
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertEquals
@@ -771,14 +775,20 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 classPathResolver = classPathResolver,
             )
 
-        // Check the parts of the codebase that will be emitted.
-        val currentEmit = buildList {
+        // Construct filters for accessing the surface items only.
+        val apiSurface = apiSurfaces.main
+        val apiFilters = ApiSurfacePredicate.forSurfaceFilters(ApiType.CORE, apiSurface)
+
+        // Check the parts of the codebase that will be visited during traversal.
+        val currentTraversal = buildList {
             codebase.accept(
-                object : BaseItemVisitor(visitParameterItems = false) {
+                object :
+                    ApiFiltersVisitor(
+                        visitParameterItems = false,
+                        apiFilters = apiFilters,
+                    ) {
                     override fun visitSelectableItem(item: SelectableItem) {
-                        if (item.emit) {
-                            add(item)
-                        }
+                        add(item)
                     }
                 }
             )
@@ -797,12 +807,46 @@ class ApiFileTest : BaseTextCodebaseTest() {
                 method test.pkg.Outer.Middle.Inner.currentInnerMethod()
             """
                 .trimIndent(),
+            currentTraversal.joinToString("\n"),
+            "traversal items"
+        )
+
+        // Check the parts of the codebase that will be emitted.
+        val currentEmit = buildList {
+            codebase.accept(
+                object :
+                    ApiFiltersVisitor(
+                        visitParameterItems = false,
+                        apiFilters = apiFilters,
+                    ) {
+                    override fun visitSelectableItem(item: SelectableItem) {
+                        if (filterEmit.testOrTrue(item)) {
+                            add(item)
+                        }
+                    }
+                }
+            )
+        }
+
+        // Note: This does not include class test.pkg.Foo or class test.pkg.Outer.Middle.Inner as
+        // they do not belong to the main API surface as they were defined in the system API.
+        assertEquals(
+            """
+                package test.pkg
+                constructor test.pkg.Foo(String)
+                constructor test.pkg.Foo(int)
+                method test.pkg.Foo.extensibleMethod(int)
+                method test.pkg.Foo.currentMethod(int)
+                property test.pkg.Foo#prop
+                field test.pkg.Foo.currentField
+                method test.pkg.Outer.Middle.Inner.currentInnerMethod()
+            """
+                .trimIndent(),
             currentEmit.joinToString("\n"),
             "emittable items"
         )
 
-        // Check the entire codebase, to make sure there are no incorrect elements that aren't part
-        // of the emittable codebase.
+        // Check the entire codebase, to make sure there are no incorrect items.
         val currentAll = buildList {
             codebase.accept(
                 object : BaseItemVisitor(visitParameterItems = false) {

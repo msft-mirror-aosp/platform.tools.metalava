@@ -16,15 +16,12 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.model.ShowOrHide
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.junit.ClassRule
 import org.junit.Test
@@ -98,15 +95,7 @@ class ClassPathAnnotationTest : DriverTest() {
             codebase ?: error("No code base")
             val field =
                 codebase.assertResolvedClass("test.jar.Constants").assertField("STRING_CONSTANT")
-            assertEquals(
-                Showability(
-                    show = ShowOrHide.HIDE,
-                    recursive = ShowOrHide.HIDE,
-                    forStubsOnly = ShowOrHide.NO_EFFECT,
-                ),
-                field.showability
-            )
-            assertTrue(field.hidden)
+            assertTrue(field.selectedApi.itemApiVariants.isEmpty())
         }
     }
 
@@ -151,15 +140,7 @@ class ClassPathAnnotationTest : DriverTest() {
             codebase ?: error("No code base")
             val field =
                 codebase.assertResolvedClass("test.jar.Constants").assertField("STRING_CONSTANT")
-            assertEquals(
-                Showability(
-                    show = ShowOrHide.HIDE,
-                    recursive = ShowOrHide.HIDE,
-                    forStubsOnly = ShowOrHide.NO_EFFECT,
-                ),
-                field.showability
-            )
-            assertTrue(field.hidden)
+            assertTrue(field.selectedApi.itemApiVariants.isEmpty())
         }
     }
 

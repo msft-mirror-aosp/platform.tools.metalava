@@ -69,6 +69,7 @@ object Issues {
     val CHANGED_SUPERCLASS by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_SCOPE by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_ABSTRACT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
+    val CHANGED_ABSTRACT_TO_CONCRETE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
     val CHANGED_DEFAULT by Issue(Severity.ERROR, Category.BINARY_AND_SOURCE_COMPATIBILITY)
     val CHANGED_THROWS by Issue(Severity.ERROR, Category.SOURCE_COMPATIBILITY_ONLY)
     val CHANGED_NATIVE by Issue(Severity.HIDDEN, Category.OTHER_COMPATIBILITY)
@@ -118,6 +119,7 @@ object Issues {
     val BROADCAST_BEHAVIOR by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val SDK_CONSTANT by Issue(Severity.ERROR, Category.DOCUMENTATION)
     val TODO by Issue(Severity.ERROR, Category.DOCUMENTATION)
+    val INVALID_PARAM_OR_RETURN by Issue(Severity.HIDDEN, Category.UNKNOWN)
     val INVALID_DEVICE_POLICY_ANNOTATION by Issue(Severity.ERROR, Category.DOCUMENTATION)
 
     // Record related issues

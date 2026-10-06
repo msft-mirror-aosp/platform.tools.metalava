@@ -79,7 +79,7 @@ class MergeSignaturesCommand :
     override fun run() {
         try {
             val codebase = ApiFile.parseApi(SignatureFile.fromFiles(files))
-            val fileFormat = signatureFormat.fileFormat
+            val fileFormat = signatureFormat.compute().fileFormat
 
             val codebaseFragment =
                 createCodebaseFragmentForSignatureFile(
@@ -87,14 +87,12 @@ class MergeSignaturesCommand :
                     fileFormat = fileFormat,
                     // Pre-filtered so does not need any filters.
                     apiFilters = null,
-                    showUnannotated = false,
                 )
             tracer.trace("createOutputFileFromCodebaseFragment merged files") {
                 createOutputFileFromCodebaseFragment(
                     codebaseFragment,
                     out,
                 ) {
-                    val fileFormat = signatureFormat.fileFormat
                     SignatureWriter(
                         writer = it,
                         fileFormat = fileFormat,

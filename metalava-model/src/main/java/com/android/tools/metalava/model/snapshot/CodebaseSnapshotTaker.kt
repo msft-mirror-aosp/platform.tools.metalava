@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.snapshot
 
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassTypeItem
@@ -36,7 +35,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.RecordComponents
 import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.Showability
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
@@ -85,9 +83,6 @@ private constructor(
                 snapshotCodebase,
                 // Snapshots currently only support java.
                 defaultSourceLanguage = SourceLanguage.JAVA,
-                // Snapshots have already been separated by API surface variants, so they can use
-                // the same immutable ApiVariantSelectors.
-                ApiVariantSelectors.IMMUTABLE_FACTORY,
             )
         }
 
@@ -125,9 +120,9 @@ private constructor(
                 // Supports documentation if the copied codebase does.
                 supportsDocumentation = codebase.supportsDocumentation(),
                 assembler = this,
-                // Create a simple [SelectedApi] instance that will be populated from information
+                // Create a [SnapshotSelectedApi] instance that will be populated from information
                 // retrieved from the original [SelectedApi].
-                selectedApiFactory = SelectedApi.SIMPLE_FACTORY,
+                selectedApiFactory = SelectedApi.SNAPSHOT_FACTORY,
             )
 
         this.snapshotCodebase = newCodebase
@@ -207,9 +202,9 @@ private constructor(
     private fun ClassItem.getSnapshotClass(): SkeletonClassItem =
         snapshotCodebase.resolveClass(qualifiedName()) as SkeletonClassItem
 
-    /** Copy [SelectableItem.selectedApiVariants] from [original] to this. */
+    /** Copy [SelectedApi] from [original] to this. */
     private fun <T : SelectableItem> T.copySelectedApiVariants(original: T) {
-        selectedApiVariants = original.selectedApiVariants
+        selectedApi.snapshot(original.selectedApi)
     }
 
     /**
@@ -235,12 +230,12 @@ private constructor(
     /**
      * Get the actual item to snapshot, this takes into account whether the item has been reverted.
      *
-     * The [Showability.revertItem] is only set to a non-null value if changes to this
+     * The [SelectedApi.revertItem] is only set to a non-null value if changes to this
      * [SelectableItem] have been reverted AND this [SelectableItem] existed in the previously
      * released API.
      *
-     * This casts the [Showability.revertItem] to the same type as this is called upon. That is safe
-     * as, if set to a non-null value the [Showability.revertItem] will always point to a
+     * This casts the [SelectedApi.revertItem] to the same type as this is called upon. That is safe
+     * as, if set to a non-null value the [SelectedApi.revertItem] will always point to a
      * [SelectableItem] of the same type.
      */
     private val <reified T : SelectableItem> T.actualItemToSnapshot: T
@@ -529,7 +524,7 @@ private constructor(
             definitionVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             referenceVisitorFactory: (DelegatedVisitor) -> ItemVisitor,
             includeDocumentation: Boolean,
-            revertItemGetter: (SelectableItem) -> SelectableItem? = { it.showability.revertItem },
+            revertItemGetter: (SelectableItem) -> SelectableItem? = { it.selectedApi.revertItem },
         ): Codebase {
             // Create a snapshot taker that will construct the snapshot. Pass in the
             // referenceVisitorFactory so it can create the reference visitor for use in creating

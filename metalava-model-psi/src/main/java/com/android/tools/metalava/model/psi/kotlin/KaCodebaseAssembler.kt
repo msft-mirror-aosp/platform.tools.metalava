@@ -20,7 +20,6 @@ import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ANDROIDX_COMPOSABLE
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ApiVariantSelectors
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -31,6 +30,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.KOTLIN_DEPRECATED
+import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
@@ -291,7 +291,6 @@ private constructor(
         DefaultItemFactory(
             codebase = codebase,
             defaultSourceLanguage = SourceLanguage.KOTLIN,
-            defaultVariantSelectorsFactory = ApiVariantSelectors.MUTABLE_FACTORY
         )
 
     override fun getPackageInfoFromUnderlyingModel(packageName: String) = PackageInfo.NO_COMMENT
@@ -666,6 +665,8 @@ private constructor(
     ): Boolean {
         // Deprecation level hidden items can't be resolved from source.
         if (constructorSymbol.isDeprecatedHidden()) return false
+        // Don't generate @PublishedApi constructors since they can't be used externally from source
+        if (constructorSymbol.isPublishedApi()) return false
         // If this codebase is being created just from the KaModule, all other source constructors
         // should be generated. Only skip constructors when adding to a PsiBasedCodebase.
         if (!addingToPsiCodebase) return true
@@ -703,6 +704,12 @@ private constructor(
             }
 
         val modifiers = kaModifierFactory.createForDeclaration(constructorSymbol)
+        // Sealed abstract classes cannot be externally instantiated so treat the constructors as
+        // private. This mirrors [PsiClassBuilder.treatConstructorAsPrivate].
+        if (containingClass.modifiers.isSealed()) {
+            modifiers.setVisibilityLevel(VisibilityLevel.PRIVATE)
+        }
+
         val constructorItem =
             itemFactory.createConstructorItem(
                 fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
@@ -766,6 +773,8 @@ private constructor(
     private fun KaSession.shouldGenerateMethod(functionSymbol: KaNamedFunctionSymbol): Boolean {
         // Don't generate hidden functions since they cannot be resolved from source.
         if (functionSymbol.isDeprecatedHidden()) return false
+        // Don't generate @PublishedApi functions since they can't be used externally from source
+        if (functionSymbol.isPublishedApi()) return false
         // Skip generated equals and hashCode methods, when they aren't implemented in source.
         if (
             functionSymbol.origin == KaSymbolOrigin.SOURCE_MEMBER_GENERATED &&
@@ -1039,6 +1048,20 @@ private constructor(
                 null
             }
 
+        val modifiers =
+            kaModifierFactory.createForProperty(
+                propertySymbol,
+                containingClass,
+            )
+        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
+
+        // Don't generate @PublishedApi properties since they can't be used externally from source.
+        // Return after updating the accessor modifiers so that the annotation and visibility are
+        // propagated to the accessors.
+        if (propertySymbol.isPublishedApi()) {
+            return
+        }
+
         val constructorParameter =
             if (propertySymbol.isFromPrimaryConstructor) {
                 containingClass
@@ -1074,12 +1097,6 @@ private constructor(
             }
         }
 
-        val modifiers =
-            kaModifierFactory.createForProperty(
-                propertySymbol,
-                containingClass,
-            )
-        kaModifierFactory.updatePropertyAccessors(modifiers, getter, setter, backingField)
         val propertyItem =
             itemFactory.createPropertyItem(
                 fileLocation = PsiFileLocation.fromPsiElement(propertySymbol.psi),
@@ -1264,6 +1281,13 @@ private constructor(
                     ?.callableName
                     ?.identifierOrNullIfSpecial == "HIDDEN"
         }
+    }
+
+    private fun KaDeclarationSymbol.isPublishedApi(): Boolean {
+        return visibility == KaSymbolVisibility.INTERNAL &&
+            annotations.any { kaAnnotation ->
+                kaAnnotation.classId?.asFqNameString() == KOTLIN_PUBLISHED_API
+            }
     }
 
     /** Creates documentation for the symbol through psi, if possible. */

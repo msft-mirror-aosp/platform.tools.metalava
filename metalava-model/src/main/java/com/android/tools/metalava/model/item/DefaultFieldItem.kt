@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -38,7 +37,6 @@ internal class DefaultFieldItem(
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
     name: String,
@@ -54,7 +52,6 @@ internal class DefaultFieldItem(
         targetLanguages = targetLanguages,
         modifiers = modifiers,
         documentationFactory = documentationFactory,
-        variantSelectorsFactory = variantSelectorsFactory,
         name = name,
         containingClass = containingClass,
     ),
@@ -77,7 +74,6 @@ internal class DefaultFieldItem(
                 fileLocation = fileLocation,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
-                variantSelectorsFactory = variantSelectors::duplicate,
                 modifiers = modifiers,
                 documentationFactory = documentation.duplicatingFactory(),
                 name = name(),
@@ -86,12 +82,7 @@ internal class DefaultFieldItem(
                 isEnumConstant = isEnumConstant,
                 constantValueProvider = constantValueProvider,
             )
-            .also { duplicated ->
-                duplicated.inheritedFrom = containingClass()
-
-                // Make sure that the deprecated status is set correctly.
-                duplicated.updateDeprecatedFromJavadocIfNeeded()
-            }
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
 
     override val constantValue
         get() = constantValueProvider?.optionalValue?.let { it as ConstantValue }

@@ -292,7 +292,7 @@ interface MethodItem : CallableItem, InheritableItem, PossiblyPropertyRelated {
     }
 
     private fun computeRequiresOverride(): Boolean {
-        val isVisible = !hidden || hasShowAnnotation()
+        val isVisible = selectedApi.itemApiVariants.isNotEmpty()
 
         // When the method is a concrete, non-default method, its overriding method is not required
         // to be shown in the signature file.

@@ -354,13 +354,13 @@ class HiddenAspectsInheritor(
         if (filterReference.test(superTypeClass)) return
 
         for (fieldItem in superTypeClass.fields()) {
-            // If the field is a public constant and not hidden then try and inherit it into this
-            // class.
-            if (fieldItem.isPublicConstant() && !fieldItem.originallyHidden) {
+            // If the field is a public constant then try and inherit it into this class.
+            if (fieldItem.isPublicConstant()) {
                 // Create a duplicate of the field in this class.
                 val duplicate = fieldItem.duplicate(targetClassItem)
 
-                // Only add it if it is going to be part of the API.
+                // Only add it if it is going to be part of the API. This will prevent any fields
+                // which are explicitly hidden from being included in the API.
                 if (filterReference.test(duplicate)) {
                     add(duplicate)
                 }
