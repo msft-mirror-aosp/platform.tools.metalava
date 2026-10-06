@@ -113,25 +113,24 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
         classPath: List<File>,
     ): Codebase? {
         val testFixture = inputs.testFixture
-        val sourceParser =
-            environmentManager.createSourceParser(
-                codebaseConfig = testFixture.codebaseConfig,
+        val codebaseConfig = testFixture.codebaseConfig
+        val environment =
+            environmentManager.createEnvironment(
+                reporter = codebaseConfig.reporter,
+                tracer = Tracer.getStubTracer(),
                 javaLanguageLevel = testFixture.javaLanguageLevel,
                 modelOptions = inputs.modelOptions,
-                tracer = Tracer.getStubTracer()
-            )
-
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
-                description = "Test Codebase",
+                sourceSet = sourceSet(inputs.mainSourceDir, inputs.additionalMainSourceDir),
                 classPath = classPath,
-                apiPackages = testFixture.apiPackages,
                 projectDescription = inputs.projectDescription,
-                compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir),
             )
+        val sourceParser = environment.createSourceParser(codebaseConfig)
 
-        return sourceParser.parseSources(inputs)
+        return sourceParser.parseSources(
+            description = "Test Codebase",
+            apiPackages = testFixture.apiPackages,
+            compiledSourceJar = inputs.compiledSourceJar?.createFile(inputs.mainSourceDir.dir),
+        )
     }
 
     /**
