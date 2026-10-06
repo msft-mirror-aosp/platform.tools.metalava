@@ -28,17 +28,7 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.source.SourceCodebaseAssembler
 import com.android.tools.metalava.model.source.SourcePackageInfo
-import com.android.tools.metalava.model.source.SourceSet
-import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
-import com.android.tools.metalava.reporter.Reporter
 import com.google.common.collect.ImmutableList
-import com.google.common.collect.ImmutableMap
-import com.google.common.util.concurrent.MoreExecutors
-import com.google.turbine.binder.Binder
-import com.google.turbine.binder.Binder.BindingResult
-import com.google.turbine.binder.ClassPath
-import com.google.turbine.binder.Processing.ProcessorInfo
 import com.google.turbine.binder.bound.SourceTypeBoundClass
 import com.google.turbine.binder.bound.TypeBoundClass
 import com.google.turbine.binder.bytecode.BytecodeBoundClass
@@ -47,18 +37,9 @@ import com.google.turbine.binder.env.SimpleEnv
 import com.google.turbine.binder.lookup.LookupKey
 import com.google.turbine.binder.lookup.TopLevelIndex
 import com.google.turbine.binder.sym.ClassSymbol
-import com.google.turbine.diag.SourceFile
-import com.google.turbine.diag.TurbineDiagnostic
-import com.google.turbine.diag.TurbineError
-import com.google.turbine.diag.TurbineLog
-import com.google.turbine.parse.Parser
-import com.google.turbine.tree.Tree.CompUnit
 import com.google.turbine.tree.Tree.Ident
 import com.google.turbine.type.AnnoInfo
 import java.io.File
-import java.nio.file.Paths
-import java.util.Optional
-import javax.lang.model.SourceVersion
 
 /**
  * This initializer acts as an adapter between codebase and the output from Turbine parser.
@@ -68,14 +49,9 @@ import javax.lang.model.SourceVersion
  */
 internal class TurbineCodebaseInitialiser(
     codebaseFactory: DefaultCodebaseFactory,
-    private val bootclasspath: ClassPath,
-    private val classpath: ClassPath,
 ) : SourceCodebaseAssembler(), TurbineGlobalContext {
 
     override val codebase = codebaseFactory(this)
-
-    /** The output from Turbine Binder */
-    private lateinit var bindingResult: BindingResult
 
     /**
      * Map between ClassSymbols and TurbineClass for classes present on the source path or the class
@@ -105,117 +81,19 @@ internal class TurbineCodebaseInitialiser(
     override lateinit var valueFactory: TurbineValueFactory
 
     /**
-     * Populates [codebase] from the [sourceSet].
+     * Populates [codebase] from the [boundSources].
      *
-     * Then creates the packages, classes and their members, as well as sets up various class
-     * hierarchies using the binder's output
+     * Creates the packages, classes and their members, as well as sets up various class hierarchies
+     * using the binder's output.
      */
     fun initialize(
-        sourceSet: SourceSet,
+        boundSources: BoundSources,
         apiPackages: PackageFilter?,
         tracer: Tracer,
     ) {
-        // Any non-fatal error (like unresolved symbols) will be captured in this log and will
-        // be handled below.
-        val log = TurbineLog()
-
-        // Get the units from the source files provided on the command line.
-        val commandLineSources = sourceSet.sources
-        val sourceFiles =
-            tracer.trace("turbine.getSourceFiles") {
-                getSourceFiles(commandLineSources.asSequence())
-            }
-        val units =
-            tracer.trace("turbine.parseSourceFiles") { sourceFiles.mapNotNull { parse(log, it) } }
-
-        // Get the sequence of all files that can be found on the source path which are not
-        // explicitly listed on the command line.
-        val scannedFiles =
-            tracer.trace("turbine.scanSourceFiles") {
-                scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
-            }
-        val sourcePathFiles =
-            tracer.trace("turbine.getExtraSourceFiles") { getSourceFiles(scannedFiles) }
-
-        // Get the set of qualified class names provided on the command line. If a `.java` file
-        // contains multiple java classes then it just used the main class name.
-        val commandLineClasses = units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
-
-        // Get the units for the extra source files found on the source path.
-        val extraUnits =
-            tracer.trace("turbine.parseExtraSourceFiles") {
-                sourcePathFiles
-                    .mapNotNull { parse(log, it) }
-
-                    // Ignore any files that contain duplicates of a class that was specified on the
-                    // command line. This is needed when merging annotations from other java files
-                    // as there may be duplicate definitions of the class on the source path.
-                    .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
-            }
-
-        // If any errors were reported during parsing then report them and abort.
-        if (log.anyErrors()) {
-            log.reportTo(codebase.reporter)
-            throw TurbineError(ImmutableList.of())
-        }
-
-        // Combine all the units together.
-        val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
-
-        try {
-            // No annotation processors are used.
-            val annotationProcessorInfo =
-                ProcessorInfo.create(
-                    ImmutableList.of(),
-                    null,
-                    ImmutableMap.of(),
-                    SourceVersion.latest()
-                )
-
-            tracer.trace("turbine.bind") {
-                MoreExecutors.newDirectExecutorService().use { executor ->
-                    // Bind the units
-                    bindingResult =
-                        Binder.bind(
-                            executor,
-                            log,
-                            allUnits,
-                            classpath,
-                            annotationProcessorInfo,
-                            bootclasspath,
-                            Optional.empty()
-                        )!!
-                }
-            }
-        } catch (e: TurbineError) {
-            // Catch the [TurbineError] and extract its diagnostics. An exception will be rethrown
-            // below after reporting the diagnostics because [bindingResult] will not have been set.
-            e.logAllDiagnostics(log)
-        }
-
-        // Report all the diagnostics, filtering those that relate to missing references.
-        tracer.trace("turbine.reportDiagnostics") {
-            log.reportTo(codebase.reporter) { diagnostic ->
-                // Ignore missing references.
-                val errorKind = diagnostic.kind()
-                when (errorKind) {
-                    TurbineError.ErrorKind.CANNOT_RESOLVE,
-                    TurbineError.ErrorKind.CANNOT_RESOLVE_FIELD,
-                    TurbineError.ErrorKind.EXPRESSION_ERROR,
-                    TurbineError.ErrorKind.NO_JAVA_LANG,
-                    TurbineError.ErrorKind.SYMBOL_NOT_FOUND -> {
-                        false
-                    }
-                    else -> true
-                }
-            }
-        }
-
-        // Check to make sure that the binding was not aborted, if it was then abort this
-        // processing.
-        if (!::bindingResult.isInitialized) {
-            throw TurbineError(ImmutableList.of())
-        }
+        val sourceSet = boundSources.sourceSet
+        val allUnits = boundSources.allUnits
+        val bindingResult = boundSources.bindingResult
 
         // Get the top level index needed for creating TurbineElements.
         index = bindingResult.tli()
@@ -256,7 +134,7 @@ internal class TurbineCodebaseInitialiser(
         // the command line as only those classes can contribute directly to the API.
         val commandLineSourceClasses =
             tracer.trace("turbine.topLevelAccessibleCommandLineClasses") {
-                topLevelAccessibleCommandLineClasses(allSourceClassMap, commandLineSources)
+                topLevelAccessibleCommandLineClasses(allSourceClassMap, sourceSet.sources)
             }
 
         // Scan the files looking for package.html and overview.html files and extract the
@@ -271,47 +149,6 @@ internal class TurbineCodebaseInitialiser(
         tracer.trace("turbine.copyTypeUseOnlyNullnessAnnotationsToItems") {
             copyTypeUseOnlyNullnessAnnotationsToItems()
         }
-    }
-
-    /**
-     * Parse [sourceFile] and return the [CompUnit].
-     *
-     * If [Parser.parse] throws a [TurbineError] then add any diagnostics from that to [log] and
-     * return `null`.
-     */
-    private fun parse(log: TurbineLog, sourceFile: SourceFile): CompUnit? =
-        try {
-            Parser.parse(sourceFile)
-        } catch (e: TurbineError) {
-            e.logAllDiagnostics(log)
-            null
-        }
-
-    private fun TurbineError.logAllDiagnostics(log: TurbineLog) {
-        for (diagnostic in diagnostics()) {
-            log.add(diagnostic)
-        }
-    }
-
-    /** Report all the diagnostics in this [TurbineLog], if any, to [reporter]. */
-    private fun TurbineLog.reportTo(
-        reporter: Reporter,
-        predicate: (TurbineDiagnostic) -> Boolean = { true }
-    ) {
-        for (diagnostic in diagnostics()) {
-            // Ignore any that do not match the predicate.
-            if (!predicate(diagnostic)) continue
-
-            val path = diagnostic.path()
-            val location =
-                FileLocation.createLocation(
-                    Paths.get(path),
-                    line = diagnostic.line(),
-                    characterPosition = diagnostic.column()
-                )
-            reporter.report(Issues.INVALID_SYNTAX, null, diagnostic.message(), location)
-        }
-        clear()
     }
 
     /**
@@ -344,43 +181,6 @@ internal class TurbineCodebaseInitialiser(
             val path = sourceTypeBoundClass.source().path()
             path in commandLinePaths
         }
-    }
-
-    /**
-     * Get the qualified class name of the main class in a unit.
-     *
-     * If a `.java` file contains multiple java classes then the main class is the first one which
-     * is assumed to be the public class.
-     */
-    private val CompUnit.mainClassQualifiedName: String?
-        get() {
-            val pkgName = getPackageName(this)
-            return decls().firstOrNull()?.let { decl -> "$pkgName.${decl.name()}" }
-        }
-
-    private fun scanSourcePath(sourcePath: List<File>, existingSources: Set<File>): Sequence<File> {
-        val visited = mutableSetOf<String>()
-        return sourcePath
-            .asSequence()
-            .flatMap { sourceRoot ->
-                sourceRoot
-                    .walkTopDown()
-                    // The following prevents repeatedly re-entering the same directory if there is
-                    // a cycle in the files, e.g. a symlink from a subdirectory back up to an
-                    // ancestor directory.
-                    .onEnter { dir ->
-                        // Use the canonical path as each file in a cycle can be represented by an
-                        // infinite number of paths and using them would make the visited check
-                        // useless.
-                        val canonical = dir.canonicalPath
-                        return@onEnter if (canonical in visited) false
-                        else {
-                            visited += canonical
-                            true
-                        }
-                    }
-            }
-            .filter { it !in existingSources }
     }
 
     /**
@@ -564,12 +364,4 @@ internal class TurbineCodebaseInitialiser(
         val idents = name.split(".").mapIndexed { idx, it -> Ident(idx, it) }
         return LookupKey(ImmutableList.copyOf(idents))
     }
-}
-
-/** Create a [SourceFile] for every `.java` file in [sources]. */
-private fun getSourceFiles(sources: Sequence<File>): List<SourceFile> {
-    return sources
-        .filter { it.isFile && it.extension == "java" } // Ensure only Java files are included
-        .map { SourceFile(it.path, it.readText()) }
-        .toList()
 }

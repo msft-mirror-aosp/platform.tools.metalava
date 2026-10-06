@@ -23,15 +23,11 @@ import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.AbstractSourceParser
 import com.android.tools.metalava.model.source.SourceParser
-import com.google.turbine.binder.ClassPathBinder
-import com.google.turbine.binder.JimageClassBinder
-import com.google.turbine.diag.TurbineError
 import java.io.File
 
 internal class TurbineSourceParser(
     private val turbineEnvironment: TurbineEnvironment,
     codebaseConfig: Codebase.Config,
-    private val jdkHome: File?,
     tracer: Tracer,
 ) :
     AbstractSourceParser(
@@ -50,19 +46,9 @@ internal class TurbineSourceParser(
             error("Turbine model does not support --compiled-jar")
         }
 
-        val classpath =
-            tracer.trace("turbine.bindClasspath") {
-                ClassPathBinder.bindClasspath(inputs.classPath.map { it.toPath() })
-            }
-        val bootclasspath =
-            tracer.trace("turbine.bindBootclasspath") {
-                jdkHome?.let { home -> JimageClassBinder.bind(home.path) }
-                    ?: ClassPathBinder.bindClasspath(listOf())
-            }
+        val boundSources = turbineEnvironment.bindSources(inputs.sourceSet, reporter) ?: return null
 
-        val sourceSet = inputs.sourceSet
-
-        val rootDir = sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
+        val rootDir = boundSources.sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
             tracer.trace("turbine.createCodebaseInitialiser") {
@@ -82,19 +68,12 @@ internal class TurbineSourceParser(
                             selectedApiFactory = SelectedApi.sourceFactory(codebaseConfig),
                         )
                     },
-                    bootclasspath = bootclasspath,
-                    classpath = classpath,
                 )
             }
 
-        try {
-            // Initialize the codebase.
-            tracer.trace("turbine.initialize") {
-                assembler.initialize(sourceSet, inputs.apiPackages, tracer)
-            }
-        } catch (_: TurbineError) {
-            // Processing was aborted so the `codebase` is not valid so return `null`.
-            return null
+        // Initialize the codebase.
+        tracer.trace("turbine.initialize") {
+            assembler.initialize(boundSources, inputs.apiPackages, tracer)
         }
 
         // Return the newly created and initialized codebase.
