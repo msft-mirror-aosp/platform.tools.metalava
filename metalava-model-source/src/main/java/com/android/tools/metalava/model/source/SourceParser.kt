@@ -136,6 +136,14 @@ interface SourceParser {
     fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
 
     /**
+     * Creates a multiplatform codebase based on the [Environment.projectDescription] file, which is
+     * a lint project model that can describe project structures in detail.
+     *
+     * Only supported by the PSI model.
+     */
+    fun createMultiplatformCodebase(): MultiplatformCodebase
+
+    /**
      * Creates a multiplatform codebase based on the [projectDescription] file, which is a lint
      * project model that can describe project structures in detail.
      *

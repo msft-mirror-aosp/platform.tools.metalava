@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -39,6 +40,12 @@ abstract class AbstractSourceParser(
 ) : SourceParser {
     protected val reporter: Reporter
         get() = codebaseConfig.reporter
+
+    override fun createMultiplatformCodebase(): MultiplatformCodebase {
+        val projectDescription =
+            environment.projectDescription ?: error("No projectDescription configured")
+        return createMultiplatformCodebase(projectDescription)
+    }
 
     override fun getClassPathResolver(): ClassPathResolver =
         getClassPathResolver(environment.classPath)
