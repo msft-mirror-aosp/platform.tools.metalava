@@ -42,7 +42,6 @@ internal class TurbineSourceModelProvider :
     override fun createEnvironmentManager(
         disableStderrDumping: Boolean,
         forTesting: Boolean,
-        reuseEnvironment: Boolean,
     ): com.android.tools.metalava.model.source.EnvironmentManager = TurbineEnvironmentManager()
 
     override fun toString() = providerName

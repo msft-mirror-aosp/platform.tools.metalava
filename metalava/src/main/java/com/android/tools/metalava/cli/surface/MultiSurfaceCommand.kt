@@ -84,8 +84,6 @@ class MultiSurfaceCommand :
             environmentManager =
                 sourceModelProvider.createEnvironmentManager(
                     disableStderrDumping = disableStderrDumping,
-                    // Allow the UastEnvironment to be reused by the SingleSurfaceCommands
-                    reuseEnvironment = true,
                 )
         }
 
