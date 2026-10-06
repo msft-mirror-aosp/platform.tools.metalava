@@ -22,20 +22,21 @@ package com.android.tools.metalava.model.parser
  * Emitted by [SharedLexer] (and `SignatureFileLexer`).
  */
 object SharedTokenType {
-    // Identifiers & Literals
+    // Identifiers & Literals (for types, values, and annotations)
     val IDENTIFIER = TokenType("IDENTIFIER", canBeIdentifier = true)
     val NUMBER_LITERAL = TokenType("NUMBER_LITERAL")
     val STRING_LITERAL = TokenType("STRING_LITERAL")
     val CHAR_LITERAL = TokenType("CHAR_LITERAL")
 
-    // Keywords
+    // Type & Value Keywords
     val CLASS = TokenType("CLASS", canBeIdentifier = true)
     val EXTENDS = TokenType("EXTENDS", canBeIdentifier = true)
     val SUPER = TokenType("SUPER", canBeIdentifier = true)
 
-    // Delimiters / Punctuation
+    // Type, Value & Annotation Delimiters / Punctuation
     val DOT = TokenType("DOT")
     val COMMA = TokenType("COMMA")
+    val COLON = TokenType("COLON")
     val DOUBLE_COLON = TokenType("DOUBLE_COLON")
     val ANGLE_OPEN = TokenType("ANGLE_OPEN")
     val ANGLE_CLOSE = TokenType("ANGLE_CLOSE")
@@ -119,11 +120,7 @@ open class SharedLexer(
                     createToken(SharedTokenType.DOUBLE_COLON, start, index)
                 } else {
                     index = start + 1
-                    createToken(
-                        SharedTokenType.UNKNOWN,
-                        start,
-                        index,
-                    )
+                    createToken(SharedTokenType.COLON, start, index)
                 }
             }
             '<' -> {

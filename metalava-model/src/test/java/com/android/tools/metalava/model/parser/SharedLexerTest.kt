@@ -295,6 +295,20 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test colon token`() {
+        checkTokenize(
+            "a: int",
+            expectedTokens =
+                """
+                    IDENTIFIER 'a'
+                    COLON ':'
+                    IDENTIFIER 'int'
+                    EOF ''
+                """,
+        )
+    }
+
+    @Test
     fun `Test EOF token is returned on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)
