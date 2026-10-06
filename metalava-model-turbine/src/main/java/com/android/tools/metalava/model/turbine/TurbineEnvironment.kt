@@ -17,8 +17,10 @@
 package com.android.tools.metalava.model.turbine
 
 import androidx.tracing.Tracer
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.source.AbstractEnvironment
 import com.android.tools.metalava.model.source.Environment
+import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
@@ -45,4 +47,12 @@ internal class TurbineEnvironment(
         jdkHome = jdkHome,
         reporter = reporter,
         tracer = tracer,
-    )
+    ) {
+    override fun createSourceParser(codebaseConfig: Codebase.Config): SourceParser =
+        TurbineSourceParser(
+            turbineEnvironment = this,
+            codebaseConfig = codebaseConfig,
+            jdkHome = jdkHome,
+            tracer = tracer,
+        )
+}

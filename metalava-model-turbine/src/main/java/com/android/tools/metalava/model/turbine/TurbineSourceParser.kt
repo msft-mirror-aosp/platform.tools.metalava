@@ -29,6 +29,7 @@ import com.google.turbine.diag.TurbineError
 import java.io.File
 
 internal class TurbineSourceParser(
+    private val turbineEnvironment: TurbineEnvironment,
     private val codebaseConfig: Codebase.Config,
     private val jdkHome: File?,
     tracer: Tracer,
