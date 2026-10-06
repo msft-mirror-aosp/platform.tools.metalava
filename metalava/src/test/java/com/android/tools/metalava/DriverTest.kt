@@ -93,7 +93,6 @@ import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
 import com.google.common.io.Closeables
-import com.intellij.openapi.util.Disposer
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
@@ -108,7 +107,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
-import org.junit.Before
 import org.junit.Rule
 import org.junit.rules.ErrorCollector
 import org.junit.runner.RunWith
@@ -120,11 +118,6 @@ abstract class DriverTest :
 
     /** The [CodebaseCreatorConfig] under which this test will be run. */
     final override lateinit var codebaseCreatorConfig: CodebaseCreatorConfig<SourceModelProvider>
-
-    @Before
-    fun setup() {
-        Disposer.setDebugMode(true)
-    }
 
     // Makes a note to fail the test, but still allows the test to complete before failing
     protected fun addError(error: String) {
@@ -169,8 +162,6 @@ abstract class DriverTest :
 
             val sw = StringWriter()
             val writer = PrintWriter(sw)
-
-            Disposer.setDebugMode(true)
 
             val executionEnvironment =
                 ExecutionEnvironment(
