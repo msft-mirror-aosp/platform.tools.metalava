@@ -62,7 +62,6 @@ import com.android.tools.metalava.model.TraversingVisitor
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.SignatureFile
@@ -95,9 +94,6 @@ class AnnotationsMerger(
     private val config: Config,
 ) {
     data class Config(
-        val sources: List<File> = emptyList(),
-        val sourcePath: List<File> = emptyList(),
-        val classpath: List<File> = emptyList(),
         val apiPackageFilter: PackageFilter? = null,
         val nullabilityAnnotationsValidator: NullabilityAnnotationsValidator? = null,
     )
@@ -140,18 +136,8 @@ class AnnotationsMerger(
             val javaStubFiles = mutableListOf<File>()
             mergeFileOrDir(it, mergeFile, javaStubFiles)
             if (javaStubFiles.isNotEmpty()) {
-                // Set up class path to contain our main sources such that we can
-                // resolve types in the stubs
-                val roots =
-                    SourceSet(config.sources, config.sourcePath).extractRoots(reporter).sourcePath
-                val inputs =
-                    SourceParser.Inputs(
-                        SourceSet(javaStubFiles, roots),
-                        "Codebase loaded from stubs",
-                        classPath = config.classpath,
-                        apiPackages = config.apiPackageFilter,
-                    )
-                val javaStubsCodebase = sourceParser.parseSources(inputs)
+                val javaStubsCodebase =
+                    sourceParser.parseJavaStubs(javaStubFiles, config.apiPackageFilter)
                 if (javaStubsCodebase != null) {
                     mergeJavaStubsCodebase(javaStubsCodebase)
                 }

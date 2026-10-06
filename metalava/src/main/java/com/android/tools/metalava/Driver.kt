@@ -321,9 +321,6 @@ class Driver(
             apiSurface = apiSurface,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
-                    sources = sourceOptions.sourceFiles,
-                    sourcePath = sourceOptions.sourcePath,
-                    classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
