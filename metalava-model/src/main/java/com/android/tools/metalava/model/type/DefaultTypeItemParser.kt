@@ -303,13 +303,13 @@ open class DefaultTypeItemParser(
      * @property annotations type-use annotations preceding `[` or `...` for this dimension.
      * @property isVarargs `true` if this dimension was written with `...`, `false` if `[]`.
      * @property nullToken optional Kotlin-style nullability suffix token (`?` or `!`) after `[]` or
-     *   `...`.
+     *   `...`, or [Token.NONE] if absent.
      * @property endOffset exclusive end character offset of this array dimension in `sourceText`.
      */
     private class ArrayDimension(
         val annotations: List<AnnotationItem>,
         val isVarargs: Boolean,
-        val nullToken: Token?,
+        val nullToken: Token,
         val endOffset: Int,
     )
 
@@ -481,7 +481,8 @@ open class DefaultTypeItemParser(
                 tokens.peekType() != SharedTokenType.ANGLE_OPEN
         ) {
             val baseNullToken = matchNullabilityToken(tokens)
-            val baseSliceEnd = baseNullToken?.endOffset ?: baseEndOffset
+            val baseSliceEnd =
+                if (baseNullToken != Token.NONE) baseNullToken.endOffset else baseEndOffset
 
             // If followed by array dimensions (`@Anno []`, `[]`, or `...`), slice the base type and
             // delegate to parseArrayType.
@@ -661,7 +662,8 @@ open class DefaultTypeItemParser(
         }
 
         val baseNullToken = matchNullabilityToken(tokens)
-        val baseSliceEnd = baseNullToken?.endOffset ?: baseEndOffset
+        val baseSliceEnd =
+            if (baseNullToken != Token.NONE) baseNullToken.endOffset else baseEndOffset
 
         // If followed by array dimensions, slice the base type and delegate to parseArrayType.
         if (isArrayDimensionStart(tokens)) {
@@ -854,7 +856,7 @@ open class DefaultTypeItemParser(
                 isVarargs = false
             }
             val dimNullToken = matchNullabilityToken(tokens)
-            if (dimNullToken != null) {
+            if (dimNullToken != Token.NONE) {
                 dimEndOffset = dimNullToken.endOffset
             }
             dimensions.add(
@@ -1000,14 +1002,14 @@ open class DefaultTypeItemParser(
 
     /**
      * Consumes and returns the next token if it is a nullability suffix (`?` or `!`), or returns
-     * `null` otherwise.
+     * [Token.NONE] otherwise.
      */
-    private fun matchNullabilityToken(tokens: TokenStream): Token? {
+    private fun matchNullabilityToken(tokens: TokenStream): Token {
         val type = tokens.peekType()
         return if (type == SharedTokenType.QUESTION || type == SharedTokenType.EXCLAMATION) {
             tokens.consume()
         } else {
-            null
+            Token.NONE
         }
     }
 
@@ -1019,12 +1021,12 @@ open class DefaultTypeItemParser(
      */
     private fun resolveNullability(
         sourceText: String,
-        nullToken: Token?,
+        nullToken: Token,
         startOffset: Int,
         endOffset: Int,
         offset: Int,
     ): TypeNullability? {
-        if (nullToken == null) return null
+        if (nullToken == Token.NONE) return null
         return if (kotlinStyleNulls) {
             if (nullToken.type == SharedTokenType.QUESTION) {
                 TypeNullability.NULLABLE

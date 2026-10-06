@@ -184,22 +184,22 @@ private constructor(
     /**
      * Consumes and returns the current token in [tokens] if its type equals [type]. Otherwise,
      * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and
-     * returns `null`.
+     * returns [Token.NONE].
      */
-    private fun expect(type: TokenType, errorMessage: String): Token? {
+    private fun expect(type: TokenType, errorMessage: String): Token {
         // If the current token matches the expected type, consume and return it.
         if (peekType() == type) {
             return consume()
         }
 
-        // Otherwise, report an issue at the current token's location and return null.
+        // Otherwise, report an issue at the current token's location and return Token.NONE.
         val token = peek()
         tokenIssueReporter.report(
             token,
             Issues.INVALID_JAVADOC,
             errorMessage,
         )
-        return null
+        return Token.NONE
     }
 
     /**
@@ -268,7 +268,7 @@ private constructor(
         // Expect the inline tag name (e.g. "link", "code"). If missing, parsing cannot continue for
         // this tag.
         val nameToken = expect(JavadocTokenType.INLINE_TAG_NAME, "expected tag name after '{@'")
-        if (nameToken == null) {
+        if (nameToken == Token.NONE) {
             return
         }
 
@@ -306,7 +306,7 @@ private constructor(
         }
 
         var closed = false
-        var firstContentToken: Token? = null
+        var firstContentToken: Token = Token.NONE
 
         // Parse nested content within the inline tag.
         val nestedTagContent =
@@ -315,7 +315,7 @@ private constructor(
                     peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
                 ) {
                     // Record the first content token for reporting purposes if needed.
-                    if (firstContentToken == null) {
+                    if (firstContentToken == Token.NONE) {
                         firstContentToken = peek()
                     }
                     parseInlineTagContentElement()
@@ -340,7 +340,8 @@ private constructor(
         // Extract tag-specific data (e.g. reference for @link) from the nested content.
         val result =
             nestedTagContent?.let { tagContent ->
-                val tokenForReport = firstContentToken ?: startToken
+                val tokenForReport =
+                    if (firstContentToken != Token.NONE) firstContentToken else startToken
                 tokenIssueReporter.reportAtToken(tokenForReport) {
                     tagContent.extractTagDataForTagType(context, tagType, tokenIssueReporter)
                 }
@@ -569,7 +570,7 @@ private constructor(
     private fun parseExpr(): Expr? {
         // Expect the function name identifier (e.g. "flag").
         val functionNameToken = expect(JavadocTokenType.IDENTIFIER, "expected function name")
-        if (functionNameToken == null) {
+        if (functionNameToken == Token.NONE) {
             // If the function name is missing, skip tokens until closing parenthesis to recover.
             skipUntilParenClose()
             return null
@@ -587,7 +588,7 @@ private constructor(
     private fun parseFunctionCall(functionNameToken: Token): Expr {
         // Expect opening parenthesis '(' for the function call arguments.
         val parenOpen = expect(JavadocTokenType.PAREN_OPEN, "expected '(' after function name")
-        if (parenOpen == null) {
+        if (parenOpen == Token.NONE) {
             // Missing '('; return an empty function call representation.
             return FlagFunctionCall(null)
         }
@@ -602,7 +603,7 @@ private constructor(
             while (peekType() == JavadocTokenType.DOT) {
                 fieldReferenceTokens.add(consume()) // add DOT
                 val nextIdent = expect(JavadocTokenType.IDENTIFIER, "expected identifier after '.'")
-                if (nextIdent != null) {
+                if (nextIdent != Token.NONE) {
                     fieldReferenceTokens.add(nextIdent)
                 }
             }

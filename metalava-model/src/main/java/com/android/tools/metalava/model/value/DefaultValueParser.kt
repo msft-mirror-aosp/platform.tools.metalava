@@ -625,7 +625,7 @@ class DefaultValueParser(
             ) {
                 tokens.consume()
             } else {
-                null
+                Token.NONE
             }
 
         if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
@@ -638,8 +638,8 @@ class DefaultValueParser(
             val denominator = tokens.consume().text(sourceText)
             if (denominator != "0.0") return null
 
-            val isNegative = signToken?.type == SharedTokenType.MINUS
-            val hasPlus = signToken?.type == SharedTokenType.PLUS
+            val isNegative = signToken != Token.NONE && signToken.type == SharedTokenType.MINUS
+            val hasPlus = signToken != Token.NONE && signToken.type == SharedTokenType.PLUS
             if (hasPlus) return null
 
             val numerator = numToken.text(sourceText)
@@ -658,7 +658,7 @@ class DefaultValueParser(
         }
 
         val numberText =
-            if (signToken == null) {
+            if (signToken == Token.NONE) {
                 numToken.text(sourceText)
             } else if (signToken.endOffset == numToken.startOffset) {
                 sourceText.substring(signToken.startOffset, numToken.endOffset)

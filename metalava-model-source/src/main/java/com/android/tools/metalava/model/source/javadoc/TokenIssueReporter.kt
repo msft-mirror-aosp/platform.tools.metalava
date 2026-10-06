@@ -24,18 +24,21 @@ import com.android.tools.metalava.reporter.Issues.Issue
 /** A [DocumentationIssueReporter] that reports issues for a [Token]. */
 internal class TokenIssueReporter(reporter: DocumentationIssueReporter) :
     DocumentationFragmentIssueReporter(reporter) {
-    /** The [Token] on which the issues will be reported. */
-    internal var token: Token? = null
+    /** The [Token] on which the issues will be reported, or [Token.NONE] if not set. */
+    internal var token: Token = Token.NONE
 
     /**
      * The character offset of [token] from the beginning of the content parsed by [JavadocParser].
      */
     override val charOffsetFromContainer: Int
-        get() = token!!.startOffset
+        get() {
+            check(token != Token.NONE) { "token is not set" }
+            return token.startOffset
+        }
 
     /** Treat any issues reported by [body] as if they were reported on [token]. */
     inline fun <R> reportAtToken(token: Token, body: () -> R): R {
-        val oldToken = token
+        val oldToken = this.token
         this.token = token
         try {
             return body()
