@@ -17,12 +17,17 @@
 package com.android.tools.metalava.model.source
 
 import androidx.tracing.Tracer
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.reporter.Reporter
 import java.io.File
 
 /**
  * Encapsulates the prepared, surface-independent state (such as extracted source roots, indexed
  * source path, and bound classpath) for a set of sources and classpath jars.
+ *
+ * An [Environment] is created by [EnvironmentManager.createEnvironment] and can be used to create
+ * one or more [SourceParser] instances (e.g. for multiple API surfaces with different
+ * [Codebase.Config]s) that share the underlying parsed ASTs and bound classpath state.
  */
 interface Environment {
     /** The [SourceSet] with extracted source roots. */
@@ -46,6 +51,12 @@ interface Environment {
 
     /** The optional path to the JDK home directory. */
     val jdkHome: File?
+
+    /**
+     * Create a [SourceParser] bound to this [Environment] that can be used to create [Codebase]
+     * related objects using [codebaseConfig].
+     */
+    fun createSourceParser(codebaseConfig: Codebase.Config): SourceParser
 }
 
 /**
@@ -67,4 +78,13 @@ abstract class AbstractEnvironment<M : EnvironmentManager>(
         tracer.trace("extractRoots") { rawSourceSet.extractRoots(reporter) }
 
     final override val classPath: List<File> = rawClassPath.map { it.absoluteFile }
+
+    override fun createSourceParser(codebaseConfig: Codebase.Config): SourceParser =
+        environmentManager.createSourceParser(
+            codebaseConfig = codebaseConfig,
+            tracer = tracer,
+            javaLanguageLevel = javaLanguageLevel,
+            kotlinLanguageLevel = kotlinLanguageLevel,
+            jdkHome = jdkHome,
+        )
 }

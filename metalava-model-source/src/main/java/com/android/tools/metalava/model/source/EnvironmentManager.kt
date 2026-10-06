@@ -73,7 +73,16 @@ interface EnvironmentManager : Closeable {
         kotlinLanguageLevel: String = DEFAULT_KOTLIN_LANGUAGE_LEVEL,
         modelOptions: ModelOptions = ModelOptions.empty,
         jdkHome: File? = null,
-    ): SourceParser
+    ): SourceParser =
+        createEnvironment(
+                javaLanguageLevel = javaLanguageLevel,
+                kotlinLanguageLevel = kotlinLanguageLevel,
+                modelOptions = modelOptions,
+                jdkHome = jdkHome,
+                reporter = codebaseConfig.reporter,
+                tracer = tracer,
+            )
+            .createSourceParser(codebaseConfig)
 }
 
 const val DEFAULT_JAVA_LANGUAGE_LEVEL = "1.8"
