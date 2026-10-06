@@ -30,10 +30,15 @@ import java.io.File
 
 internal class TurbineSourceParser(
     private val turbineEnvironment: TurbineEnvironment,
-    private val codebaseConfig: Codebase.Config,
+    codebaseConfig: Codebase.Config,
     private val jdkHome: File?,
     tracer: Tracer,
-) : AbstractSourceParser(codebaseConfig.reporter, tracer) {
+) :
+    AbstractSourceParser(
+        turbineEnvironment,
+        codebaseConfig,
+        tracer,
+    ) {
     /**
      * Returns a codebase initialized from the given Java source files, with the given description.
      */

@@ -78,13 +78,4 @@ abstract class AbstractEnvironment<M : EnvironmentManager>(
         tracer.trace("extractRoots") { rawSourceSet.extractRoots(reporter) }
 
     final override val classPath: List<File> = rawClassPath.map { it.absoluteFile }
-
-    override fun createSourceParser(codebaseConfig: Codebase.Config): SourceParser =
-        environmentManager.createSourceParser(
-            codebaseConfig = codebaseConfig,
-            tracer = tracer,
-            javaLanguageLevel = javaLanguageLevel,
-            kotlinLanguageLevel = kotlinLanguageLevel,
-            jdkHome = jdkHome,
-        )
 }

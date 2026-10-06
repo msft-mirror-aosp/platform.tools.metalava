@@ -32,9 +32,12 @@ import java.util.zip.ZipFile
 import kotlin.collections.iterator
 
 abstract class AbstractSourceParser(
-    protected val reporter: Reporter,
+    protected val environment: AbstractEnvironment<*>,
+    protected val codebaseConfig: Codebase.Config,
     protected val tracer: Tracer,
 ) : SourceParser {
+    protected val reporter: Reporter
+        get() = codebaseConfig.reporter
 
     final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(

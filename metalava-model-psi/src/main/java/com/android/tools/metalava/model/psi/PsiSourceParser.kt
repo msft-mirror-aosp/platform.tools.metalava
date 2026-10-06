@@ -59,12 +59,17 @@ fun kotlinLanguageVersionSettings(value: String?): LanguageVersionSettings {
  */
 internal class PsiSourceParser(
     private val psiEnvironment: PsiEnvironment,
-    private val codebaseConfig: Codebase.Config,
+    codebaseConfig: Codebase.Config,
     tracer: Tracer,
     private val javaLanguageLevel: LanguageLevel,
     private val kotlinLanguageLevel: LanguageVersionSettings,
     private val jdkHome: File?,
-) : AbstractSourceParser(codebaseConfig.reporter, tracer) {
+) :
+    AbstractSourceParser(
+        psiEnvironment,
+        codebaseConfig,
+        tracer,
+    ) {
     private val psiEnvironmentManager: PsiEnvironmentManager
         get() = psiEnvironment.environmentManager
 
