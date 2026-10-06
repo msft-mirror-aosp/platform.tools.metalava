@@ -17,7 +17,9 @@
 package com.android.tools.metalava.model.turbine
 
 import androidx.tracing.Tracer
+import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -35,19 +37,59 @@ internal class TurbineSourceParser(
         codebaseConfig,
         tracer,
     ) {
-    /**
-     * Returns a codebase initialized from the given Java source files, with the given description.
-     */
-    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
-        if (inputs.projectDescription != null) {
+    override fun getClassPathResolver(): ClassPathResolver {
+        val boundSources =
+            turbineEnvironment.classPathBoundSources
+                ?: error("Could not create codebase from ${turbineEnvironment.classPath}")
+        return createCodebase(
+            boundSources = boundSources,
+            description = "Codebase from classpath",
+            apiPackages = null,
+        )
+    }
+
+    override fun processSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        includeKotlinInCodebase: Boolean,
+    ): Codebase? {
+        if (turbineEnvironment.projectDescription != null) {
             error("Turbine model does not support --project")
         }
-        if (inputs.compiledSourceJar != null) {
+        if (compiledSourceJar != null) {
             error("Turbine model does not support --compiled-jar")
         }
 
-        val boundSources = turbineEnvironment.bindSources(inputs.sourceSet, reporter) ?: return null
+        val boundSources = turbineEnvironment.boundSources ?: return null
+        return createCodebase(
+            boundSources = boundSources,
+            description = description,
+            apiPackages = apiPackages,
+        )
+    }
 
+    override fun processJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase? {
+        val boundSources = turbineEnvironment.bindJavaStubs(javaStubFiles, reporter) ?: return null
+        return createCodebase(
+            boundSources = boundSources,
+            description = "Codebase loaded from stubs",
+            apiPackages = apiPackages,
+        )
+    }
+
+    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
+        error("unused")
+    }
+
+    private fun createCodebase(
+        boundSources: BoundSources,
+        description: String,
+        apiPackages: PackageFilter?,
+    ): DefaultCodebase {
         val rootDir = boundSources.sourceSet.sourcePath.firstOrNull() ?: File("").canonicalFile
 
         val assembler =
@@ -56,7 +98,7 @@ internal class TurbineSourceParser(
                     codebaseFactory = { assembler ->
                         DefaultCodebase(
                             location = rootDir,
-                            description = inputs.description,
+                            description = description,
                             preFiltered = false,
                             config = codebaseConfig,
                             trustedApi = false,
@@ -73,7 +115,7 @@ internal class TurbineSourceParser(
 
         // Initialize the codebase.
         tracer.trace("turbine.initialize") {
-            assembler.initialize(boundSources, inputs.apiPackages, tracer)
+            assembler.initialize(boundSources, apiPackages, tracer)
         }
 
         // Return the newly created and initialized codebase.

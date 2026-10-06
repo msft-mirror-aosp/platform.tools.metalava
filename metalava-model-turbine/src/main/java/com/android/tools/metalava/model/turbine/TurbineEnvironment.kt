@@ -91,61 +91,121 @@ internal class TurbineEnvironment(
         }
 
     /**
-     * Parses [sourceSet] and binds its compilation units against [boundClassPath] and
-     * [bootclasspath].
+     * All parsed [CompUnit]s from [sourceSet] (both [SourceSet.sources] and extra files on
+     * [SourceSet.sourcePath]), or `null` if parsing failed with syntax errors.
      */
-    fun bindSources(
-        sourceSet: SourceSet,
+    private val allUnits: ImmutableList<CompUnit>? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            // Any non-fatal error (like unresolved symbols) will be captured in this log and will
+            // be handled below.
+            val log = TurbineLog()
+
+            // Get the units from the source files provided on the command line.
+            val commandLineSources = sourceSet.sources
+            val sourceFiles =
+                tracer.trace("turbine.getSourceFiles") {
+                    getSourceFiles(commandLineSources.asSequence())
+                }
+            val units =
+                tracer.trace("turbine.parseSourceFiles") {
+                    sourceFiles.mapNotNull { parse(log, it) }
+                }
+
+            // Get the sequence of all files that can be found on the source path which are not
+            // explicitly listed on the command line.
+            val scannedFiles =
+                tracer.trace("turbine.scanSourceFiles") {
+                    scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
+                }
+            val sourcePathFiles =
+                tracer.trace("turbine.getExtraSourceFiles") { getSourceFiles(scannedFiles) }
+
+            // Get the set of qualified class names provided on the command line. If a `.java` file
+            // contains multiple java classes then it just used the main class name.
+            val commandLineClasses =
+                units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
+
+            // Get the units for the extra source files found on the source path.
+            val extraUnits =
+                tracer.trace("turbine.parseExtraSourceFiles") {
+                    sourcePathFiles
+                        .mapNotNull { parse(log, it) }
+
+                        // Ignore any files that contain duplicates of a class that was specified on
+                        // the command line. This is needed when merging annotations from other java
+                        // files as there may be duplicate definitions of the class on the source
+                        // path.
+                        .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+                }
+
+            // If any errors were reported during parsing then report them and abort.
+            if (log.anyErrors()) {
+                log.reportTo(reporter)
+                return@lazy null
+            }
+
+            // Combine all the units together.
+            ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
+        }
+
+    /**
+     * The [BoundSources] for [sourceSet] bound against [boundClassPath] and [bootclasspath], or
+     * `null` if parsing or binding failed.
+     */
+    val boundSources: BoundSources? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val units = allUnits ?: return@lazy null
+            val bindingResult = bind(units, reporter) ?: return@lazy null
+            BoundSources(sourceSet, units, bindingResult)
+        }
+
+    /**
+     * The [BoundSources] for an empty [SourceSet] bound against [boundClassPath] and
+     * [bootclasspath] for [SourceParser.getClassPathResolver].
+     */
+    val classPathBoundSources: BoundSources? by
+        lazy(LazyThreadSafetyMode.NONE) {
+            val emptyUnits = ImmutableList.of<CompUnit>()
+            val bindingResult = bind(emptyUnits, reporter) ?: return@lazy null
+            BoundSources(SourceSet.empty(), emptyUnits, bindingResult)
+        }
+
+    /**
+     * Parses [javaStubFiles] and binds them together with the non-overridden [allUnits] from
+     * [sourceSet] against [boundClassPath] and [bootclasspath].
+     */
+    fun bindJavaStubs(
+        javaStubFiles: List<File>,
         reporter: Reporter,
     ): BoundSources? {
-        // Any non-fatal error (like unresolved symbols) will be captured in this log and will
-        // be handled below.
-        val log = TurbineLog()
+        val mainUnits = allUnits ?: return null
 
-        // Get the units from the source files provided on the command line.
-        val commandLineSources = sourceSet.sources
+        val stubSourceSet = SourceSet(javaStubFiles, sourceSet.sourcePath).extractRoots(reporter)
+        val log = TurbineLog()
         val sourceFiles =
             tracer.trace("turbine.getSourceFiles") {
-                getSourceFiles(commandLineSources.asSequence())
+                getSourceFiles(stubSourceSet.sources.asSequence())
             }
         val units =
             tracer.trace("turbine.parseSourceFiles") { sourceFiles.mapNotNull { parse(log, it) } }
 
-        // Get the sequence of all files that can be found on the source path which are not
-        // explicitly listed on the command line.
-        val scannedFiles =
-            tracer.trace("turbine.scanSourceFiles") {
-                scanSourcePath(sourceSet.sourcePath, commandLineSources.toSet())
-            }
-        val sourcePathFiles =
-            tracer.trace("turbine.getExtraSourceFiles") { getSourceFiles(scannedFiles) }
-
-        // Get the set of qualified class names provided on the command line. If a `.java` file
-        // contains multiple java classes then it just used the main class name.
-        val commandLineClasses = units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
-
-        // Get the units for the extra source files found on the source path.
-        val extraUnits =
-            tracer.trace("turbine.parseExtraSourceFiles") {
-                sourcePathFiles
-                    .mapNotNull { parse(log, it) }
-
-                    // Ignore any files that contain duplicates of a class that was specified on the
-                    // command line. This is needed when merging annotations from other java files
-                    // as there may be duplicate definitions of the class on the source path.
-                    .filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
-            }
-
-        // If any errors were reported during parsing then report them and abort.
         if (log.anyErrors()) {
             log.reportTo(reporter)
             return null
         }
 
-        // Combine all the units together.
-        val allUnits = ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
-        val bindingResult = bind(allUnits, reporter) ?: return null
-        return BoundSources(sourceSet, allUnits, bindingResult)
+        val commandLineClasses = units.mapNotNull { unit -> unit.mainClassQualifiedName }.toSet()
+        val extraUnits =
+            mainUnits.filter { unit -> unit.mainClassQualifiedName !in commandLineClasses }
+
+        val stubAllUnits =
+            ImmutableList.builder<CompUnit>().addAll(units).addAll(extraUnits).build()
+        val bindingResult = bind(stubAllUnits, reporter) ?: return null
+        return BoundSources(
+            stubSourceSet,
+            stubAllUnits,
+            bindingResult,
+        )
     }
 
     /**
