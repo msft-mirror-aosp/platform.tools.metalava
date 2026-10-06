@@ -147,7 +147,7 @@ class DefaultValueParser(
     ): ArrayValue {
         val openToken = tokens.consume()
         if (openToken.type != SharedTokenType.BRACE_OPEN) {
-            throw ParseException("Expected '{' but found '${openToken.text}'")
+            throw ParseException("Expected '{' but found '${openToken.text(sourceText)}'")
         }
 
         val componentType = (optionalTypeItem as? ArrayTypeItem)?.componentType
@@ -175,7 +175,7 @@ class DefaultValueParser(
                                 break
                             }
                             else -> {
-                                val separator = tokens.peek().text
+                                val separator = tokens.peek().text(sourceText)
                                 throw ParseException("Expected ',' or '}' but found '$separator'")
                             }
                         }
@@ -204,14 +204,14 @@ class DefaultValueParser(
                 if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
                     unknownToken(optionalTypeItem, sourceText)
                 }
-                parseStringLiteral(optionalTypeItem, token.text)
+                parseStringLiteral(optionalTypeItem, token.text(sourceText))
             }
             peekType == SharedTokenType.CHAR_LITERAL -> {
                 val token = tokens.consume()
                 if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
                     unknownToken(optionalTypeItem, sourceText)
                 }
-                parseCharLiteral(optionalTypeItem, token.text)
+                parseCharLiteral(optionalTypeItem, token.text(sourceText))
             }
             peekType == SharedTokenType.PAREN_OPEN ||
                 peekType == SharedTokenType.PLUS ||
@@ -265,8 +265,8 @@ class DefaultValueParser(
         var endOffset = firstIdent.endOffset
         var secondPenultEndOffset = -1
         var penultEndOffset = -1
-        var penultLastIdent = ""
-        var lastIdent = firstIdent.text
+        var penultIdent = firstIdent
+        var lastIdentToken = firstIdent
 
         // Consume dot-separated identifier segments (`pkg.Outer.Inner.FIELD` or `pkg.Foo.class`).
         while (tokens.peekType() == SharedTokenType.DOT) {
@@ -277,8 +277,8 @@ class DefaultValueParser(
             val nextIdent = tokens.consume()
             secondPenultEndOffset = penultEndOffset
             penultEndOffset = endOffset
-            penultLastIdent = lastIdent
-            lastIdent = nextIdent.text
+            penultIdent = lastIdentToken
+            lastIdentToken = nextIdent
             endOffset = nextIdent.endOffset
         }
 
@@ -287,7 +287,7 @@ class DefaultValueParser(
         // 1. Simple or qualified Java class literal `<type>.class` without generics or brackets.
         if (
             penultEndOffset != -1 &&
-                lastIdent == "class" &&
+                lastIdentToken.type == SharedTokenType.CLASS &&
                 nextType != SharedTokenType.ANGLE_OPEN &&
                 nextType != SharedTokenType.BRACKET_OPEN &&
                 nextType != SharedTokenType.PAREN_OPEN &&
@@ -363,7 +363,7 @@ class DefaultValueParser(
                 // Optional `.java` suffix on Kotlin class literals (`<type>::class.java`).
                 if (tokens.peekType() == SharedTokenType.DOT) {
                     tokens.consume() // consume '.'
-                    if (tokens.peek().text != "java") {
+                    if (tokens.peek().text(sourceText) != "java") {
                         unknownToken(optionalTypeItem, sourceText)
                     }
                     endOffset = tokens.consume().endOffset // consume 'java'
@@ -378,6 +378,8 @@ class DefaultValueParser(
             val fullText = sourceText.substring(startOffset, endOffset)
             return createClassLiteralValue(typeString, fullText)
         }
+
+        val lastIdent = lastIdentToken.text(sourceText)
 
         // 3. Followed by `(`: either a Kotlin numeric conversion call `.toXxx()` on a field
         // reference, or a Kotlin-style annotation constructor call `QualifiedName(...)`.
@@ -397,7 +399,7 @@ class DefaultValueParser(
                 if (expectEndOfStream && tokens.peekType() != SharedTokenType.EOF) {
                     unknownToken(optionalTypeItem, sourceText)
                 }
-                val fieldName = penultLastIdent
+                val fieldName = penultIdent.text(sourceText)
                 val className =
                     if (secondPenultEndOffset != -1) {
                         sourceText.substring(startOffset, secondPenultEndOffset)
@@ -521,11 +523,11 @@ class DefaultValueParser(
             when {
                 peekType == SharedTokenType.STRING_LITERAL -> {
                     val token = tokens.consume()
-                    parseStringLiteral(optionalTypeItem, token.text)
+                    parseStringLiteral(optionalTypeItem, token.text(sourceText))
                 }
                 peekType == SharedTokenType.CHAR_LITERAL -> {
                     val token = tokens.consume()
-                    parseCharLiteral(optionalTypeItem, token.text)
+                    parseCharLiteral(optionalTypeItem, token.text(sourceText))
                 }
                 peekType == SharedTokenType.PAREN_OPEN ||
                     peekType == SharedTokenType.PLUS ||
@@ -537,24 +539,17 @@ class DefaultValueParser(
                     val firstIdent = tokens.consume()
                     val startOffset = firstIdent.startOffset
                     var endOffset = firstIdent.endOffset
-                    var hasDots = false
                     while (tokens.peekType() == SharedTokenType.DOT) {
                         tokens.consume()
                         if (!tokens.peekType().canBeIdentifier) {
                             return null
                         }
                         endOffset = tokens.consume().endOffset
-                        hasDots = true
                     }
                     if (tokens.peekType() != SharedTokenType.EOF) {
                         return null
                     }
-                    val fullName =
-                        if (hasDots) {
-                            sourceText.substring(startOffset, endOffset)
-                        } else {
-                            firstIdent.text
-                        }
+                    val fullName = sourceText.substring(startOffset, endOffset)
                     knownNamedConstantValues[fullName]?.convertToType(optionalTypeItem)
                 }
                 else -> null
@@ -600,10 +595,10 @@ class DefaultValueParser(
             tokens.consume() // consume '('
             val isNegative = tokens.match(SharedTokenType.MINUS)
             if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
-            val numerator = tokens.consume().text
+            val numerator = tokens.consume().text(sourceText)
             if (!tokens.match(SharedTokenType.SLASH)) return null
             if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
-            val denominator = tokens.consume().text
+            val denominator = tokens.consume().text(sourceText)
             if (!tokens.match(SharedTokenType.PAREN_CLOSE)) return null
 
             val specialFloat =
@@ -640,14 +635,14 @@ class DefaultValueParser(
         if (tokens.peekType() == SharedTokenType.SLASH) {
             tokens.consume() // consume '/'
             if (tokens.peekType() != SharedTokenType.NUMBER_LITERAL) return null
-            val denominator = tokens.consume().text
+            val denominator = tokens.consume().text(sourceText)
             if (denominator != "0.0") return null
 
             val isNegative = signToken?.type == SharedTokenType.MINUS
             val hasPlus = signToken?.type == SharedTokenType.PLUS
             if (hasPlus) return null
 
-            val numerator = numToken.text
+            val numerator = numToken.text(sourceText)
             val specialFloat =
                 when {
                     !isNegative && numerator == "0.0" -> DoubleValue.NaN
@@ -664,11 +659,11 @@ class DefaultValueParser(
 
         val numberText =
             if (signToken == null) {
-                numToken.text
+                numToken.text(sourceText)
             } else if (signToken.endOffset == numToken.startOffset) {
                 sourceText.substring(signToken.startOffset, numToken.endOffset)
             } else {
-                signToken.text + numToken.text
+                signToken.text(sourceText) + numToken.text(sourceText)
             }
 
         // TODO(b/354633349): Temporary workaround that is needed because some historical files from
@@ -677,8 +672,9 @@ class DefaultValueParser(
         if (tokens.peekType() == SharedTokenType.MINUS) {
             tokens.consume() // consume '-'
             val subtrahend = tokens.consume()
-            require(subtrahend.text == "1") {
-                """Expected "... - 1" but found "... - ${subtrahend.text}""""
+            val subtrahendText = subtrahend.text(sourceText)
+            require(subtrahendText == "1") {
+                """Expected "... - 1" but found "... - $subtrahendText""""
             }
             val patchedInt = Integer.decode(numberText) - 1
             return createLiteralValue(optionalTypeItem, patchedInt, nonLiteralInSource = false)
@@ -806,7 +802,7 @@ class DefaultValueParser(
             val token = tokens.peek()
             val remainder = sourceText.substring(token.endOffset)
             error(
-                "Expected to consume all the contents of `$sourceText` but did not, next token is '${token.text}', remainder is '$remainder'"
+                "Expected to consume all the contents of `$sourceText` but did not, next token is '${token.text(sourceText)}', remainder is '$remainder'"
             )
         }
     }
@@ -834,12 +830,10 @@ class DefaultValueParser(
         val startOffset = firstIdent.startOffset
         var endOffset = firstIdent.endOffset
         var nameBuilder: StringBuilder? = null
-        var hasDots = false
 
         while (tokens.peekType() == SharedTokenType.DOT) {
             val dotToken = tokens.consume() // consume '.'
             val nextIdent = tokens.consume()
-            hasDots = true
             if (
                 nameBuilder != null ||
                     dotToken.startOffset != endOffset ||
@@ -848,18 +842,15 @@ class DefaultValueParser(
                 if (nameBuilder == null) {
                     nameBuilder = StringBuilder().append(sourceText, startOffset, endOffset)
                 }
-                nameBuilder.append('.').append(nextIdent.text)
+                nameBuilder
+                    .append('.')
+                    .append(sourceText, nextIdent.startOffset, nextIdent.endOffset)
             }
             endOffset = nextIdent.endOffset
         }
 
         val possiblyShortenedAnnotationClassName =
-            nameBuilder?.toString()
-                ?: if (hasDots) {
-                    sourceText.substring(startOffset, endOffset)
-                } else {
-                    firstIdent.text
-                }
+            nameBuilder?.toString() ?: sourceText.substring(startOffset, endOffset)
 
         // Unshorten, if necessary.
         val annotationClassName =
@@ -898,7 +889,7 @@ class DefaultValueParser(
     ): List<AnnotationAttribute> {
         val openToken = tokens.consume()
         require(openToken.type == SharedTokenType.PAREN_OPEN) {
-            "Expected '(' but found ${openToken.text}"
+            "Expected '(' but found ${openToken.text(sourceText)}"
         }
 
         // Empty attribute list `()`.
@@ -921,7 +912,7 @@ class DefaultValueParser(
                     firstToken.type.canBeIdentifier && tokens.peekType() == SharedTokenType.EQUALS
                 ) {
                     tokens.consume() // consume '='
-                    attributeName = firstToken.text
+                    attributeName = firstToken.text(sourceText)
                     if (tokens.peekType() == SharedTokenType.EOF) {
                         throw ParseException("Unexpected end of file")
                     }
@@ -981,7 +972,7 @@ class DefaultValueParser(
                         // Will be consumed by the while loop condition on the next iteration.
                     }
                     else -> {
-                        val separator = tokens.peek().text
+                        val separator = tokens.peek().text(sourceText)
                         throw ValueProviderException(
                             "Unknown token <$separator>, expected one of `,` or `)`"
                         )

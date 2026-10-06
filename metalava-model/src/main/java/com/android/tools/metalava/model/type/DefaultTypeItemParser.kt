@@ -507,7 +507,7 @@ open class DefaultTypeItemParser(
                     baseSliceEnd,
                     offset,
                 )
-            val simpleName = firstToken.text
+            val simpleName = firstToken.text(sourceText)
 
             // 1. Check if it is a type variable in scope first. If a type parameter in Kotlin
             // shadows a primitive or class name (e.g. `<int>` or `<String>`), it must be resolved
@@ -561,13 +561,13 @@ open class DefaultTypeItemParser(
         }
 
         // Qualified and/or parameterized class type.
-        var outerRawName = firstToken.text
+        val outerRawName: String
         var outerAnnotations: List<AnnotationItem> = emptyList()
 
         // If the first identifier is lowercase (a package segment), consume `.pkg` segments until
         // we reach the first class name (which contains an uppercase character or is preceded by a
         // type-use annotation such as `java.lang.@NonNull String`).
-        if (!firstToken.text.any { it.isUpperCase() } && tokens.peekType() == SharedTokenType.DOT) {
+        if (!firstToken.containsUpperCase(sourceText) && tokens.peekType() == SharedTokenType.DOT) {
             var nameBuilder: StringBuilder? = null
             while (tokens.peekType() == SharedTokenType.DOT) {
                 val dotToken = tokens.consume() // consume '.'
@@ -588,18 +588,22 @@ open class DefaultTypeItemParser(
                                     baseEndOffset,
                                 )
                     }
-                    nameBuilder.append('.').append(nextIdent.text)
+                    nameBuilder
+                        .append('.')
+                        .append(sourceText, nextIdent.startOffset, nextIdent.endOffset)
                 }
                 if (annos.isNotEmpty()) {
                     outerAnnotations = annos
                 }
                 baseEndOffset = nextIdent.endOffset
-                if (annos.isNotEmpty() || nextIdent.text.any { it.isUpperCase() }) {
+                if (annos.isNotEmpty() || nextIdent.containsUpperCase(sourceText)) {
                     break
                 }
             }
             outerRawName =
                 nameBuilder?.toString() ?: sourceText.substring(baseStartOffset, baseEndOffset)
+        } else {
+            outerRawName = firstToken.text(sourceText)
         }
 
         // If the outer class is parameterized (`Outer<P1>`), scan its type argument slices.
@@ -635,7 +639,7 @@ open class DefaultTypeItemParser(
             nestedSegments.add(
                 ClassSegment(
                     innerAnnotations,
-                    innerIdent.text,
+                    innerIdent.text(sourceText),
                     innerTypeArgSlices,
                 )
             )
@@ -918,6 +922,14 @@ open class DefaultTypeItemParser(
         return list
     }
 
+    /** Returns `true` if the token's slice in [sourceText] contains an uppercase character. */
+    private fun Token.containsUpperCase(sourceText: String): Boolean {
+        for (i in startOffset until endOffset) {
+            if (sourceText[i].isUpperCase()) return true
+        }
+        return false
+    }
+
     /**
      * Parses a single `@QualifiedName` or `@QualifiedName(...)` annotation from [tokens].
      *
@@ -939,17 +951,17 @@ open class DefaultTypeItemParser(
         val rawName =
             if (tokens.peekType() == SharedTokenType.DOT) {
                 buildString {
-                    append(firstIdent.text)
+                    append(firstIdent.text(sourceText))
                     while (tokens.peekType() == SharedTokenType.DOT) {
                         tokens.consume() // consume '.'
                         append('.')
                         val nextIdent = tokens.consume()
-                        append(nextIdent.text)
+                        append(nextIdent.text(sourceText))
                         endOffset = nextIdent.endOffset
                     }
                 }
             } else {
-                firstIdent.text
+                firstIdent.text(sourceText)
             }
 
         // If followed by `(`, consume balanced parentheses and delegate attribute parsing to
