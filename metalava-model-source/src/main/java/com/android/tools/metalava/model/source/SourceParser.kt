@@ -66,13 +66,6 @@ interface SourceParser {
         apiPackages: PackageFilter? = null,
     ): Codebase?
 
-    /**
-     * Parse a set of sources into a [Codebase].
-     *
-     * @param inputs the [Inputs].
-     */
-    fun parseSources(inputs: Inputs): Codebase?
-
     /** Inputs for [parseSources]. */
     data class Inputs(
         /** The list of source files and root directories. */

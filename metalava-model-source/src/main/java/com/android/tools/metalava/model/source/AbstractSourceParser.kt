@@ -215,24 +215,6 @@ abstract class AbstractSourceParser(
         return processInputs(inputs)
     }
 
-    /**
-     * Override to ensure that [inputs] are correctly prepared for [processInputs].
-     *
-     * Preparation includes replacing [Inputs.sourceSet] with the result of calling
-     * [SourceSet.extractRoots] on it, and making [Inputs.classPath], absolute files.
-     */
-    final override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
-        val absoluteInputs =
-            tracer.trace("extractRoots") {
-                inputs.copy(
-                    sourceSet = inputs.sourceSet.extractRoots(reporter),
-                    classPath = inputs.classPath.map { it.absoluteFile },
-                )
-            }
-
-        return processInputs(absoluteInputs)?.let { postProcessCodebase(it) }
-    }
-
     /** Perform common post-processing on a newly parsed source [codebase]. */
     private fun postProcessCodebase(codebase: Codebase): Codebase {
         // Determine sealed class exhaustivity.
