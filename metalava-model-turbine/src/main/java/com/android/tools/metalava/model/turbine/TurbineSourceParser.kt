@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.source.AbstractSourceParser
-import com.android.tools.metalava.model.source.SourceParser
 import java.io.File
 
 internal class TurbineSourceParser(
@@ -79,10 +78,6 @@ internal class TurbineSourceParser(
             description = "Codebase loaded from stubs",
             apiPackages = apiPackages,
         )
-    }
-
-    override fun processInputs(inputs: SourceParser.Inputs): Codebase? {
-        error("unused")
     }
 
     private fun createCodebase(

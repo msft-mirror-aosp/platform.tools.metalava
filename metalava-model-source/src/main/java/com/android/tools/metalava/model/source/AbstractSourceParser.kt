@@ -19,7 +19,6 @@ package com.android.tools.metalava.model.source
 import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JavaConstants
 import com.android.tools.metalava.model.PackageFilter
@@ -40,15 +39,8 @@ abstract class AbstractSourceParser(
     protected val reporter: Reporter
         get() = codebaseConfig.reporter
 
-    override fun getClassPathResolver(): ClassPathResolver =
-        loadCodebaseFromJars(
-            environment.classPath,
-            "Codebase from classpath",
-            includeKotlinInCodebase = true,
-        )
-
     /** Load a [DefaultCodebase] from a set of [jars]. */
-    protected open fun loadCodebaseFromJars(
+    private fun loadCodebaseFromJars(
         jars: List<File>,
         description: String,
         includeKotlinInCodebase: Boolean,
@@ -169,24 +161,12 @@ abstract class AbstractSourceParser(
             ?.let { postProcessCodebase(it) }
 
     /** Process the sources in [environment] to produce a [Codebase], if possible. */
-    protected open fun processSources(
+    protected abstract fun processSources(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
         includeKotlinInCodebase: Boolean,
-    ): Codebase? {
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet = environment.sourceSet,
-                description = description,
-                classPath = environment.classPath,
-                apiPackages = apiPackages,
-                projectDescription = environment.projectDescription,
-                compiledSourceJar = compiledSourceJar,
-                includeKotlinInCodebase = includeKotlinInCodebase,
-            )
-        return processInputs(inputs)
-    }
+    ): Codebase?
 
     final override fun parseJavaStubs(
         javaStubFiles: List<File>,
@@ -199,21 +179,10 @@ abstract class AbstractSourceParser(
             ?.let { postProcessCodebase(it) }
 
     /** Process the [javaStubFiles] against [environment] to produce a [Codebase], if possible. */
-    protected open fun processJavaStubs(
+    protected abstract fun processJavaStubs(
         javaStubFiles: List<File>,
         apiPackages: PackageFilter?,
-    ): Codebase? {
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet =
-                    SourceSet(javaStubFiles, environment.sourceSet.sourcePath)
-                        .extractRoots(reporter),
-                description = "Codebase loaded from stubs",
-                classPath = environment.classPath,
-                apiPackages = apiPackages,
-            )
-        return processInputs(inputs)
-    }
+    ): Codebase?
 
     /** Perform common post-processing on a newly parsed source [codebase]. */
     private fun postProcessCodebase(codebase: Codebase): Codebase {
@@ -223,9 +192,6 @@ abstract class AbstractSourceParser(
         }
         return codebase
     }
-
-    /** Process the [inputs] to produce a [Codebase], if possible. */
-    protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
 
     /**
      * Determine if sealed classes make super classes non-exhaustive.

@@ -26,7 +26,6 @@ import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.psi.kotlin.KaCodebaseAssembler
 import com.android.tools.metalava.model.psi.kotlin.KotlinBytecodeApis
 import com.android.tools.metalava.model.source.AbstractSourceParser
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import java.io.File
 import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
@@ -85,15 +84,6 @@ internal class PsiSourceParser(
             apiPackages = apiPackages,
             compiledSourceJar = null,
             includeKotlinInCodebase = true,
-        )
-
-    override fun processInputs(inputs: SourceParser.Inputs): Codebase =
-        createCodebase(
-            sourceSet = inputs.sourceSet,
-            description = inputs.description,
-            apiPackages = inputs.apiPackages,
-            compiledSourceJar = inputs.compiledSourceJar,
-            includeKotlinInCodebase = inputs.includeKotlinInCodebase,
         )
 
     /**
