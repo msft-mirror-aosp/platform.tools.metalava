@@ -309,6 +309,33 @@ class SharedLexerTest {
     }
 
     @Test
+    fun `Test type parameter tokens`() {
+        checkTokenize(
+            "<reified T extends Comparable<T> & java.io.Serializable>",
+            expectedTokens =
+                """
+                    ANGLE_OPEN '<'
+                    REIFIED 'reified'
+                    IDENTIFIER 'T'
+                    EXTENDS 'extends'
+                    IDENTIFIER 'Comparable'
+                    ANGLE_OPEN '<'
+                    IDENTIFIER 'T'
+                    ANGLE_CLOSE '>'
+                    AMPERSAND '&'
+                    IDENTIFIER 'java'
+                    DOT '.'
+                    IDENTIFIER 'io'
+                    DOT '.'
+                    IDENTIFIER 'Serializable'
+                    ANGLE_CLOSE '>'
+                    EOF ''
+                """,
+        )
+        assertTrue(SharedTokenType.REIFIED.canBeIdentifier)
+    }
+
+    @Test
     fun `Test EOF token is returned on subsequent nextToken calls`() {
         val lexer = SharedLexer("int")
         assertEquals(SharedTokenType.IDENTIFIER, lexer.nextToken().type)

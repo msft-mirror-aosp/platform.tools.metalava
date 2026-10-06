@@ -32,6 +32,7 @@ object SharedTokenType {
     val CLASS = TokenType("CLASS", canBeIdentifier = true)
     val EXTENDS = TokenType("EXTENDS", canBeIdentifier = true)
     val SUPER = TokenType("SUPER", canBeIdentifier = true)
+    val REIFIED = TokenType("REIFIED", canBeIdentifier = true)
 
     // Type, Value & Annotation Delimiters / Punctuation
     val DOT = TokenType("DOT")
@@ -50,6 +51,7 @@ object SharedTokenType {
     val AT = TokenType("AT")
     val QUESTION = TokenType("QUESTION")
     val EXCLAMATION = TokenType("EXCLAMATION")
+    val AMPERSAND = TokenType("AMPERSAND")
     val EQUALS = TokenType("EQUALS")
     val PLUS = TokenType("PLUS")
     val MINUS = TokenType("MINUS")
@@ -167,6 +169,10 @@ open class SharedLexer(
                 index = start + 1
                 createToken(SharedTokenType.EXCLAMATION, start, index)
             }
+            '&' -> {
+                index = start + 1
+                createToken(SharedTokenType.AMPERSAND, start, index)
+            }
             '=' -> {
                 index = start + 1
                 createToken(SharedTokenType.EQUALS, start, index)
@@ -240,6 +246,9 @@ open class SharedLexer(
                 else SharedTokenType.IDENTIFIER
             'e' ->
                 if (matchSlice(start, length, "extends")) SharedTokenType.EXTENDS
+                else SharedTokenType.IDENTIFIER
+            'r' ->
+                if (matchSlice(start, length, "reified")) SharedTokenType.REIFIED
                 else SharedTokenType.IDENTIFIER
             's' ->
                 if (matchSlice(start, length, "super")) SharedTokenType.SUPER
