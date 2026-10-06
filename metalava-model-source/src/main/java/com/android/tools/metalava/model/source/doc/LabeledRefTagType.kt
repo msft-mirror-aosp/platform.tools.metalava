@@ -208,7 +208,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                         return null
                     }
                     tokens.consume()
-                    val memberName = memberToken.text
+                    val memberName = memberToken.text(sourceReference)
 
                     val afterMember = tokens.peek()
                     if (afterMember.startOffset != memberToken.endOffset) return null
@@ -282,7 +282,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                     val parsedType = docTypeParser.parseFromStream(tokens, sourceText)
                     val name =
                         if (tokens.peekType().canBeIdentifier) {
-                            tokens.consume().text
+                            tokens.consume().text(sourceText)
                         } else {
                             null
                         }

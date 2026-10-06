@@ -58,12 +58,14 @@ import com.android.tools.metalava.reporter.Issues
  *     - **Issue Reporting**: Syntax and validation errors are reported through
  *       [tokenIssueReporter], using the character offsets tracked in each [Token].
  *
+ * @param text the source text being parsed.
  * @param tokens the [TokenStream] to parse.
  * @param context context that applies to the Javadoc comment (such as resolving references).
  * @param reporter used for reporting issues found during parsing.
  */
 internal class JavadocParser
 private constructor(
+    private val text: String,
     private val tokens: TokenStream,
     private val context: DocCommentContext,
     reporter: DocumentationIssueReporter,
@@ -72,7 +74,7 @@ private constructor(
     private val tokenIssueReporter = TokenIssueReporter(reporter)
 
     /** [ExprBuilder] used to construct [Expr] for conditional javadoc processing. */
-    private val exprBuilder = ExprBuilder(context, tokenIssueReporter)
+    private val exprBuilder = ExprBuilder(text, context, tokenIssueReporter)
 
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
@@ -135,7 +137,7 @@ private constructor(
         ): JavadocContent? {
             val lexer = JavadocLexer(text, startInclusive, endExclusive, reporter)
             val tokens = lexer.tokenize()
-            val parser = JavadocParser(tokens, context, reporter)
+            val parser = JavadocParser(text, tokens, context, reporter)
             return parser.parse()
         }
 
@@ -163,6 +165,9 @@ private constructor(
                 }
             }
     }
+
+    /** Extracts the text of [token] from [text]. */
+    private fun text(token: Token): String = token.text(text)
 
     /** Returns the current token in [tokens] without advancing. */
     private fun peek(): Token = tokens.peek()
@@ -219,10 +224,10 @@ private constructor(
     private fun parseDescriptionElement() {
         when (peekType()) {
             // Plain text content. Append directly to text buffer.
-            JavadocTokenType.TEXT_CONTENT -> appendText(consume().text)
+            JavadocTokenType.TEXT_CONTENT -> appendText(consume())
 
             // Horizontal whitespace. Append to text buffer.
-            JavadocTokenType.SPACE -> appendText(consume().text)
+            JavadocTokenType.SPACE -> appendText(consume())
 
             // Newline sequence. Append a newline (trimming preceding non-newline whitespace).
             JavadocTokenType.NEWLINE -> {
@@ -237,17 +242,17 @@ private constructor(
             JavadocTokenType.INLINE_IF_TAG_START -> parseInlineIfTag()
 
             // Opening brace '{'. Treated as literal text at description level.
-            JavadocTokenType.BRACE_OPEN -> appendText(consume().text)
+            JavadocTokenType.BRACE_OPEN -> appendText(consume())
 
             // Closing brace '}'. Treated as literal text at description level.
-            JavadocTokenType.BRACE_CLOSE -> appendText(consume().text)
+            JavadocTokenType.BRACE_CLOSE -> appendText(consume())
 
             // End of token stream. Nothing to parse.
             JavadocTokenType.EOF -> return
 
             // Any other token type. Append as literal text.
             else -> {
-                appendText(consume().text)
+                appendText(consume())
             }
         }
     }
@@ -283,7 +288,7 @@ private constructor(
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
 
-        val tagTypeName = nameToken.text
+        val tagTypeName = text(nameToken)
         val tagType = TagTypes.tagTypeOf(tagTypeName)
 
         // Check whether the tag type is permitted in inline form. If not, report an issue.
@@ -354,11 +359,11 @@ private constructor(
      * Used when an inline tag is nested inside a tag that only supports text (e.g. `{@code}`).
      */
     private fun treatAsText(startToken: Token, nameToken: Token) {
-        appendText(startToken.text)
-        appendText(nameToken.text)
+        appendText(startToken)
+        appendText(nameToken)
 
         while (peekType() == JavadocTokenType.SPACE) {
-            appendText(consume().text)
+            appendText(consume())
         }
 
         var closed = false
@@ -368,7 +373,7 @@ private constructor(
 
         // If a closing brace '}' is encountered, append it as text and mark as closed.
         if (peekType() == JavadocTokenType.BRACE_CLOSE) {
-            appendText(consume().text)
+            appendText(consume())
             closed = true
         }
 
@@ -377,7 +382,7 @@ private constructor(
             tokenIssueReporter.report(
                 startToken,
                 Issues.UNCLOSED_INLINE_TAG,
-                "unclosed inline '@${nameToken.text}' tag",
+                "unclosed inline '@${text(nameToken)}' tag",
             )
         }
     }
@@ -409,10 +414,10 @@ private constructor(
             }
 
             // Plain text content. Append directly to text buffer.
-            JavadocTokenType.TEXT_CONTENT -> appendText(consume().text)
+            JavadocTokenType.TEXT_CONTENT -> appendText(consume())
 
             // Horizontal whitespace. Append to text buffer.
-            JavadocTokenType.SPACE -> appendText(consume().text)
+            JavadocTokenType.SPACE -> appendText(consume())
 
             // Newline sequence. Append a newline (trimming preceding non-newline whitespace).
             JavadocTokenType.NEWLINE -> {
@@ -430,7 +435,7 @@ private constructor(
             JavadocTokenType.EOF -> return
 
             // Any other token type. Append as literal text.
-            else -> appendText(consume().text)
+            else -> appendText(consume())
         }
     }
 
@@ -453,7 +458,7 @@ private constructor(
             tokenIssueReporter.report(
                 token,
                 Issues.INVALID_JAVADOC,
-                "expected '(', found '${token.text}'",
+                "expected '(', found '${text(token)}'",
             )
 
             // Error recovery: skip true branch if present.
@@ -482,7 +487,7 @@ private constructor(
             tokenIssueReporter.report(
                 token,
                 Issues.INVALID_JAVADOC,
-                "expected ')', found '${token.text}'",
+                "expected ')', found '${text(token)}'",
             )
         }
 
@@ -496,7 +501,7 @@ private constructor(
             tokenIssueReporter.report(
                 token,
                 Issues.INVALID_JAVADOC,
-                "expected '{', found '${token.text}'",
+                "expected '{', found '${text(token)}'",
             )
             if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                 consume()
@@ -529,7 +534,7 @@ private constructor(
                 tokenIssueReporter.report(
                     token,
                     Issues.INVALID_JAVADOC,
-                    "expected '{' after 'else', found '${token.text}'",
+                    "expected '{' after 'else', found '${text(token)}'",
                 )
                 if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
@@ -607,7 +612,7 @@ private constructor(
             tokenIssueReporter.report(
                 token,
                 Issues.INVALID_JAVADOC,
-                "expected field reference, found '${token.text}'",
+                "expected field reference, found '${text(token)}'",
             )
         }
 
@@ -730,32 +735,38 @@ private constructor(
         trimLeadingWhitespace = false
     }
 
+    /** Append the characters of [token] from [text] directly to [textBuffer]. */
+    private fun appendText(token: Token) = appendText(text, token.startOffset, token.endOffset)
+
     /**
-     * Append [text] to [textBuffer].
+     * Append [source] from [startInclusive] to [endExclusive] to [textBuffer].
      *
      * If [trimLeadingWhitespace] is true, strips leading whitespace from the start of the text.
      */
-    private fun appendText(text: String) {
+    private fun appendText(
+        source: String,
+        startInclusive: Int = 0,
+        endExclusive: Int = source.length
+    ) {
         // If this could be the start of the whole description block then check to see if there are
         // any leading newlines that can be skipped.
         if (trimLeadingWhitespace) {
             // Trimming leading whitespace is active.
             // Find the first non-newline character in the text to be appended.
-            val length = text.length
-            val start = text.skipForwardsOverLeadingWhitespace(0)
+            val start = source.skipForwardsOverLeadingWhitespace(startInclusive, endExclusive)
 
             // If the text only consists of a newline character then do nothing.
-            if (start == length) return
+            if (start == endExclusive) return
 
             // Append the text from the first non-newline character.
-            textBuffer.append(text, start, length)
+            textBuffer.append(source, start, endExclusive)
 
             // As a non-newline character was seen any newline characters found from now onwards
             // cannot be a leading newline.
             trimLeadingWhitespace = false
         } else {
             // Leading whitespace has already been handled; append text as-is.
-            textBuffer.append(text)
+            textBuffer.append(source, startInclusive, endExclusive)
         }
     }
 
