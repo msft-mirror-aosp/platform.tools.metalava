@@ -33,6 +33,13 @@ abstract class AbstractLexer(
     protected var index: Int = startInclusive
 
     /**
+     * Returns `true` if the slice of [text] starting at [start] with [length] characters equals
+     * [target].
+     */
+    protected fun matchSlice(start: Int, length: Int, target: String): Boolean =
+        length == target.length && text.regionMatches(start, target, 0, length)
+
+    /**
      * Creates and returns a [Token] with [Token.startOffset] and [Token.endOffset] set to
      * [startIndex] and [endIndex].
      *
@@ -41,13 +48,11 @@ abstract class AbstractLexer(
      */
     protected open fun createToken(
         type: TokenType,
-        text: String,
         startIndex: Int,
         endIndex: Int,
     ): Token =
         Token(
             type,
-            text,
             startIndex,
             endIndex,
         )
@@ -58,11 +63,4 @@ abstract class AbstractLexer(
      * @return a lazy [TokenStream] backed by this lexer.
      */
     fun tokenize(): TokenStream = TokenStream.lazy(this)
-
-    /**
-     * Returns `true` if the slice of [text] starting at [start] with length [length] matches
-     * [expected].
-     */
-    protected fun matchSlice(start: Int, length: Int, expected: String): Boolean =
-        length == expected.length && text.regionMatches(start, expected, 0, length)
 }

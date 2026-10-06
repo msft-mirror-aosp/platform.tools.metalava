@@ -64,13 +64,12 @@ internal class DocRefLexer(
             }
             createToken(
                 DocRefTokenType.URI_FRAGMENT,
-                text.substring(start, index),
                 start,
                 index,
             )
         } else {
             index = start + 1
-            createToken(DocRefTokenType.HASH, "#", start, index)
+            createToken(DocRefTokenType.HASH, start, index)
         }
     }
 

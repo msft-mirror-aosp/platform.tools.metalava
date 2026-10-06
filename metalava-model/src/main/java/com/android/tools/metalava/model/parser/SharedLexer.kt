@@ -94,7 +94,6 @@ open class SharedLexer(
             }
             return createToken(
                     SharedTokenType.EOF,
-                    "",
                     endExclusive,
                     endExclusive,
                 )
@@ -110,25 +109,24 @@ open class SharedLexer(
             '.' -> {
                 if (start + 2 < endExclusive && text[start + 1] == '.' && text[start + 2] == '.') {
                     index = start + 3
-                    createToken(SharedTokenType.ELLIPSIS, "...", start, index)
+                    createToken(SharedTokenType.ELLIPSIS, start, index)
                 } else {
                     index = start + 1
-                    createToken(SharedTokenType.DOT, ".", start, index)
+                    createToken(SharedTokenType.DOT, start, index)
                 }
             }
             ',' -> {
                 index = start + 1
-                createToken(SharedTokenType.COMMA, ",", start, index)
+                createToken(SharedTokenType.COMMA, start, index)
             }
             ':' -> {
                 if (start + 1 < endExclusive && text[start + 1] == ':') {
                     index = start + 2
-                    createToken(SharedTokenType.DOUBLE_COLON, "::", start, index)
+                    createToken(SharedTokenType.DOUBLE_COLON, start, index)
                 } else {
                     index = start + 1
                     createToken(
                         SharedTokenType.UNKNOWN,
-                        text.substring(start, index),
                         start,
                         index,
                     )
@@ -136,63 +134,63 @@ open class SharedLexer(
             }
             '<' -> {
                 index = start + 1
-                createToken(SharedTokenType.ANGLE_OPEN, "<", start, index)
+                createToken(SharedTokenType.ANGLE_OPEN, start, index)
             }
             '>' -> {
                 index = start + 1
-                createToken(SharedTokenType.ANGLE_CLOSE, ">", start, index)
+                createToken(SharedTokenType.ANGLE_CLOSE, start, index)
             }
             '[' -> {
                 index = start + 1
-                createToken(SharedTokenType.BRACKET_OPEN, "[", start, index)
+                createToken(SharedTokenType.BRACKET_OPEN, start, index)
             }
             ']' -> {
                 index = start + 1
-                createToken(SharedTokenType.BRACKET_CLOSE, "]", start, index)
+                createToken(SharedTokenType.BRACKET_CLOSE, start, index)
             }
             '(' -> {
                 index = start + 1
-                createToken(SharedTokenType.PAREN_OPEN, "(", start, index)
+                createToken(SharedTokenType.PAREN_OPEN, start, index)
             }
             ')' -> {
                 index = start + 1
-                createToken(SharedTokenType.PAREN_CLOSE, ")", start, index)
+                createToken(SharedTokenType.PAREN_CLOSE, start, index)
             }
             '{' -> {
                 index = start + 1
-                createToken(SharedTokenType.BRACE_OPEN, "{", start, index)
+                createToken(SharedTokenType.BRACE_OPEN, start, index)
             }
             '}' -> {
                 index = start + 1
-                createToken(SharedTokenType.BRACE_CLOSE, "}", start, index)
+                createToken(SharedTokenType.BRACE_CLOSE, start, index)
             }
             '@' -> {
                 index = start + 1
-                createToken(SharedTokenType.AT, "@", start, index)
+                createToken(SharedTokenType.AT, start, index)
             }
             '?' -> {
                 index = start + 1
-                createToken(SharedTokenType.QUESTION, "?", start, index)
+                createToken(SharedTokenType.QUESTION, start, index)
             }
             '!' -> {
                 index = start + 1
-                createToken(SharedTokenType.EXCLAMATION, "!", start, index)
+                createToken(SharedTokenType.EXCLAMATION, start, index)
             }
             '=' -> {
                 index = start + 1
-                createToken(SharedTokenType.EQUALS, "=", start, index)
+                createToken(SharedTokenType.EQUALS, start, index)
             }
             '+' -> {
                 index = start + 1
-                createToken(SharedTokenType.PLUS, "+", start, index)
+                createToken(SharedTokenType.PLUS, start, index)
             }
             '-' -> {
                 index = start + 1
-                createToken(SharedTokenType.MINUS, "-", start, index)
+                createToken(SharedTokenType.MINUS, start, index)
             }
             '/' -> {
                 index = start + 1
-                createToken(SharedTokenType.SLASH, "/", start, index)
+                createToken(SharedTokenType.SLASH, start, index)
             }
             '"' -> scanStringLiteral(start)
             '\'' -> scanCharLiteral(start)
@@ -204,7 +202,6 @@ open class SharedLexer(
                     index = start + 1
                     createToken(
                         SharedTokenType.UNKNOWN,
-                        text.substring(start, index),
                         start,
                         index,
                     )
@@ -273,7 +270,6 @@ open class SharedLexer(
         }
         return createToken(
             SharedTokenType.STRING_LITERAL,
-            text.substring(start, index),
             start,
             index,
         )
@@ -292,7 +288,6 @@ open class SharedLexer(
         }
         return createToken(
             SharedTokenType.CHAR_LITERAL,
-            text.substring(start, index),
             start,
             index,
         )
@@ -326,7 +321,6 @@ open class SharedLexer(
         }
         return createToken(
             SharedTokenType.NUMBER_LITERAL,
-            text.substring(start, index),
             start,
             index,
         )
@@ -341,7 +335,6 @@ open class SharedLexer(
         val type = resolveKeywordOrIdentifier(start, index)
         return createToken(
             type,
-            text.substring(start, index),
             start,
             index,
         )

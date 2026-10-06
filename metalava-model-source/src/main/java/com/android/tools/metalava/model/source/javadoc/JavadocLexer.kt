@@ -201,14 +201,12 @@ internal class JavadocLexer(
     /** Creates and returns a [Token], flushing any pending unexpected character sequence first. */
     override fun createToken(
         type: TokenType,
-        text: String,
         startIndex: Int,
         endIndex: Int,
     ): Token {
         flushUnexpected()
         return super.createToken(
             type,
-            text,
             startIndex,
             endIndex,
         )
@@ -299,7 +297,6 @@ internal class JavadocLexer(
         // Create and cache the EOF token for this and any subsequent calls to nextToken().
         return createToken(
                 JavadocTokenType.EOF,
-                "",
                 endExclusive,
                 endExclusive,
             )
@@ -347,10 +344,8 @@ internal class JavadocLexer(
             index = p
         }
 
-        val tokenText = text.substring(startIndex, index)
         return createToken(
             JavadocTokenType.NEWLINE,
-            tokenText,
             startIndex,
             index,
         )
@@ -377,10 +372,8 @@ internal class JavadocLexer(
             index++
         }
 
-        val tokenText = text.substring(startIndex, index)
         return createToken(
             JavadocTokenType.SPACE,
-            tokenText,
             startIndex,
             index,
         )
@@ -410,7 +403,6 @@ internal class JavadocLexer(
                 modeStack.push(LexerMode.INLINE_IF_TAG)
                 return createToken(
                     JavadocTokenType.INLINE_IF_TAG_START,
-                    "{@if",
                     startIndex,
                     index,
                 )
@@ -423,7 +415,6 @@ internal class JavadocLexer(
         modeStack.push(LexerMode.INLINE_TAG)
         return createToken(
             JavadocTokenType.INLINE_TAG_START,
-            "{@",
             startIndex,
             index,
         )
@@ -466,10 +457,8 @@ internal class JavadocLexer(
             index++
         }
 
-        val tokenText = text.substring(startIndex, index)
         return createToken(
             JavadocTokenType.TEXT_CONTENT,
-            tokenText,
             startIndex,
             index,
         )
@@ -491,12 +480,10 @@ internal class JavadocLexer(
             while (index < endExclusive && (text[index] in 'a'..'z' || text[index] in 'A'..'Z')) {
                 index++
             }
-            val tagName = text.substring(startIndex, index)
             modeStack.pop()
             modeStack.push(LexerMode.BALANCED_BRACE)
             createToken(
                 JavadocTokenType.INLINE_TAG_NAME,
-                tagName,
                 startIndex,
                 index,
             )
@@ -554,7 +541,6 @@ internal class JavadocLexer(
             modeStack.push(LexerMode.BALANCED_BRACE)
             return createToken(
                 JavadocTokenType.BRACE_OPEN,
-                "{",
                 startIndex,
                 index,
             )
@@ -567,7 +553,6 @@ internal class JavadocLexer(
             modeStack.pop()
             return createToken(
                 JavadocTokenType.BRACE_CLOSE,
-                "}",
                 startIndex,
                 index,
             )
@@ -583,10 +568,8 @@ internal class JavadocLexer(
             index++
         }
 
-        val tokenText = text.substring(startIndex, index)
         return createToken(
             JavadocTokenType.TEXT_CONTENT,
-            tokenText,
             startIndex,
             index,
         )
@@ -654,7 +637,6 @@ internal class JavadocLexer(
                 modeStack.push(LexerMode.EXPR)
                 createToken(
                     JavadocTokenType.PAREN_OPEN,
-                    "(",
                     startIndex,
                     index,
                 )
@@ -666,7 +648,6 @@ internal class JavadocLexer(
                 modeStack.push(LexerMode.BALANCED_BRACE)
                 createToken(
                     JavadocTokenType.BRACE_OPEN,
-                    "{",
                     startIndex,
                     index,
                 )
@@ -678,7 +659,6 @@ internal class JavadocLexer(
                 modeStack.pop()
                 createToken(
                     JavadocTokenType.BRACE_CLOSE,
-                    "}",
                     startIndex,
                     index,
                 )
@@ -692,7 +672,6 @@ internal class JavadocLexer(
                 index += 4
                 createToken(
                     JavadocTokenType.IF_TAG_ELSE,
-                    "else",
                     startIndex,
                     index,
                 )
@@ -729,7 +708,6 @@ internal class JavadocLexer(
                 modeStack.push(LexerMode.EXPR)
                 createToken(
                     JavadocTokenType.PAREN_OPEN,
-                    "(",
                     startIndex,
                     index,
                 )
@@ -741,7 +719,6 @@ internal class JavadocLexer(
                 modeStack.pop()
                 createToken(
                     JavadocTokenType.PAREN_CLOSE,
-                    ")",
                     startIndex,
                     index,
                 )
@@ -751,7 +728,6 @@ internal class JavadocLexer(
                 index++
                 createToken(
                     JavadocTokenType.DOT,
-                    ".",
                     startIndex,
                     index,
                 )
@@ -762,10 +738,8 @@ internal class JavadocLexer(
                 while (index < endExclusive && text[index].isJavaIdentifierPart()) {
                     index++
                 }
-                val ident = text.substring(startIndex, index)
                 createToken(
                     JavadocTokenType.IDENTIFIER,
-                    ident,
                     startIndex,
                     index,
                 )

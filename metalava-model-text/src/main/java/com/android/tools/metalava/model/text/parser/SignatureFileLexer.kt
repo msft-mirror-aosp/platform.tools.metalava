@@ -53,7 +53,7 @@ internal class SignatureFileLexer(
         return when (text[start]) {
             ';' -> {
                 index = start + 1
-                createToken(SignatureTokenType.SEMICOLON, ";", start, index)
+                createToken(SignatureTokenType.SEMICOLON, start, index)
             }
             else -> null
         }

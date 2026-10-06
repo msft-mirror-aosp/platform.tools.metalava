@@ -31,10 +31,10 @@ abstract class BaseTokenStreamTest {
 
     protected val sampleTokens =
         listOf(
-            Token(TestTokenType.WORD, "a", 0, 1),
-            Token(TestTokenType.PUNCT, ".", 1, 2),
-            Token(TestTokenType.WORD, "b", 2, 3),
-            Token(TestTokenType.EOF, "", 3, 3),
+            Token(TestTokenType.WORD, 0, 1),
+            Token(TestTokenType.PUNCT, 1, 2),
+            Token(TestTokenType.WORD, 2, 3),
+            Token(TestTokenType.EOF, 3, 3),
         )
 
     protected abstract fun createTokenStream(tokens: List<Token>): TokenStream

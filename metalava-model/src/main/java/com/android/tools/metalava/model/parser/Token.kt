@@ -34,7 +34,6 @@ class TokenType(
  * A lexical token produced by a lexer.
  *
  * @property type the [TokenType] representing the kind of token.
- * @property text the raw string content of this token.
  * @property startOffset 0-based start index of this token relative to the start of the parsed text
  *   range.
  * @property endOffset 0-based exclusive end index of this token relative to the start of the parsed
@@ -42,7 +41,6 @@ class TokenType(
  */
 data class Token(
     val type: TokenType,
-    val text: String,
     val startOffset: Int,
     val endOffset: Int,
 ) {
