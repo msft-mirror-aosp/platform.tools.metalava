@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TestFileCache
@@ -120,8 +119,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
      */
     private fun versionedSourceApi(vararg sourceFiles: TestFile): VersionedApiFactory {
         return { version ->
-            val parser =
-                environmentManager.createSourceParser(Codebase.Config.NOOP, Tracer.getStubTracer())
             val sourceSet =
                 SourceSet.createFromSourcePath(
                     ThrowingReporter.INSTANCE,
@@ -132,14 +129,16 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     getAndroidJar(30),
                 )
 
-            val inputs =
-                SourceParser.Inputs(
-                    sourceSet,
-                    "version $version",
-                    classPath,
+            val environment =
+                environmentManager.createEnvironment(
+                    reporter = ThrowingReporter.INSTANCE,
+                    tracer = Tracer.getStubTracer(),
+                    sourceSet = sourceSet,
+                    classPath = classPath,
                 )
+            val parser = environment.createSourceParser(Codebase.Config.NOOP)
 
-            val codebase = parser.parseSources(inputs)
+            val codebase = parser.parseSources("version $version")
 
             assertNotNull(codebase, message = "Codebase was not created")
 
