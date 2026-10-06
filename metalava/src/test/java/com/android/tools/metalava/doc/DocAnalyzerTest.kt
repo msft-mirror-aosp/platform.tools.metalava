@@ -1852,4 +1852,58 @@ class DocAnalyzerTest : DriverTest() {
             extraArguments = arrayOf(ARG_ENHANCE_DOCUMENTATION),
         )
     }
+
+    @Test
+    fun `External package config suppresses UnresolvedLink`() {
+        check(
+            configFiles =
+                arrayOf(
+                    com.android.tools.metalava.testing.xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <documentation>
+                                <external-package prefix="androidx.core"/>
+                              </documentation>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Test {
+                                /**
+                                 * See {@link androidx.core.view.ViewCompat#setImportantForAccessibility(String)}
+                                 * and {@link unknown.pkg.Foo#bar()}.
+                                 */
+                                public void test() {}
+                            }
+                        """
+                    ),
+                ),
+            docStubs = true,
+            expectedIssues =
+                "src/test/pkg/Test.java:5: warning: Could not resolve a class called 'unknown.pkg.Foo' as could not find a package or class called 'unknown' in 'method test.pkg.Test.test()' (ErrorWhenNew) [UnresolvedLink]",
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * See {@link androidx.core.view.ViewCompat#setImportantForAccessibility(java.lang.String) androidx.core.view.ViewCompat.setImportantForAccessibility(String)}
+                             * and {@link unknown.pkg.Foo#bar()}.
+                             */
+                            public void test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
 }

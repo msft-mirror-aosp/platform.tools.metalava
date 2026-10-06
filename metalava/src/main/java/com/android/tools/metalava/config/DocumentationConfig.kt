@@ -23,6 +23,9 @@ data class DocumentationConfig(
     override fun combineWith(other: DocumentationConfig) =
         DocumentationConfig(externalPackages + other.externalPackages)
 
+    /** Extract the set of external package prefixes. */
+    fun toPackagePrefixes(): Set<String> = externalPackages.mapTo(mutableSetOf()) { it.prefix }
+
     /** Validate this object, i.e. check to make sure that the contained objects are consistent. */
     fun validate() {}
 

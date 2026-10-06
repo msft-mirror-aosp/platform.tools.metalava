@@ -237,6 +237,11 @@ class Driver(
                 // Pass whether API surfaces are configured in a config file. This determines
                 // whether the `@hide` Javadoc tag is ignored for hiding elements.
                 apiSurfacesConfigured = apiSelectionOptions.apiSurfacesConfigured,
+
+                // Pass external package prefixes configured in a config file. This suppresses
+                // `UnresolvedLink` warnings for references to items in those packages.
+                externalPackagePrefixes =
+                    configFileOptions.config.documentation?.toPackagePrefixes() ?: emptySet(),
             )
         }
 
