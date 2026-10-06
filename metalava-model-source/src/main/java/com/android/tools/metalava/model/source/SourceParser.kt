@@ -27,6 +27,14 @@ import java.io.File
 interface SourceParser {
     /**
      * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
+     * [Environment.classPath].
+     *
+     * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].
+     */
+    fun getClassPathResolver(): ClassPathResolver
+
+    /**
+     * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
      * [classPath].
      *
      * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].

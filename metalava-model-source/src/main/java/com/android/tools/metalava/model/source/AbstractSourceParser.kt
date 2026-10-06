@@ -40,6 +40,9 @@ abstract class AbstractSourceParser(
     protected val reporter: Reporter
         get() = codebaseConfig.reporter
 
+    override fun getClassPathResolver(): ClassPathResolver =
+        getClassPathResolver(environment.classPath)
+
     final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(
             classPath,
