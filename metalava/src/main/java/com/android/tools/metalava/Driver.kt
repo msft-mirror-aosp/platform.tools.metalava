@@ -300,7 +300,7 @@ class Driver(
     private val classPathResolver: ClassPathResolver? by lazy {
         val classpath = sourceOptions.classpath
         if (classpath.isNotEmpty()) {
-            sourceParser.getClassPathResolver(classpath)
+            sourceParser.getClassPathResolver()
         } else {
             null
         }

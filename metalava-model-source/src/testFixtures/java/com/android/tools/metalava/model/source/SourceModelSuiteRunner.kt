@@ -160,13 +160,7 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
 
     override fun createJarSupportAndRun(test: (JarSupport) -> Unit) {
         sourceModelProvider.createEnvironmentManager(forTesting = true).use { environmentManager ->
-            val sourceParser =
-                environmentManager.createSourceParser(
-                    codebaseConfig = Codebase.Config(),
-                    tracer = Tracer.getStubTracer()
-                )
-
-            val jarSupport = SourceParserJarSupport(sourceParser)
+            val jarSupport = SourceParserJarSupport(environmentManager)
             test(jarSupport)
         }
     }
@@ -174,11 +168,23 @@ class SourceModelSuiteRunner(private val sourceModelProvider: SourceModelProvide
     override fun toString(): String = sourceModelProvider.providerName
 }
 
-/** A [JarSupport] implementation that delegates to [sourceParser]. */
-private class SourceParserJarSupport(private val sourceParser: SourceParser) : JarSupport {
+/** A [JarSupport] implementation that uses [environmentManager]. */
+private class SourceParserJarSupport(private val environmentManager: EnvironmentManager) :
+    JarSupport {
+    private fun createSourceParser(classPath: List<File> = emptyList()): SourceParser {
+        val codebaseConfig = Codebase.Config()
+        val environment =
+            environmentManager.createEnvironment(
+                reporter = codebaseConfig.reporter,
+                tracer = Tracer.getStubTracer(),
+                classPath = classPath,
+            )
+        return environment.createSourceParser(codebaseConfig)
+    }
+
     override fun getClassPathResolver(classPath: List<File>) =
-        sourceParser.getClassPathResolver(classPath)
+        createSourceParser(classPath).getClassPathResolver()
 
     override fun loadFromJar(apiJar: File, classPath: List<File>) =
-        sourceParser.loadFromJar(apiJar, classPath)
+        createSourceParser().loadFromJar(apiJar, classPath)
 }

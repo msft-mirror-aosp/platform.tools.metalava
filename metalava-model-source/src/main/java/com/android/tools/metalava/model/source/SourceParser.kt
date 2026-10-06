@@ -34,16 +34,6 @@ interface SourceParser {
     fun getClassPathResolver(): ClassPathResolver
 
     /**
-     * Get a [ClassPathResolver] instance that will resolve items provided by jars on the
-     * [classPath].
-     *
-     * If an implementation supports this it must provide [Capability.CLASS_PATH_RESOLVER].
-     *
-     * @param classPath a list of jar [File]s.
-     */
-    fun getClassPathResolver(classPath: List<File>): ClassPathResolver
-
-    /**
      * Parse the sources in the [Environment] into a [Codebase].
      *
      * @param description the description to use for [Codebase.description].

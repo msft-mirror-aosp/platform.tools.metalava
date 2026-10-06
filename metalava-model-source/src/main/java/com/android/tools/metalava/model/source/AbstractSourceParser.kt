@@ -48,11 +48,8 @@ abstract class AbstractSourceParser(
     }
 
     override fun getClassPathResolver(): ClassPathResolver =
-        getClassPathResolver(environment.classPath)
-
-    final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
         loadCodebaseFromJars(
-            classPath,
+            environment.classPath,
             "Codebase from classpath",
             includeKotlinInCodebase = true,
         )
