@@ -62,5 +62,13 @@ data class Token(
         }
     }
 
-    override fun toString(): String = "$type ($startOffset..$endOffset)"
+    override fun toString(): String =
+        if (this == NONE) "NONE" else "$type ($startOffset..$endOffset)"
+
+    companion object {
+        /**
+         * Sentinel value representing the absence of a token, avoiding nullable `Token?` boxing.
+         */
+        val NONE = Token(TokenType("NONE"), -1, -1)
+    }
 }

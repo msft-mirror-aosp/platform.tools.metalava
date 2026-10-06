@@ -95,10 +95,24 @@ internal class EagerTokenStream(
 internal class LazyTokenStream(
     private val producer: TokenProducer,
 ) : TokenStream {
-    /** The next token to be consumed, if already peeked. */
-    private var next: Token? = null
+    /** The next token to be consumed, if already peeked, or [Token.NONE] if not buffered. */
+    private var next: Token = Token.NONE
 
-    override fun peek(): Token = next ?: producer.nextToken().also { next = it }
+    override fun peek(): Token {
+        var current = next
+        if (current == Token.NONE) {
+            current = producer.nextToken()
+            next = current
+        }
+        return current
+    }
 
-    override fun consume(): Token = next?.also { next = null } ?: producer.nextToken()
+    override fun consume(): Token {
+        val current = next
+        if (current != Token.NONE) {
+            next = Token.NONE
+            return current
+        }
+        return producer.nextToken()
+    }
 }

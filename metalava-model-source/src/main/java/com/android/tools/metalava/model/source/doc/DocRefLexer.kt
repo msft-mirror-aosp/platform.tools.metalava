@@ -51,9 +51,9 @@ internal class DocRefLexer(
     endExclusive: Int = text.length,
 ) : SharedLexer(text, startInclusive, endExclusive) {
 
-    override fun tryMatchAdditionalToken(): Token? {
+    override fun tryMatchAdditionalToken(): Token {
         val start = index
-        if (text[start] != '#') return null
+        if (text[start] != '#') return Token.NONE
 
         return if (start + 1 < endExclusive && text[start + 1] == '#') {
             index = start + 2

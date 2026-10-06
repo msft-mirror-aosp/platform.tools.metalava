@@ -48,14 +48,14 @@ internal class SignatureFileLexer(
      * Matches signature-specific punctuation (`;`) at [index] before [SharedLexer] attempts its
      * standard token matching.
      */
-    override fun tryMatchAdditionalToken(): Token? {
+    override fun tryMatchAdditionalToken(): Token {
         val start = index
         return when (text[start]) {
             ';' -> {
                 index = start + 1
                 createToken(SignatureTokenType.SEMICOLON, start, index)
             }
-            else -> null
+            else -> Token.NONE
         }
     }
 }

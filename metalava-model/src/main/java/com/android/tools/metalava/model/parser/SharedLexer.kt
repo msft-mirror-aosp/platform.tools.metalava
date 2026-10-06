@@ -100,8 +100,9 @@ open class SharedLexer(
                 .also { eofToken = it }
         }
 
-        tryMatchAdditionalToken()?.let {
-            return it
+        val additional = tryMatchAdditionalToken()
+        if (additional != Token.NONE) {
+            return additional
         }
 
         val start = index
@@ -231,9 +232,9 @@ open class SharedLexer(
 
     /**
      * Hook for subclasses to match additional punctuation or prefix tokens at the current [index]
-     * before [SharedLexer] attempts its standard matching.
+     * before [SharedLexer] attempts its standard matching, or return [Token.NONE] if not matched.
      */
-    protected open fun tryMatchAdditionalToken(): Token? = null
+    protected open fun tryMatchAdditionalToken(): Token = Token.NONE
 
     /**
      * Maps the slice of [text] from [start] to [end] to a keyword [TokenType] or

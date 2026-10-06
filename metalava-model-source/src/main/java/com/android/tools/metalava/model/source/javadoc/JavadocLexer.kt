@@ -191,8 +191,8 @@ internal class JavadocLexer(
     /** Context description for the unexpected character sequence (e.g. "in expression"). */
     private var unexpectedContext: String? = null
 
-    /** Cached [JavadocTokenType.EOF] token returned once the end of input is reached. */
-    private var eofToken: Token? = null
+    /** Whether the end of input has already been reached and checked. */
+    private var reachedEof = false
 
     init {
         modeStack.push(LexerMode.DEFAULT)
@@ -272,35 +272,32 @@ internal class JavadocLexer(
                     // dots, and parens.
                     LexerMode.EXPR -> tokenizeExpr()
                 }
-            if (token != null) {
+            if (token != Token.NONE) {
                 return token
             }
         }
 
         // TokenProducer.nextToken() must continue to return an EOF token on all subsequent calls
-        // once the input is exhausted. If EOF has already been reached, return the cached EOF
-        // token immediately without re-running end-of-input checks or allocating a new Token.
-        eofToken?.let {
-            return it
+        // once the input is exhausted. Only run end-of-input checks the first time EOF is reached.
+        if (!reachedEof) {
+            reachedEof = true
+
+            // If the input ended while expecting an inline tag name (e.g. '{@' at EOF), report the
+            // missing tag name issue and pop the mode.
+            if (modeStack.peek() == LexerMode.INLINE_TAG) {
+                reportIssue(
+                    Issues.INVALID_JAVADOC,
+                    "missing inline tag name",
+                )
+                modeStack.pop()
+            }
         }
 
-        // If the input ended while expecting an inline tag name (e.g. '{@' at EOF), report the
-        // missing tag name issue and pop the mode.
-        if (modeStack.peek() == LexerMode.INLINE_TAG) {
-            reportIssue(
-                Issues.INVALID_JAVADOC,
-                "missing inline tag name",
-            )
-            modeStack.pop()
-        }
-
-        // Create and cache the EOF token for this and any subsequent calls to nextToken().
         return createToken(
-                JavadocTokenType.EOF,
-                endExclusive,
-                endExclusive,
-            )
-            .also { eofToken = it }
+            JavadocTokenType.EOF,
+            endExclusive,
+            endExclusive,
+        )
     }
 
     /**
@@ -309,15 +306,15 @@ internal class JavadocLexer(
      * asterisks).
      *
      * If matched, advances [index] and returns a [JavadocTokenType.NEWLINE] token. Otherwise
-     * returns `null`.
+     * returns [Token.NONE].
      */
-    private fun tryMatchNewline(): Token? {
-        // Return null if there are no characters remaining to match.
-        if (index >= endExclusive) return null
+    private fun tryMatchNewline(): Token {
+        // Return Token.NONE if there are no characters remaining to match.
+        if (index >= endExclusive) return Token.NONE
         val c = text[index]
 
         // If the current character is not a newline indicator (\n or \r), then no newline matches.
-        if (c != '\n' && c != '\r') return null
+        if (c != '\n' && c != '\r') return Token.NONE
 
         val startIndex = index
 
@@ -355,15 +352,15 @@ internal class JavadocLexer(
      * Attempt to match one or more horizontal whitespace characters (spaces or tabs).
      *
      * If matched, advances [index] and returns a [JavadocTokenType.SPACE] token. Otherwise returns
-     * `null`.
+     * [Token.NONE].
      */
-    private fun tryMatchSpace(): Token? {
-        // Return null if there are no characters remaining to match.
-        if (index >= endExclusive) return null
+    private fun tryMatchSpace(): Token {
+        // Return Token.NONE if there are no characters remaining to match.
+        if (index >= endExclusive) return Token.NONE
         val c = text[index]
 
-        // If the current character is not horizontal whitespace (space or tab), return null.
-        if (c != ' ' && c != '\t') return null
+        // If the current character is not horizontal whitespace (space or tab), return Token.NONE.
+        if (c != ' ' && c != '\t') return Token.NONE
 
         val startIndex = index
 
@@ -386,9 +383,11 @@ internal class JavadocLexer(
      * and returns [JavadocTokenType.INLINE_IF_TAG_START]. Otherwise switches to
      * [LexerMode.INLINE_TAG] and returns [JavadocTokenType.INLINE_TAG_START].
      */
-    private fun tryMatchInlineTagStart(): Token? {
+    private fun tryMatchInlineTagStart(): Token {
         // Check if there are at least two characters remaining and they match '{@'.
-        if (index + 1 >= endExclusive || text[index] != '{' || text[index + 1] != '@') return null
+        if (index + 1 >= endExclusive || text[index] != '{' || text[index + 1] != '@') {
+            return Token.NONE
+        }
 
         val startIndex = index
 
@@ -428,18 +427,21 @@ internal class JavadocLexer(
      */
     private fun tokenizeDefault(): Token {
         // First, check for newline sequences (including continuation asterisks on the next line).
-        tryMatchNewline()?.let {
-            return it
+        val newline = tryMatchNewline()
+        if (newline != Token.NONE) {
+            return newline
         }
 
         // Next, check for horizontal whitespace.
-        tryMatchSpace()?.let {
-            return it
+        val space = tryMatchSpace()
+        if (space != Token.NONE) {
+            return space
         }
 
         // Check for inline tag starts ('{@if' or '{@').
-        tryMatchInlineTagStart()?.let {
-            return it
+        val inlineTagStart = tryMatchInlineTagStart()
+        if (inlineTagStart != Token.NONE) {
+            return inlineTagStart
         }
 
         val startIndex = index
@@ -471,7 +473,7 @@ internal class JavadocLexer(
      * unexpected characters (such as whitespace) occur before the tag name, reports an issue and
      * skips them to recover.
      */
-    private fun tokenizeInlineTag(): Token? {
+    private fun tokenizeInlineTag(): Token {
         val c = text[index]
         return if (c in 'a'..'z' || c in 'A'..'Z') {
             // An alphabetical character indicates a valid tag name (e.g. "link", "code").
@@ -491,7 +493,7 @@ internal class JavadocLexer(
             // Whitespace immediately follows '{@' (e.g. '{@ link}').
             // Record unexpected whitespace to report as a chunk once a valid character is reached.
             recordUnexpected("after '{@'")
-            null
+            Token.NONE
         } else if (c == '}' || c == '\n' || c == '\r') {
             // A closing brace or newline immediately follows '{@' (e.g. '{@}' or '{@\n').
             // Report a missing tag name issue and pop INLINE_TAG mode without consuming the
@@ -501,12 +503,12 @@ internal class JavadocLexer(
                 "missing inline tag name",
             )
             modeStack.pop()
-            null
+            Token.NONE
         } else {
             // Any other unexpected characters (e.g. symbols, punctuation, digits).
             // Record unexpected characters to report as a chunk once a valid character is reached.
             recordUnexpected("after '{@', expected tag name")
-            null
+            Token.NONE
         }
     }
 
@@ -518,18 +520,21 @@ internal class JavadocLexer(
      */
     private fun tokenizeBalancedBrace(): Token {
         // Check for newline sequences.
-        tryMatchNewline()?.let {
-            return it
+        val newline = tryMatchNewline()
+        if (newline != Token.NONE) {
+            return newline
         }
 
         // Check for horizontal whitespace.
-        tryMatchSpace()?.let {
-            return it
+        val space = tryMatchSpace()
+        if (space != Token.NONE) {
+            return space
         }
 
         // Check for nested inline tag starts ('{@if' or '{@').
-        tryMatchInlineTagStart()?.let {
-            return it
+        val inlineTagStart = tryMatchInlineTagStart()
+        if (inlineTagStart != Token.NONE) {
+            return inlineTagStart
         }
 
         val c = text[index]
@@ -620,11 +625,11 @@ internal class JavadocLexer(
      *
      * Skips whitespace and recognizes `(`, `{`, `}`, and `else`.
      */
-    private fun tokenizeInlineIfTag(): Token? {
+    private fun tokenizeInlineIfTag(): Token {
         skipWhitespaceAndNewlinesInIfOrExpr()
 
         // If end of input is reached, return.
-        if (index >= endExclusive) return null
+        if (index >= endExclusive) return Token.NONE
 
         val c = text[index]
         val startIndex = index
@@ -681,7 +686,7 @@ internal class JavadocLexer(
                 // Record unexpected characters to report as a chunk once a valid token or issue is
                 // reached.
                 recordUnexpected("in '@if' tag")
-                null
+                Token.NONE
             }
         }
     }
@@ -691,11 +696,11 @@ internal class JavadocLexer(
      *
      * Recognizes `(`, `)`, `.`, and identifier names within conditional expressions.
      */
-    private fun tokenizeExpr(): Token? {
+    private fun tokenizeExpr(): Token {
         skipWhitespaceAndNewlinesInIfOrExpr()
 
         // If end of input is reached, return.
-        if (index >= endExclusive) return null
+        if (index >= endExclusive) return Token.NONE
 
         val c = text[index]
         val startIndex = index
@@ -750,14 +755,14 @@ internal class JavadocLexer(
                 // of tag '}'.
                 // Pop EXPR mode to recover and allow INLINE_IF_TAG mode to handle the brace.
                 modeStack.pop()
-                null
+                Token.NONE
             }
             else -> {
                 // Unexpected character sequence in expression.
                 // Record unexpected characters to report as a chunk once a valid token or issue is
                 // reached.
                 recordUnexpected("in expression")
-                null
+                Token.NONE
             }
         }
     }
