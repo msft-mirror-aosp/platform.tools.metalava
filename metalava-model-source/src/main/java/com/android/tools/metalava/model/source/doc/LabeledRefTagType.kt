@@ -229,14 +229,16 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 }
                 DocRefTokenType.URI_FRAGMENT -> {
                     val fragmentToken = tokens.consume()
+                    val fragmentStart = fragmentToken.startOffset + 2
                     if (
-                        fragmentToken.text.isEmpty() ||
+                        fragmentToken.endOffset <= fragmentStart ||
                             tokens.peekType() != SharedTokenType.EOF ||
                             fragmentToken.endOffset != sourceReference.length
                     ) {
                         return null
                     }
-                    UriFragmentSourceReference(fragmentToken.text).qualifyIfNeeded(qualified)
+                    val fragment = sourceReference.substring(fragmentStart, fragmentToken.endOffset)
+                    UriFragmentSourceReference(fragment).qualifyIfNeeded(qualified)
                 }
                 else -> null
             }

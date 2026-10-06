@@ -67,7 +67,7 @@ class DocRefLexerTest {
                     IDENTIFIER 'pkg' (0..3)
                     DOT '.' (3..4)
                     IDENTIFIER 'Class' (4..9)
-                    URI_FRAGMENT 'my-anchor_1.2' (9..24)
+                    URI_FRAGMENT '##my-anchor_1.2' (9..24)
                     EOF '' (24..24)
                 """,
         )
@@ -80,8 +80,8 @@ class DocRefLexerTest {
             includePosition = true,
             expectedTokens =
                 """
-                    URI_FRAGMENT '' (0..2)
-                    URI_FRAGMENT '' (3..5)
+                    URI_FRAGMENT '##' (0..2)
+                    URI_FRAGMENT '##' (3..5)
                     HASH '#' (5..6)
                     IDENTIFIER 'frag' (6..10)
                     EOF '' (10..10)

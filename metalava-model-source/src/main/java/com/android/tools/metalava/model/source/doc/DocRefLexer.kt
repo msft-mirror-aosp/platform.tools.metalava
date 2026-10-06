@@ -32,9 +32,8 @@ internal object DocRefTokenType {
     /**
      * A `##` URI fragment (e.g. `##my-anchor`).
      *
-     * [Token.text] contains the fragment string following `##` (which may be empty if `##` is at
-     * the end of input or immediately followed by whitespace or `#`), while [Token.startOffset] and
-     * [Token.endOffset] span the entire `##fragment` sequence.
+     * Spans the entire `##fragment` sequence, where the fragment string following `##` may be empty
+     * if `##` is at the end of input or immediately followed by whitespace or `#`.
      */
     val URI_FRAGMENT = TokenType("URI_FRAGMENT")
 }
@@ -58,7 +57,6 @@ internal class DocRefLexer(
 
         return if (start + 1 < endExclusive && text[start + 1] == '#') {
             index = start + 2
-            val fragmentStart = index
             while (index < endExclusive) {
                 val c = text[index]
                 if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '#') break
@@ -66,7 +64,7 @@ internal class DocRefLexer(
             }
             createToken(
                 DocRefTokenType.URI_FRAGMENT,
-                text.substring(fragmentStart, index),
+                text.substring(start, index),
                 start,
                 index,
             )
