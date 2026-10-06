@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -67,8 +66,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
@@ -95,9 +93,8 @@ const val PROGRAM_NAME = "metalava"
 class Driver(
     private val executionEnvironment: ExecutionEnvironment,
     private val tracer: Tracer,
-    private val environmentManager: EnvironmentManager,
+    private val environmentProvider: () -> Environment,
     private val reporter: Reporter,
-    private val verbosity: Verbosity,
     private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ComputedApiLintOptions,
@@ -240,48 +237,8 @@ class Driver(
             )
         }
 
-    private val environment by
-        lazy(LazyThreadSafetyMode.NONE) {
-            environmentManager.createEnvironment(
-                reporter = reporter,
-                tracer = tracer,
-                javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
-                kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
-                modelOptions = sourceOptions.modelOptions,
-                jdkHome = sourceOptions.jdkHome,
-                sourceSet = createSourceSet(),
-                classPath = sourceOptions.classpath,
-                projectDescription = sourceOptions.projectDescription,
-            )
-        }
-
     private val sourceParser by
-        lazy(LazyThreadSafetyMode.NONE) { environment.createSourceParser(codebaseConfig) }
-
-    private fun createSourceSet(): SourceSet =
-        tracer.trace("createSourceSet") {
-            val sources = sourceOptions.sourceFiles
-            if (
-                sources.isNotEmpty() &&
-                    (sources[0].path.endsWith(DOT_TXT) ||
-                        (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)))
-            ) {
-                SourceSet.empty()
-            } else if (sources.isEmpty()) {
-                if (sourceOptions.sourcePath.isEmpty()) {
-                    SourceSet.empty()
-                } else {
-                    if (verbosity.verbose) {
-                        executionEnvironment.stdout.println(
-                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
-                        )
-                    }
-                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
-                }
-            } else {
-                SourceSet(sources, sourceOptions.sourcePath)
-            }
-        }
+        lazy(LazyThreadSafetyMode.NONE) { environmentProvider().createSourceParser(codebaseConfig) }
 
     private val signatureFileLoader by
         lazy(LazyThreadSafetyMode.NONE) {

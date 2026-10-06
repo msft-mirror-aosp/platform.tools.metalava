@@ -49,7 +49,11 @@ class SingleSurfaceCommand(
 
     override fun run() {
         stdout.println("The single-surface command is currently experimental")
-        // Run Driver with the environment manager created by the MultiSurfaceCommand
-        runAndReportIssues(sharedOptions.environmentManager)
+        // Run Driver sharing the Environment created by the first SingleSurfaceCommand.
+        runAndReportIssues { reporter ->
+            sharedOptions.getOrCreateEnvironment {
+                createEnvironment(sharedOptions.environmentManager, reporter)
+            }
+        }
     }
 }

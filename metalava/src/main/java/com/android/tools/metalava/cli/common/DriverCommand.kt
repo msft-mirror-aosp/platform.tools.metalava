@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
+import com.android.SdkConstants.DOT_JAR
+import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.ApiLevelsGenerationOptions
 import com.android.tools.metalava.ApiSelectionOptions
 import com.android.tools.metalava.ConfigFileOptions
@@ -30,8 +32,11 @@ import com.android.tools.metalava.cli.compatibility.CompatibilityCheckOptions
 import com.android.tools.metalava.cli.lint.ApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.SignatureFormatOptions
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.source.EnvironmentManager
+import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.ADD_ADDITIONAL_OVERRIDES
+import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import java.io.File
@@ -90,8 +95,51 @@ abstract class DriverCommand(
 
     protected abstract fun getDefaultBaselineFile(): File?
 
-    /** Runs [Driver] using the [environmentManager] and all specified options. */
-    protected fun runAndReportIssues(environmentManager: EnvironmentManager) {
+    /** Creates an [Environment] using [environmentManager] and [sourceOptionsProvider]. */
+    protected fun createEnvironment(
+        environmentManager: EnvironmentManager,
+        reporter: Reporter,
+    ): Environment {
+        val sourceOptions = sourceOptionsProvider()
+        val sourceSet =
+            tracer.trace("createSourceSet") {
+                val sources = sourceOptions.sourceFiles
+                if (
+                    sources.isNotEmpty() &&
+                        (sources[0].path.endsWith(DOT_TXT) ||
+                            (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)))
+                ) {
+                    SourceSet.empty()
+                } else if (sources.isEmpty()) {
+                    if (sourceOptions.sourcePath.isEmpty()) {
+                        SourceSet.empty()
+                    } else {
+                        if (commonOptions.verbosity.verbose) {
+                            executionEnvironment.stdout.println(
+                                "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
+                            )
+                        }
+                        SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
+                    }
+                } else {
+                    SourceSet(sources, sourceOptions.sourcePath)
+                }
+            }
+        return environmentManager.createEnvironment(
+            reporter = reporter,
+            tracer = tracer,
+            javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
+            kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
+            modelOptions = sourceOptions.modelOptions,
+            jdkHome = sourceOptions.jdkHome,
+            sourceSet = sourceSet,
+            classPath = sourceOptions.classpath,
+            projectDescription = sourceOptions.projectDescription,
+        )
+    }
+
+    /** Runs [Driver] using the [environmentProvider] and all specified options. */
+    protected fun runAndReportIssues(environmentProvider: (Reporter) -> Environment) {
         val sourceOptions = sourceOptionsProvider()
         val configFileOptions = configFileOptionsProvider()
 
@@ -139,9 +187,8 @@ abstract class DriverCommand(
                     Driver(
                         executionEnvironment,
                         tracer,
-                        environmentManager,
+                        { environmentProvider(reporterManager.reporter) },
                         reporterManager.reporter,
-                        commonOptions.verbosity,
                         miscellaneousOptions.compute(reporterManager.reporter),
                         apiLevelsGenerationOptions,
                         apiLintOptions.compute(),

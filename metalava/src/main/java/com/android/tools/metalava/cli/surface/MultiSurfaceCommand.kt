@@ -22,6 +22,7 @@ import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stdout
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceModelProvider
 import com.github.ajalt.clikt.core.findOrSetObject
@@ -73,6 +74,8 @@ class MultiSurfaceCommand :
          */
         lateinit var environmentManager: EnvironmentManager
 
+        private var environment: Environment? = null
+
         /** Initializes [environmentManager]. */
         fun createEnvironmentManager(
             sourceModelProvider: SourceModelProvider,
@@ -85,5 +88,12 @@ class MultiSurfaceCommand :
                     reuseEnvironment = true,
                 )
         }
+
+        /**
+         * Returns the cached [Environment], or creates and caches one using [factory] if not yet
+         * initialized.
+         */
+        fun getOrCreateEnvironment(factory: () -> Environment): Environment =
+            environment ?: factory().also { environment = it }
     }
 }

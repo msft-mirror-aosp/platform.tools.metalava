@@ -83,7 +83,9 @@ class MainCommand(
                     executionEnvironment.disableStderrDumping()
                 )
             }
-            .use { environmentManager -> runAndReportIssues(environmentManager) }
+            .use { environmentManager ->
+                runAndReportIssues { reporter -> createEnvironment(environmentManager, reporter) }
+            }
     }
 
     /** Initialize any option groups that require it. */
