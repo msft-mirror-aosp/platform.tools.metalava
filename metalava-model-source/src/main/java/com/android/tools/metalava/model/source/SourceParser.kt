@@ -36,6 +36,26 @@ interface SourceParser {
     fun getClassPathResolver(classPath: List<File>): ClassPathResolver
 
     /**
+     * Parse the sources in the [Environment] into a [Codebase].
+     *
+     * @param description the description to use for [Codebase.description].
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
+     * @param compiledSourceJar a jar file containing the compiled version of the sources. Used to
+     *   add the compiled JVM forms of Kotlin source APIs. If the implementation supports this then
+     *   it must provide [Capability.JAR_WITH_SOURCES]. Only supported by the PSI model.
+     * @param includeKotlinInCodebase indicates whether to include Kotlin derived information in the
+     *   [Codebase].
+     */
+    fun parseSources(
+        description: String,
+        apiPackages: PackageFilter? = null,
+        compiledSourceJar: File? = null,
+        includeKotlinInCodebase: Boolean = true,
+    ): Codebase?
+
+    /**
      * Parse a set of sources into a [Codebase].
      *
      * @param inputs the [Inputs].

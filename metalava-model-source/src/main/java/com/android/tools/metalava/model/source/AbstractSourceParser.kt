@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Issues
@@ -146,6 +147,40 @@ abstract class AbstractSourceParser(
         nestedClasses().forEach { it.markAsEmittable() }
     }
 
+    final override fun parseSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        includeKotlinInCodebase: Boolean,
+    ): Codebase? =
+        processSources(
+                description = description,
+                apiPackages = apiPackages,
+                compiledSourceJar = compiledSourceJar,
+                includeKotlinInCodebase = includeKotlinInCodebase,
+            )
+            ?.let { postProcessCodebase(it) }
+
+    /** Process the sources in [environment] to produce a [Codebase], if possible. */
+    protected open fun processSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        includeKotlinInCodebase: Boolean,
+    ): Codebase? {
+        val inputs =
+            SourceParser.Inputs(
+                sourceSet = environment.sourceSet,
+                description = description,
+                classPath = environment.classPath,
+                apiPackages = apiPackages,
+                projectDescription = environment.projectDescription,
+                compiledSourceJar = compiledSourceJar,
+                includeKotlinInCodebase = includeKotlinInCodebase,
+            )
+        return processInputs(inputs)
+    }
+
     /**
      * Override to ensure that [inputs] are correctly prepared for [processInputs].
      *
@@ -161,13 +196,16 @@ abstract class AbstractSourceParser(
                 )
             }
 
-        return processInputs(absoluteInputs)?.also { codebase ->
+        return processInputs(absoluteInputs)?.let { postProcessCodebase(it) }
+    }
 
-            // Determine sealed class exhaustivity.
-            tracer.trace("determineIfInaccessibleClassesMakeSuperClassesNonExhaustive") {
-                codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
-            }
+    /** Perform common post-processing on a newly parsed source [codebase]. */
+    private fun postProcessCodebase(codebase: Codebase): Codebase {
+        // Determine sealed class exhaustivity.
+        tracer.trace("determineIfInaccessibleClassesMakeSuperClassesNonExhaustive") {
+            codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
         }
+        return codebase
     }
 
     /** Process the [inputs] to produce a [Codebase], if possible. */
