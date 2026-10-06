@@ -191,7 +191,9 @@ internal class PsiSourceParser(
         return File(homePath, "jmods").isDirectory
     }
 
-    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+    override fun createMultiplatformCodebase(): MultiplatformCodebase {
+        val projectDescription =
+            psiEnvironment.projectDescription ?: error("No projectDescription configured")
         // If an environment was already created to create a regular Codebase, reuse it since
         // creating an environment is expensive.
         val environment =

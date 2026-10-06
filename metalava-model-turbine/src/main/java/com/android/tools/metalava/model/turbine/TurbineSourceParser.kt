@@ -101,7 +101,7 @@ internal class TurbineSourceParser(
         return assembler.codebase
     }
 
-    override fun createMultiplatformCodebase(projectDescription: File): MultiplatformCodebase {
+    override fun createMultiplatformCodebase(): MultiplatformCodebase {
         error("Turbine model does not support multiplatform codebase creation")
     }
 }

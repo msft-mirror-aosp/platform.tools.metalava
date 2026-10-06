@@ -608,8 +608,7 @@ class Driver(
                 error(
                     "Cannot supply both a project description and source api directory for creating a multiplatform codebase"
                 )
-            projectDescription != null ->
-                sourceParser.createMultiplatformCodebase(projectDescription)
+            projectDescription != null -> sourceParser.createMultiplatformCodebase()
             sourceApiDirectory != null ->
                 signatureFileLoader.loadMultiplatform(
                     SignatureFile.fromFiles(sourceApiDirectory.listFiles().toList())
