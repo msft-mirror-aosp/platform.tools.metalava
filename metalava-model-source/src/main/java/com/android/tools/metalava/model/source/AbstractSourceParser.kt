@@ -181,6 +181,33 @@ abstract class AbstractSourceParser(
         return processInputs(inputs)
     }
 
+    final override fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase? =
+        processJavaStubs(
+                javaStubFiles = javaStubFiles.map { it.absoluteFile }.distinct(),
+                apiPackages = apiPackages,
+            )
+            ?.let { postProcessCodebase(it) }
+
+    /** Process the [javaStubFiles] against [environment] to produce a [Codebase], if possible. */
+    protected open fun processJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase? {
+        val inputs =
+            SourceParser.Inputs(
+                sourceSet =
+                    SourceSet(javaStubFiles, environment.sourceSet.sourcePath)
+                        .extractRoots(reporter),
+                description = "Codebase loaded from stubs",
+                classPath = environment.classPath,
+                apiPackages = apiPackages,
+            )
+        return processInputs(inputs)
+    }
+
     /**
      * Override to ensure that [inputs] are correctly prepared for [processInputs].
      *

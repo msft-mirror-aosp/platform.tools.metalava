@@ -56,6 +56,19 @@ interface SourceParser {
     ): Codebase?
 
     /**
+     * Parse the [javaStubFiles] against the [Environment] into a [Codebase].
+     *
+     * @param javaStubFiles the list of Java stub files to parse.
+     * @param apiPackages an optional [PackageFilter] that if specified will result in only
+     *   including the source classes that match the filter in the
+     *   [Codebase.getTopLevelClassesFromSource] list.
+     */
+    fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter? = null,
+    ): Codebase?
+
+    /**
      * Parse a set of sources into a [Codebase].
      *
      * @param inputs the [Inputs].
