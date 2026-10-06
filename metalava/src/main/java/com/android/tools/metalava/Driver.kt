@@ -68,7 +68,6 @@ import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
@@ -241,17 +240,47 @@ class Driver(
             )
         }
 
-    private val sourceParser by
+    private val environment by
         lazy(LazyThreadSafetyMode.NONE) {
-            val modelOptions = sourceOptions.modelOptions
-            environmentManager.createSourceParser(
-                codebaseConfig = codebaseConfig,
+            environmentManager.createEnvironment(
+                reporter = reporter,
                 tracer = tracer,
                 javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
                 kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
-                modelOptions = modelOptions,
+                modelOptions = sourceOptions.modelOptions,
                 jdkHome = sourceOptions.jdkHome,
+                sourceSet = createSourceSet(),
+                classPath = sourceOptions.classpath,
+                projectDescription = sourceOptions.projectDescription,
             )
+        }
+
+    private val sourceParser by
+        lazy(LazyThreadSafetyMode.NONE) { environment.createSourceParser(codebaseConfig) }
+
+    private fun createSourceSet(): SourceSet =
+        tracer.trace("createSourceSet") {
+            val sources = sourceOptions.sourceFiles
+            if (
+                sources.isNotEmpty() &&
+                    (sources[0].path.endsWith(DOT_TXT) ||
+                        (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)))
+            ) {
+                SourceSet.empty()
+            } else if (sources.isEmpty()) {
+                if (sourceOptions.sourcePath.isEmpty()) {
+                    SourceSet.empty()
+                } else {
+                    if (verbosity.verbose) {
+                        executionEnvironment.stdout.println(
+                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
+                        )
+                    }
+                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
+                }
+            } else {
+                SourceSet(sources, sourceOptions.sourcePath)
+            }
         }
 
     private val signatureFileLoader by
@@ -881,32 +910,14 @@ class Driver(
     }
 
     private fun loadFromSources(): Codebase? {
-        val sourceSet =
-            tracer.trace("createSourceSet") {
-                if (sourceOptions.sourceFiles.isEmpty()) {
-                    if (verbosity.verbose) {
-                        executionEnvironment.stdout.println(
-                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
-                        )
-                    }
-                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
-                } else {
-                    SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
-                }
-            }
-
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet,
-                "Codebase loaded from source folders",
-                classPath = sourceOptions.classpath,
-                apiPackages = sourceOptions.apiPackageFilter,
-                projectDescription = sourceOptions.projectDescription,
-                compiledSourceJar = sourceOptions.compiledSourceJar,
-            )
-
         val codebase =
-            tracer.trace("parseSources") { sourceParser.parseSources(inputs) } ?: return null
+            tracer.trace("parseSources") {
+                sourceParser.parseSources(
+                    description = "Codebase loaded from source folders",
+                    apiPackages = sourceOptions.apiPackageFilter,
+                    compiledSourceJar = sourceOptions.compiledSourceJar,
+                )
+            } ?: return null
 
         val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
         tracer.trace("analyzer.mergeExternalInclusionAnnotations") {
