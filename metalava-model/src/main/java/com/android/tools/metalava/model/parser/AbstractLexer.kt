@@ -58,4 +58,11 @@ abstract class AbstractLexer(
      * @return a lazy [TokenStream] backed by this lexer.
      */
     fun tokenize(): TokenStream = TokenStream.lazy(this)
+
+    /**
+     * Returns `true` if the slice of [text] starting at [start] with length [length] matches
+     * [expected].
+     */
+    protected fun matchSlice(start: Int, length: Int, expected: String): Boolean =
+        length == expected.length && text.regionMatches(start, expected, 0, length)
 }

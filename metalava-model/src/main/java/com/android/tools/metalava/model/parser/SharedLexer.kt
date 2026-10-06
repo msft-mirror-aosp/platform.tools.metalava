@@ -239,17 +239,26 @@ open class SharedLexer(
     protected open fun tryMatchAdditionalToken(): Token? = null
 
     /**
-     * Maps [tokenText] to a keyword [TokenType] or [SharedTokenType.IDENTIFIER].
+     * Maps the slice of [text] from [start] to [end] to a keyword [TokenType] or
+     * [SharedTokenType.IDENTIFIER].
      *
      * Subclasses may override this to recognize additional keywords.
      */
-    protected open fun resolveKeywordOrIdentifier(tokenText: String): TokenType =
-        when (tokenText) {
-            "class" -> SharedTokenType.CLASS
-            "extends" -> SharedTokenType.EXTENDS
-            "super" -> SharedTokenType.SUPER
+    protected open fun resolveKeywordOrIdentifier(start: Int, end: Int): TokenType {
+        val length = end - start
+        return when (text[start]) {
+            'c' ->
+                if (matchSlice(start, length, "class")) SharedTokenType.CLASS
+                else SharedTokenType.IDENTIFIER
+            'e' ->
+                if (matchSlice(start, length, "extends")) SharedTokenType.EXTENDS
+                else SharedTokenType.IDENTIFIER
+            's' ->
+                if (matchSlice(start, length, "super")) SharedTokenType.SUPER
+                else SharedTokenType.IDENTIFIER
             else -> SharedTokenType.IDENTIFIER
         }
+    }
 
     /** Scans a double-quoted string literal starting at [start]. */
     private fun scanStringLiteral(start: Int): Token {
@@ -329,11 +338,10 @@ open class SharedLexer(
         while (index < endExclusive && Character.isJavaIdentifierPart(text[index])) {
             index++
         }
-        val tokenText = text.substring(start, index)
-        val type = resolveKeywordOrIdentifier(tokenText)
+        val type = resolveKeywordOrIdentifier(start, index)
         return createToken(
             type,
-            tokenText,
+            text.substring(start, index),
             start,
             index,
         )

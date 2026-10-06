@@ -79,10 +79,12 @@ internal class DocRefLexer(
      * references; all other Java identifiers (including Kotlin soft keywords like `reified` or
      * `dynamic`) are emitted as [SharedTokenType.IDENTIFIER].
      */
-    override fun resolveKeywordOrIdentifier(tokenText: String): TokenType =
-        when (tokenText) {
-            "extends" -> SharedTokenType.EXTENDS
-            "super" -> SharedTokenType.SUPER
+    override fun resolveKeywordOrIdentifier(start: Int, end: Int): TokenType {
+        val length = end - start
+        return when {
+            matchSlice(start, length, "extends") -> SharedTokenType.EXTENDS
+            matchSlice(start, length, "super") -> SharedTokenType.SUPER
             else -> SharedTokenType.IDENTIFIER
         }
+    }
 }
