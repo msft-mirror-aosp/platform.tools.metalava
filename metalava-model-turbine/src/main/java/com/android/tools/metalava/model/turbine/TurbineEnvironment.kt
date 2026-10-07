@@ -180,7 +180,8 @@ internal class TurbineEnvironment(
     ): BoundSources? {
         val mainUnits = allUnits ?: return null
 
-        val stubSourceSet = SourceSet(javaStubFiles, sourceSet.sourcePath).extractRoots(reporter)
+        val stubSourcePath = sourceSet.sourcePath.ifEmpty { listOf(File("")) }
+        val stubSourceSet = SourceSet(javaStubFiles, stubSourcePath).extractRoots(reporter)
         val log = TurbineLog()
         val sourceFiles =
             tracer.trace("turbine.getSourceFiles") {

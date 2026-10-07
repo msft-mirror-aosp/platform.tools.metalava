@@ -555,16 +555,16 @@ class ApiContentsTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SOURCE_PATH, ""),
             checkCompilation = false,
-            // TODO(b/570991958): Undeclared.java should not be scanned by turbine when
-            //  --source-path is empty, and the API signature should be generated for test.pkg.Foo.
+            // TODO(b/570991958): The psi source model provider does not support an empty
+            //  --source-path.
             expectedIssues =
-                if (codebaseCreatorConfig.creator.providerName == "turbine") {
-                    "src/test/pkg/Undeclared.java:1: error: unexpected end of input [InvalidSyntax]"
+                if (codebaseCreatorConfig.creator.providerName == "psi") {
+                    "src/test/pkg/Foo.java:2: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory TESTROOT/src/test/pkg [InvalidPackage]"
                 } else {
                     null
                 },
             expectedApiSignature =
-                if (codebaseCreatorConfig.creator.providerName == "turbine") {
+                if (codebaseCreatorConfig.creator.providerName == "psi") {
                     null
                 } else {
                     """

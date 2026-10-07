@@ -216,7 +216,6 @@ class SourceSetTest : BaseTemporaryFolderOwner() {
         val extractedRoots = sourceSet.extractRoots(reporter)
 
         assertEquals(sources.map { it.absoluteFile }, extractedRoots.sources)
-        // TODO(b/570991958): A blank source path should not extract roots from the source files.
-        assertEquals(listOf(File("src/main/java").absoluteFile), extractedRoots.sourcePath)
+        assertEquals(emptyList(), extractedRoots.sourcePath)
     }
 }
