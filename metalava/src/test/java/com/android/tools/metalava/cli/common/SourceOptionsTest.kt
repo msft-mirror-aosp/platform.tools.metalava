@@ -104,10 +104,8 @@ class SourceOptionsTest :
             "-baz.excluded:qux.*",
         ) {
             val filter = options.apiPackageFilter!!
-            // TODO(b/570991958): Multiple --package-filter options should be combined in order, not
-            //  overwritten by the last one.
-            assertThat(filter.matches("foo.bar")).isFalse()
-            assertThat(filter.matches("baz.qux")).isFalse()
+            assertThat(filter.matches("foo.bar")).isTrue()
+            assertThat(filter.matches("baz.qux")).isTrue()
             assertThat(filter.matches("baz.excluded")).isFalse()
             assertThat(filter.matches("qux.sub")).isTrue()
             assertThat(filter.matches("other")).isFalse()

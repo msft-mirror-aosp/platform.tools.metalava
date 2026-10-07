@@ -30,6 +30,7 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.transformAll
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
 import org.jetbrains.jps.model.java.impl.JavaSdkUtil
@@ -220,7 +221,7 @@ class SourceOptions(
             )
             .existingFile()
 
-    val apiPackageFilter by
+    val apiPackageFilter: PackageFilter? by
         option(
                 ARG_STUB_PACKAGES,
                 ARG_PACKAGE_FILTER,
@@ -237,6 +238,7 @@ class SourceOptions(
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+            .transformAll { it.reduceOrNull(PackageFilter::plus) }
 
     val compiledSourceJar by
         option(
