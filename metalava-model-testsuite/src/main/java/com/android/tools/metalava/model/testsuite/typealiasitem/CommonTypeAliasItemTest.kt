@@ -459,10 +459,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             val included = codebase.assertTypeAlias("test.pkg.Included")
             assertThat(included.aliasedType.isString()).isTrue()
 
-            // TODO(b/570991958): Neither the excluded typealias nor its package should be created
-            //  when excluded by apiPackages.
-            assertThat(codebase.findClass("test.excluded.pkg.Excluded")).isNotNull()
-            assertThat(codebase.findPackage("test.excluded.pkg")).isNotNull()
+            assertThat(codebase.findClass("test.excluded.pkg.Excluded")).isNull()
+            assertThat(codebase.findPackage("test.excluded.pkg")).isNull()
         }
     }
 }

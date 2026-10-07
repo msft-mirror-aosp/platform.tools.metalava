@@ -338,7 +338,7 @@ internal class PsiCodebaseAssembler(
         if (includeKotlinInCodebase) {
             kaCodebaseAssembler =
                 psiCodebase.mainAnalysisModule?.let {
-                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
                 }
         }
 

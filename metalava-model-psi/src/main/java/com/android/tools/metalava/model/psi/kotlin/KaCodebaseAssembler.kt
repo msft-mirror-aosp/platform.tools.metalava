@@ -33,6 +33,7 @@ import com.android.tools.metalava.model.KOTLIN_DEPRECATED
 import com.android.tools.metalava.model.KOTLIN_PUBLISHED_API
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
@@ -119,6 +120,7 @@ import org.jetbrains.kotlin.psi.KtFile
 internal class KaCodebaseAssembler(
     ktFiles: List<KtFile>,
     val codebase: PsiBasedCodebase,
+    apiPackages: PackageFilter?,
 ) {
     /**
      * When creating a regular [Codebase], only the main analysis module is processed. All modules
@@ -128,10 +130,15 @@ internal class KaCodebaseAssembler(
         codebase.mainAnalysisModule
             ?: error("No main analysis module found for project with Kotlin files")
 
-    private val mainModuleProcessor = KaModuleProcessor(mainModule, codebase)
+    private val mainModuleProcessor = KaModuleProcessor(mainModule, codebase, apiPackages)
 
     /** All packages to analyze from the input files. */
-    private val packages = ktFiles.map { it.packageFqName }.toSet().sortedBy { it.asString() }
+    private val packages =
+        ktFiles
+            .map { it.packageFqName }
+            .filter { apiPackages == null || apiPackages.matches(it.asString()) }
+            .toSet()
+            .sortedBy { it.asString() }
 
     /**
      * Add type aliases to the codebase for the [mainModule].
@@ -257,12 +264,14 @@ internal class KaModuleProcessor
 private constructor(
     val kaModule: KaModule,
     codebaseInitializer: (CodebaseAssembler) -> DefaultCodebase,
-    val psiCodebase: PsiBasedCodebase?
+    val psiCodebase: PsiBasedCodebase?,
+    private val apiPackages: PackageFilter? = null,
 ) : DefaultCodebaseAssembler() {
     constructor(
         kaModule: KaModule,
-        psiCodebase: PsiBasedCodebase
-    ) : this(kaModule, { psiCodebase }, psiCodebase)
+        psiCodebase: PsiBasedCodebase,
+        apiPackages: PackageFilter?,
+    ) : this(kaModule, { psiCodebase }, psiCodebase, apiPackages)
 
     constructor(
         kaModule: KaModule,
@@ -347,11 +356,14 @@ private constructor(
         analyze(kaModule) {
             for (packageName in allPackageNames) {
                 findPackage(packageName)?.let { packageSymbol ->
-                    val packageItem = codebase.findOrCreatePackage(packageName.asString())
                     val packageScope = packageSymbol.packageScope
-                    for (typeAliasSymbol in
-                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>()) {
-                        processTypeAlias(typeAliasSymbol, packageItem)
+                    val typeAliasSymbols =
+                        packageScope.classifiers.filterIsInstance<KaTypeAliasSymbol>().toList()
+                    if (typeAliasSymbols.isNotEmpty()) {
+                        val packageItem = codebase.findOrCreatePackage(packageName.asString())
+                        for (typeAliasSymbol in typeAliasSymbols) {
+                            processTypeAlias(typeAliasSymbol, packageItem)
+                        }
                     }
                 }
             }
@@ -533,7 +545,7 @@ private constructor(
 
         val (superClassType, interfaceTypes) =
             superTypes(classifierSymbol, typeParameterListAndFactory.factory)
-        val origin = classifierSymbol.classOrigin()
+        val origin = classifierSymbol.classOrigin(containingPackage)
 
         val classItem =
             itemFactory.createClassItem(
@@ -546,7 +558,7 @@ private constructor(
                 containingPackage = containingPackage,
                 qualifiedName = qualifiedName,
                 typeParameterList = typeParameterListAndFactory.typeParameterList,
-                origin = classifierSymbol.classOrigin(),
+                origin = origin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
             )
@@ -592,11 +604,16 @@ private constructor(
         return superClassType to interfaceTypes
     }
 
-    private fun KaClassifierSymbol.classOrigin(): ClassOrigin {
+    private fun KaClassifierSymbol.classOrigin(containingPackage: PackageItem): ClassOrigin {
         return when (origin) {
             KaSymbolOrigin.LIBRARY,
             KaSymbolOrigin.JAVA_LIBRARY -> ClassOrigin.CLASS_PATH
-            else -> ClassOrigin.COMMAND_LINE
+            else ->
+                if (apiPackages == null || apiPackages.matches(containingPackage)) {
+                    ClassOrigin.COMMAND_LINE
+                } else {
+                    ClassOrigin.SOURCE_PATH
+                }
         }
     }
 
@@ -656,7 +673,7 @@ private constructor(
             qualifiedName = qualifiedName,
             typeParameterList = typeParameterListAndFactory.typeParameterList,
             containingPackage = containingPackage,
-            origin = typeAlias.classOrigin(),
+            origin = typeAlias.classOrigin(containingPackage),
         )
     }
 
