@@ -204,4 +204,19 @@ class SourceSetTest : BaseTemporaryFolderOwner() {
         val extractedRoots = sourceSet.extractRoots(reporter)
         assertEquals(files, extractedRoots.sources)
     }
+
+    @Test
+    fun `Test extract roots - blank source path does not extract roots`() {
+        val sources =
+            listOf(
+                File("src/main/java/com/android/tools/metalava/model/source/SourceSet.kt"),
+                File("src/main/java/com/android/tools/metalava/model/source/SourceParser.kt"),
+            )
+        val sourceSet = SourceSet(sources = sources, sourcePath = listOf(File("")))
+        val extractedRoots = sourceSet.extractRoots(reporter)
+
+        assertEquals(sources.map { it.absoluteFile }, extractedRoots.sources)
+        // TODO(b/570991958): A blank source path should not extract roots from the source files.
+        assertEquals(listOf(File("src/main/java").absoluteFile), extractedRoots.sourcePath)
+    }
 }
