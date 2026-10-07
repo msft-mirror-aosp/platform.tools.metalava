@@ -490,6 +490,12 @@ internal class PsiCodebaseAssembler(
         multiFileClasses: HashMap<FqName, Set<PsiFile>>,
         apiPackages: PackageFilter?
     ) {
+        // If a package filter is supplied then ignore any classes that do not match it.
+        if (apiPackages != null) {
+            val packageName = psiClass.packageName
+            if (!apiPackages.matches(packageName)) return
+        }
+
         // Multi file classes appear from each file they're defined in. When the class parts are
         // defined in the same source set, the PsiClass from each file is identical, but if the
         // class parts are in different source sets, the members of each PsiClass will contain
@@ -530,12 +536,6 @@ internal class PsiCodebaseAssembler(
                 // Skip the step below of adding a new ClassItem as one already exists.
                 return
             }
-        }
-
-        // If a package filter is supplied then ignore any classes that do not match it.
-        if (apiPackages != null) {
-            val packageName = psiClass.packageName
-            if (!apiPackages.matches(packageName)) return
         }
 
         val classItem =
