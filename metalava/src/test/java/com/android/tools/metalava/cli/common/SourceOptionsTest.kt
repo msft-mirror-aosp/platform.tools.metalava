@@ -17,6 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.google.common.truth.Truth.assertThat
+import java.io.File
 import org.junit.Test
 
 val SOURCE_OPTIONS_HELP =
@@ -109,6 +110,22 @@ class SourceOptionsTest :
             assertThat(filter.matches("baz.excluded")).isFalse()
             assertThat(filter.matches("qux.sub")).isTrue()
             assertThat(filter.matches("other")).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test empty source path - psi`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "psi", ARG_SOURCE_PATH, "") {
+            // TODO(b/570991958): Should fail as the psi source model provider does not support an
+            //  empty source path.
+            assertThat(options.sourcePath).isEqualTo(listOf(File("")))
+        }
+    }
+
+    @Test
+    fun `Test empty source path - turbine`() {
+        runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine", ARG_SOURCE_PATH, "") {
+            assertThat(options.sourcePath).isEqualTo(listOf(File("")))
         }
     }
 }
