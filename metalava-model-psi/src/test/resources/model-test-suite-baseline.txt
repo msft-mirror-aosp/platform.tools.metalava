@@ -4,6 +4,9 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[kotlin]
   unknown annotation class with named attribute - string value[kotlin]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonClassItemTest
+  Test multifile class excluded by package filter[kotlin]
+
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for parameters on function with all kinds of parameters[kotlin]
 
