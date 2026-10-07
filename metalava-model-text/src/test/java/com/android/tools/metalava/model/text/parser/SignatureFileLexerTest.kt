@@ -94,6 +94,35 @@ class SignatureFileLexerTest {
     }
 
     @Test
+    fun `Tokenize mangled names containing consecutive hyphens`() {
+        assertTokenTypes(
+            "public final class -Foo--Bar { method foo--bar(long, long); }",
+            SignatureTokenType.PUBLIC to "public",
+            SignatureTokenType.FINAL to "final",
+            SharedTokenType.CLASS to "class",
+            // TODO(b/564868917): This is not correct; `-Foo--Bar` should be tokenized as a single
+            //  IDENTIFIER token rather than split at `--` into IDENTIFIER, MINUS, and IDENTIFIER.
+            SharedTokenType.IDENTIFIER to "-Foo",
+            SharedTokenType.MINUS to "-",
+            SharedTokenType.IDENTIFIER to "-Bar",
+            SharedTokenType.BRACE_OPEN to "{",
+            SharedTokenType.IDENTIFIER to "method",
+            // TODO(b/564868917): This is not correct; `foo--bar` should be tokenized as a single
+            //  IDENTIFIER token rather than split at `--` into IDENTIFIER, MINUS, and IDENTIFIER.
+            SharedTokenType.IDENTIFIER to "foo",
+            SharedTokenType.MINUS to "-",
+            SharedTokenType.IDENTIFIER to "-bar",
+            SharedTokenType.PAREN_OPEN to "(",
+            SharedTokenType.IDENTIFIER to "long",
+            SharedTokenType.COMMA to ",",
+            SharedTokenType.IDENTIFIER to "long",
+            SharedTokenType.PAREN_CLOSE to ")",
+            SignatureTokenType.SEMICOLON to ";",
+            SharedTokenType.BRACE_CLOSE to "}",
+        )
+    }
+
+    @Test
     fun `Keywords followed by punctuation are tokenized as identifiers`() {
         assertTokenTypes(
             "method public value(optional value: int, optional: String): void;",
