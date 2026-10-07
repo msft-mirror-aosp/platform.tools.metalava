@@ -26,7 +26,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:2: error: Removed package test.pkg [RemovedPackage]
+                released-api.txt:2: error: Binary breaking change: Removed package test.pkg [RemovedPackage]
                 """,
             errorMessageCheckCompatibilityReleased = "*** release-api check failed ***",
             checkCompatibilityApiReleased =
@@ -41,7 +41,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                 """,
             expectedFail =
                 """
-                Aborting: Found compatibility problems checking the public API (TESTROOT/project/load-api.txt) against the API in TESTROOT/project/released-api.txt
+                Aborting: Found compatibility problems checking the public API (TESTROOT/load-api.txt) against the API in TESTROOT/released-api.txt
                 *** release-api check failed ***
                 """
         )
@@ -93,7 +93,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                         """
                             // Baseline format: 1.0
                             ChangedScope: test.pkg.MyTest1:
-                                Class test.pkg.MyTest1 changed visibility from public to private
+                                Binary breaking change: Class test.pkg.MyTest1 changed visibility from public to private
                         """,
                 ),
             checkCompatibilityApiReleased =
@@ -125,7 +125,7 @@ class CompatibilityCheckBaselineTest : DriverTest() {
                         """
                             // Baseline format: 1.0
                             ChangedScope: test.pkg.MyTest1:
-                                Class test.pkg.MyTest1 changed visibility from public to private
+                                Binary breaking change: Class test.pkg.MyTest1 changed visibility from public to private
                         """,
                 ),
             checkCompatibilityApiReleased =

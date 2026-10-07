@@ -16,13 +16,12 @@
 
 package com.android.tools.metalava.model.testing.value
 
+import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationContext
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassResolver
-import com.android.tools.metalava.model.DefaultAnnotationAttribute
-import com.android.tools.metalava.model.DefaultAnnotationItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.asAnnotationAttributeValue
 import com.android.tools.metalava.model.testing.primitiveTypeForKind
 import com.android.tools.metalava.model.value.AnnotationValue
 import com.android.tools.metalava.model.value.ArrayElementValue
@@ -33,20 +32,20 @@ import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.LiteralValue
 import com.android.tools.metalava.model.value.PrimitiveValue
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.value.ValueKind
-import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.provider
 import com.android.tools.metalava.reporter.FileLocation
-import java.util.EnumSet
 import kotlin.test.assertEquals
-import org.junit.AssumptionViolatedException
 
 /** Create a [LiteralValue] from the [underlyingValue]. */
-fun literalValue(underlyingValue: Any) = Value.createLiteralValue(null, underlyingValue)
+fun literalValue(underlyingValue: Any, nonLiteralInSource: Boolean = false) =
+    Value.createLiteralValue(null, underlyingValue, nonLiteralInSource)
 
 /** Create a [PrimitiveValue] of [kind] from the [underlyingValue]. */
-fun primitiveValueForKind(kind: Primitive, underlyingValue: Any) =
-    Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue)
+fun primitiveValueForKind(
+    kind: Primitive,
+    underlyingValue: Any,
+    nonLiteralInSource: Boolean = false,
+) = Value.createLiteralValue(primitiveTypeForKind(kind), underlyingValue, nonLiteralInSource)
 
 /** Create an [ArrayValue] containing [literals]. */
 fun arrayValueFromAny(vararg literals: Any) =
@@ -66,78 +65,58 @@ fun classObjectValue(typeItem: TypeItem, sourceExpression: String? = null) =
 fun fieldReferenceValue(
     qualifiedClassName: String,
     fieldName: String,
-    constantValue: ConstantValue? = null
+    constantValue: ConstantValue? = null,
+    kotlinCompanionClass: String? = null,
+    explicitConversionTo: Primitive? = null,
 ) =
     Value.createFieldReferenceValue(
-        ClassResolver.THROWING,
+        ClassResolver.RETURN_NULL,
         qualifiedClassName,
         fieldName,
         constantValue,
+        kotlinCompanionClass,
+        explicitConversionTo,
+    )
+
+/**
+ * Create a [FieldReferenceValue] called [fieldName] in [qualifiedClassName] whose [ConstantValue]
+ * is determined lazily.
+ */
+fun lazyFieldReferenceValue(
+    classResolver: ClassResolver,
+    qualifiedClassName: String,
+    fieldName: String,
+    optionalTypeItem: TypeItem? = null,
+) =
+    Value.createFieldReferenceValueWithDeferredConstantValue(
+        classResolver,
+        qualifiedClassName,
+        fieldName,
+        optionalTypeItem,
     )
 
 /** Create an [AnnotationValue] from [source]. */
 fun annotationValueFromSource(source: String) =
     Value.createAnnotationValue(
-        DefaultAnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
+        AnnotationItem.createFromSource(AnnotationContext.DEFAULT_RESOLVE_NULL, source)!!
     )
 
 fun annotationValue(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
     Value.createAnnotationValue(annotationItem(qualifiedClassName, *attributes))
 
 fun annotationItem(qualifiedClassName: String, vararg attributes: Pair<String, Value>) =
-    DefaultAnnotationItem.createAttributesLazily(
+    AnnotationItem.createAttributesLazily(
         AnnotationContext.DEFAULT_RESOLVE_NULL,
         FileLocation.UNKNOWN,
-        qualifiedClassName,
-        {
-            attributes.map { (name, value) ->
-                DefaultAnnotationAttribute(
-                    name,
-                    value.provider(),
-                    value.asAnnotationAttributeValue(),
-                )
-            }
+        qualifiedClassName
+    ) {
+        attributes.map { (name, value) ->
+            AnnotationAttribute.createLazyAttribute(
+                name,
+                value.provider(),
+            )
         }
-    )!!
-
-/**
- * The set of [ValueKind]s that are fully supported across models and so will be tested rigorously,
- * i.e. will not ignore [ValueProviderException]
- *
- * As each additional [ValueKind] is supported across the models they will be added here to ensure
- * that there are no regressions.
- */
-private val fullySupportedValueKinds =
-    EnumSet.noneOf(ValueKind::class.java).apply {
-        addAll(ValueKind.LITERAL_KINDS)
-        add(ValueKind.ANNOTATION)
-        add(ValueKind.ARRAY)
-        add(ValueKind.CLASS)
-        add(ValueKind.FIELD)
-    }
-
-/**
- * Run a test on this [Value] ignoring any [ValueProviderException]s if its [Value.kind] is not
- * fully supported across model implementations.
- */
-fun Value?.runValueTest(body: (Value?) -> Unit) {
-    // Check whether this kind is fully supported, assume they are if this is null.
-    val fullySupported = this?.kind?.let { kind -> kind in fullySupportedValueKinds } ?: true
-
-    // ValueProviderExceptions are not treated as test failures if the value kind is not fully
-    // supported to avoid having to keep updating baseline files while expanding Value support
-    // across the models.
-    // TODO(b/354633349): Stop ignoring exceptions.
-    try {
-        body(this)
-    } catch (e: ValueProviderException) {
-        if (fullySupported) {
-            throw e
-        } else {
-            throw AssumptionViolatedException("Ignoring exception thrown while retrieving value", e)
-        }
-    }
-}
+    }!!
 
 /**
  * A special assertion check that performs strict testing of the values.

@@ -17,7 +17,6 @@
 package com.android.tools.metalava.doc
 
 import com.android.tools.metalava.DriverTest
-import com.android.tools.metalava.intDefAnnotationSource
 import com.android.tools.metalava.intRangeAnnotationSource
 import com.android.tools.metalava.testing.KnownSourceFiles.floatRangeAnnotationSource
 import com.android.tools.metalava.testing.java
@@ -53,7 +52,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             docStubs = true,
             checkCompilation = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -66,146 +65,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                      * @return Value is 10 or greater
                      */
                     public int test1(int range2) { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is between 10 and 20 inclusive
-                     */
+                    /** @return Value is between 10 and 20 inclusive */
                     public int test2() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is 100 or less
-                     */
+                    /** @return Value is 100 or less */
                     public int test3() { throw new RuntimeException("Stub!"); }
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun Typedefs() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    import android.annotation.IntDef;
-                    import android.annotation.IntRange;
-
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-
-                    @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
-                    public class TypedefTest {
-                        @IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})
-                        @Retention(RetentionPolicy.SOURCE)
-                        private @interface DialogStyle {}
-
-                        public static final int STYLE_NORMAL = 0;
-                        public static final int STYLE_NO_TITLE = 1;
-                        public static final int STYLE_NO_FRAME = 2;
-                        public static final int STYLE_NO_INPUT = 3;
-                        public static final int STYLE_UNRELATED = 3;
-
-                        public void setStyle(@DialogStyle int style, int theme) {
-                        }
-
-                        @IntDef(value = {STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT, 2, 3 + 1},
-                        flag=true)
-                        @Retention(RetentionPolicy.SOURCE)
-                        private @interface DialogFlags {}
-
-                        public void setFlags(Object first, @DialogFlags int flags) {
-                        }
-                    }
-                    """
-                    ),
-                    intRangeAnnotationSource,
-                    intDefAnnotationSource
-                ),
-            checkCompilation = true,
-            docStubs = true,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class TypedefTest {
-                    public TypedefTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param flags Value is either <code>0</code> or a combination of {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, {@link test.pkg.TypedefTest#STYLE_NO_INPUT}, 2, and 4
-                     */
-                    public void setFlags(java.lang.Object first, int flags) { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or {@link test.pkg.TypedefTest#STYLE_NO_INPUT}
-                     */
-                    public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
-                    public static final int STYLE_NORMAL = 0; // 0x0
-                    public static final int STYLE_NO_FRAME = 2; // 0x2
-                    public static final int STYLE_NO_INPUT = 3; // 0x3
-                    public static final int STYLE_NO_TITLE = 1; // 0x1
-                    public static final int STYLE_UNRELATED = 3; // 0x3
-                    }
-                    """
-                    )
-                )
-        )
-    }
-
-    @Test
-    fun `Typedefs combined with ranges`() {
-        check(
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-
-                    import android.annotation.IntDef;
-                    import android.annotation.IntRange;
-
-                    import java.lang.annotation.Retention;
-                    import java.lang.annotation.RetentionPolicy;
-
-                    @SuppressWarnings({"UnusedDeclaration", "WeakerAccess"})
-                    public class TypedefTest {
-                        @IntDef({STYLE_NORMAL, STYLE_NO_TITLE, STYLE_NO_FRAME, STYLE_NO_INPUT})
-                        @IntRange(from = 20)
-                        @Retention(RetentionPolicy.SOURCE)
-                        private @interface DialogStyle {}
-
-                        public static final int STYLE_NORMAL = 0;
-                        public static final int STYLE_NO_TITLE = 1;
-                        public static final int STYLE_NO_FRAME = 2;
-
-                        public void setStyle(@DialogStyle int style, int theme) {
-                        }
-                    }
-                    """
-                    ),
-                    intRangeAnnotationSource,
-                    intDefAnnotationSource
-                ),
-            docStubs = true,
-            checkCompilation = true,
-            stubFiles =
-                arrayOf(
-                    java(
-                        """
-                    package test.pkg;
-                    @SuppressWarnings({"unchecked", "deprecation", "all"})
-                    public class TypedefTest {
-                    public TypedefTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param style Value is {@link test.pkg.TypedefTest#STYLE_NORMAL}, {@link test.pkg.TypedefTest#STYLE_NO_TITLE}, {@link test.pkg.TypedefTest#STYLE_NO_FRAME}, or STYLE_NO_INPUT
-                     * Value is 20 or greater
-                     */
-                    public void setStyle(int style, int theme) { throw new RuntimeException("Stub!"); }
-                    public static final int STYLE_NORMAL = 0; // 0x0
-                    public static final int STYLE_NO_FRAME = 2; // 0x2
-                    public static final int STYLE_NO_TITLE = 1; // 0x1
                     }
                     """
                     )
@@ -231,7 +94,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -239,9 +102,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @param parameter2 Value is 10 or greater
-                     */
+                    /** @param parameter2 Value is 10 or greater */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -272,7 +133,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -282,6 +143,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter2 Value is 10 or greater
                      * @return return value documented here
                      */
@@ -317,7 +179,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -327,9 +189,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter1 docs for parameter1
-                     * @param parameter3 docs for parameter2
                      * @param parameter2 Value is 10 or greater
+                     * @param parameter3 docs for parameter2
                      * @return return value documented here
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
@@ -365,7 +228,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -375,8 +238,10 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
+                     *
                      * @param parameter1 docs for parameter1
-                     * @param parameter2 docs for parameter2
+                     * @param parameter2 docs for parameter2.
+                     * <br>
                      * Value is 10 or greater
                      * @param parameter3 docs for parameter2
                      * @return return value documented here
@@ -408,7 +273,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -416,9 +281,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     @SuppressWarnings({"unchecked", "deprecation", "all"})
                     public class RangeTest {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
-                    /**
-                     * @return Value is 10 or greater
-                     */
+                    /** @return Value is 10 or greater */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
                     }
                     """
@@ -428,7 +291,7 @@ class DocAnalyzerRangeTest : DriverTest() {
     }
 
     @Test
-    fun `Add to existing return value (ensuring it appears last)`() {
+    fun `Add to existing return value - ensuring it appears last`() {
         check(
             sourceFiles =
                 arrayOf(
@@ -450,7 +313,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -460,7 +323,9 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public RangeTest() { throw new RuntimeException("Stub!"); }
                     /**
                      * This is the existing documentation.
-                     * @return return value documented here
+                     *
+                     * @return return value documented here.
+                     * <br>
                      * Value is 10 or greater
                      */
                     public int test1(int parameter1, int parameter2, int parameter3) { throw new RuntimeException("Stub!"); }
@@ -510,7 +375,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -521,6 +386,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                     public Toolbar() { throw new RuntimeException("Stub!"); }
                     /**
                      * Existing documentation for {@linkplain #getCurrentContentInsetEnd()} here.
+                     *
                      * @return blah blah blah
                      * @apiSince 24
                      */
@@ -563,7 +429,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                         </class>
                     </api>
                     """,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -612,7 +478,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                 ),
             checkCompilation = true,
             docStubs = true,
-            stubFiles =
+            expectedStubFiles =
                 arrayOf(
                     java(
                         """
@@ -622,6 +488,7 @@ class DocAnalyzerRangeTest : DriverTest() {
                             public RangeTest() { throw new RuntimeException("Stub!"); }
                             /**
                              * Blah.
+                             *
                              * @param i1 Value is {@link java.lang.Integer#MIN_VALUE} or greater
                              * @param i2 Value is 2147483646 or greater
                              * @param i3 Value is 1099511627776L or greater

@@ -24,17 +24,16 @@ import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
 import com.android.tools.metalava.model.testing.value.assertValuesAreStrictlyEqual
-import com.android.tools.metalava.model.testing.value.runValueTest
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.Companion.testCases
 import com.android.tools.metalava.model.testsuite.value.BaseCommonParameterizedValueTest.TestClass
-import com.android.tools.metalava.model.testsuite.value.CommonParameterizedFieldWriteWithSemicolonValueTest.Companion.testParameters
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.ATTRIBUTE_NAME
 import com.android.tools.metalava.model.testsuite.value.TestClassCreator.Companion.FIELD_NAME
 import com.android.tools.metalava.model.testsuite.value.ValueExample.Companion.valueExamples
+import com.android.tools.metalava.model.value.FieldReferenceValue
 import com.android.tools.metalava.model.value.Value
-import com.android.tools.metalava.model.value.ValueKind
+import com.android.tools.metalava.model.value.ValueProviderException
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.testing.EntryPointCallerRule
 import com.android.tools.metalava.testing.TestFileCache
@@ -44,8 +43,9 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.android.tools.metalava.testing.signature
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.fail
 import org.junit.Assert.assertArrayEquals
-import org.junit.AssumptionViolatedException
 import org.junit.Rule
 import org.junit.runners.Parameterized
 
@@ -124,7 +124,7 @@ abstract class BaseCommonParameterizedValueTest(
             legacyValueUseSite: LegacyValueUseSite,
             test: TestCaseContext.() -> Unit
         ) {
-            val testCaseContext = TestCaseContext(this, testCase, kind, legacyValueUseSite)
+            val testCaseContext = TestCaseContext(this, testCase, legacyValueUseSite)
             testCaseContext.test()
         }
 
@@ -150,7 +150,6 @@ abstract class BaseCommonParameterizedValueTest(
                             InputFormat.JAVA -> JavaTestClassCreator
                             InputFormat.KOTLIN -> KotlinTestClassCreator
                             InputFormat.SIGNATURE -> SignatureTestClassCreator
-                            else -> error("Unknown input format: $inputFormat")
                         }
 
                     TestClasses(creator, valueExample)
@@ -321,8 +320,18 @@ abstract class BaseCommonParameterizedValueTest(
             // Cache the sources so that they can be reused.
             val sources = testClass.testFileSet.map { it.cacheIn(testFileCache) }
 
+            val testFixture =
+                TestFixture(
+                    // Disable the supported InputFormat check as this test is already parameterized
+                    // and filtered by InputFormat.
+                    checkSupportedInputFormats = false,
+                )
+
             // Run the test on the sources.
-            runSourceCodebaseTest(inputSet(sources.toList())) {
+            runSourceCodebaseTest(
+                inputSet(sources.toList()),
+                testFixture = testFixture,
+            ) {
                 runTestCase(testCase, legacyValueUseSite, test)
             }
         }
@@ -349,7 +358,11 @@ abstract class BaseCommonParameterizedValueTest(
                 ),
                 testFixture =
                     TestFixture(
-                        additionalClassPath = listOf(cachedJarFile.createFile(temporaryFolder.root))
+                        additionalClassPath = listOf(cachedJarFile.toFile()),
+
+                        // Disable the supported InputFormat check as this test is already
+                        // parameterized and filtered by InputFormat.
+                        checkSupportedInputFormats = false,
                     ),
             ) {
                 runTestCase(testCase, legacyValueUseSite, test)
@@ -395,7 +408,6 @@ abstract class BaseCommonParameterizedValueTest(
     class TestCaseContext(
         delegate: CodebaseContext,
         private val testCase: TestCase,
-        val producerKind: ProducerKind,
         private val legacyValueUseSite: LegacyValueUseSite,
     ) : CodebaseContext by delegate {
         /** Get the [ClassItem] to be tested from this [Codebase]. */
@@ -412,9 +424,31 @@ abstract class BaseCommonParameterizedValueTest(
 
     /** Run a test on the [Codebase] produced by [codebaseProducer]. */
     private fun runTestOnCodebase(function: TestCaseContext.() -> Unit) {
-        val thisClass = this
-        with(codebaseProducer) {
-            thisClass.runCodebaseProducerTest(testFileCache, testCase, function)
+        val expectedException =
+            if (
+                inputFormat == InputFormat.SIGNATURE &&
+                    legacyValueUseSite.valueUseSite == ValueUseSite.FIELD
+            )
+                testCase.valueExample.expectedSignatureFieldException
+            else null
+
+        try {
+            val thisClass = this
+            with(codebaseProducer) {
+                thisClass.runCodebaseProducerTest(testFileCache, testCase, function)
+            }
+
+            // Make sure that if an exception was expected that it was thrown.
+            if (expectedException != null) {
+                fail("Expected this test to fail with '$expectedException'")
+            }
+        } catch (e: ValueProviderException) {
+            // Make sure that if an exception was thrown then it was expected.
+            if (expectedException == null) {
+                throw e
+            } else {
+                assertEquals(expectedException, e.message)
+            }
         }
     }
 
@@ -432,18 +466,11 @@ abstract class BaseCommonParameterizedValueTest(
         actualGetter: TestCaseContext.() -> T,
     ) {
         runTestOnCodebase {
-            // If a test is not valid for the expected value then it is not valid for any other
-            // tests from the same example so check to make sure that it is valid, skipping if it is
-            // not.
-            skipTestIfNotValidForExpectedValue(
-                testCase.valueExample.expectedValue.expectationFor(producerKind, legacyValueUseSite)
-            )
-
             // Get the actual value.
             val actual = actualGetter()
 
             // Get the expected value.
-            val expected = expectation.expectationFor(producerKind, legacyValueUseSite)
+            val expected = expectation.expectationForTest()
 
             // Compare the two.
             if (expected is Array<*> && actual is Array<*>) {
@@ -470,22 +497,12 @@ abstract class BaseCommonParameterizedValueTest(
     }
 
     /**
-     * Check the [ValueExample.expectedLegacyValue] against the [Any] returned by
-     * [LegacyValueUseSite.legacyValueGetter].
+     * Get the expected value from [Expectation] for this test.
+     *
+     * Considers the [ProducerKind] and the [LegacyValueUseSite].
      */
-    protected fun checkLegacyValue() {
-        val expectedLegacyValue =
-            testCase.valueExample.expectedLegacyValueFor(inputFormat)
-                // Make sure that there is an expectation for every constant example.
-                ?: if (testCase.valueExample.isConstant) error("Missing expected legacy value")
-                else return
-        val legacyValueGetter =
-            legacyValueUseSite.legacyValueGetter
-                ?: error(
-                    "LegacyValueUseSite.$legacyValueUseSite does not provide a legacyValueGetter"
-                )
-        runExpectationTest(expectedLegacyValue, legacyValueGetter)
-    }
+    fun <T> Expectation<T>.expectationForTest() =
+        expectationFor(codebaseProducer.kind, legacyValueUseSite)
 
     /**
      * Check the [ValueExample.expectedValue] against the [Value] returned by [actualValueGetter].
@@ -496,10 +513,7 @@ abstract class BaseCommonParameterizedValueTest(
         runTestOnCodebase {
             // Get the expected value.
             val expectation = testCase.valueExample.expectedValue
-            expectation.expectationFor(producerKind, legacyValueUseSite).runValueTest { expected ->
-                // Make sure the expected value is valid for this test.
-                skipTestIfNotValidForExpectedValue(expected)
-
+            expectation.expectationForTest().let { expected ->
                 // Filter the expected value for fields. FieldItem.constantValue can only be a
                 // constant value, i.e. a primitive or String literal. However, the source can be
                 // given a non-constant value, e.g. an array, field reference, etc. A reference to
@@ -517,31 +531,22 @@ abstract class BaseCommonParameterizedValueTest(
                 // Strictly compare the Values to ensure that where necessary they have included any
                 // information needed to generate correct legacy string representations.
                 assertValuesAreStrictlyEqual(filteredExpected, actual)
+
+                // Fields are equal if they reference the same qualified class name and field name.
+                // However, for testing purposes this needs to verify that their constant values
+                // also match.
+                if (filteredExpected is FieldReferenceValue) {
+                    assertTrue(
+                        actual is FieldReferenceValue,
+                        message = "value is not a field it is ${actual?.javaClass}"
+                    )
+                    assertValuesAreStrictlyEqual(
+                        filteredExpected.asLiteralValue(),
+                        actual.asLiteralValue(),
+                        message = "field constant: "
+                    )
+                }
             }
-        }
-    }
-
-    /**
-     * Check to make sure that the test is valid for the combination of [expectedValue],
-     * [inputFormat] and [legacyValueUseSite].
-     *
-     * These tests cannot be filtered out by the [ParameterFilter] as that only has access to the
-     * first two.
-     */
-    private fun skipTestIfNotValidForExpectedValue(expectedValue: Value?) {
-        // Null expected values are ok.
-        if (expectedValue == null) return
-
-        // Only fields have special restrictions.
-        if (legacyValueUseSite.valueUseSite != ValueUseSite.FIELD) return
-
-        // Signature file fields only use literal values in their initializers. So, using any other
-        // kind is invalid.
-        val kind = expectedValue.kind
-        if (inputFormat == InputFormat.SIGNATURE && kind !in ValueKind.LITERAL_KINDS) {
-            throw AssumptionViolatedException(
-                "Using value `$expectedValue` as an initializer for a field in a signature file is invalid; ignoring"
-            )
         }
     }
 }
@@ -607,6 +612,7 @@ object JavaTestClassCreator : TestClassCreator {
                 public interface Constants {
                     String STRING_CONSTANT = "constant";
                     int INT_CONSTANT = 37;
+                    long LONG_CONSTANT = 9L;
                 }
             """
         )
@@ -784,6 +790,7 @@ object KotlinTestClassCreator : TestClassCreator {
                 object Constants {
                     const val STRING_CONSTANT = "constant"
                     const val INT_CONSTANT = 37
+                    const val LONG_CONSTANT = 9L
                 }
             """
         )
@@ -970,6 +977,7 @@ object SignatureTestClassCreator : TestClassCreator {
                   public interface Constants {
                     field public static final String STRING_CONSTANT = "constant";
                     field public static final int INT_CONSTANT = 37;
+                    field public static final long LONG_CONSTANT = 9L;
                   }
                   public interface GenericClass<T> {
                     field public static final String STRING_CONSTANT = "constant";
