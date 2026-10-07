@@ -170,17 +170,11 @@ internal class SignatureFileLexer(
         index = start + 1
         while (index < endExclusive) {
             val c = text[index]
-            if (Character.isJavaIdentifierPart(c)) {
+            // Allow '-' anywhere after the start of an identifier or keyword to support hyphenated
+            // modifiers (e.g. 'non-sealed', 'non-exhaustive') and mangled names (e.g. 'box-impl',
+            // 'foo--bar').
+            if (Character.isJavaIdentifierPart(c) || c == '-') {
                 index++
-            } else if (
-                c == '-' &&
-                    index + 1 < endExclusive &&
-                    Character.isJavaIdentifierPart(text[index + 1])
-            ) {
-                // Include hyphenated segments (e.g. 'non-sealed', 'non-exhaustive', or Kotlin
-                // mangled method names like 'box-impl') as part of the identifier/keyword when '-'
-                // is immediately followed by another identifier character.
-                index += 2
             } else {
                 break
             }

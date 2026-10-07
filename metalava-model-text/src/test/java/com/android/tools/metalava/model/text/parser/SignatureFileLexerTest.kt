@@ -100,18 +100,10 @@ class SignatureFileLexerTest {
             SignatureTokenType.PUBLIC to "public",
             SignatureTokenType.FINAL to "final",
             SharedTokenType.CLASS to "class",
-            // TODO(b/564868917): This is not correct; `-Foo--Bar` should be tokenized as a single
-            //  IDENTIFIER token rather than split at `--` into IDENTIFIER, MINUS, and IDENTIFIER.
-            SharedTokenType.IDENTIFIER to "-Foo",
-            SharedTokenType.MINUS to "-",
-            SharedTokenType.IDENTIFIER to "-Bar",
+            SharedTokenType.IDENTIFIER to "-Foo--Bar",
             SharedTokenType.BRACE_OPEN to "{",
             SharedTokenType.IDENTIFIER to "method",
-            // TODO(b/564868917): This is not correct; `foo--bar` should be tokenized as a single
-            //  IDENTIFIER token rather than split at `--` into IDENTIFIER, MINUS, and IDENTIFIER.
-            SharedTokenType.IDENTIFIER to "foo",
-            SharedTokenType.MINUS to "-",
-            SharedTokenType.IDENTIFIER to "-bar",
+            SharedTokenType.IDENTIFIER to "foo--bar",
             SharedTokenType.PAREN_OPEN to "(",
             SharedTokenType.IDENTIFIER to "long",
             SharedTokenType.COMMA to ",",
