@@ -328,7 +328,9 @@ internal class PsiCodebaseAssembler(
 
         // Get the `PsiClass`es from the `PsiFile`s.
         val psiClasses =
-            tracer.trace("getPsiClassesFromPsiFiles") { getPsiClassesFromPsiFiles(psiFiles) }
+            tracer.trace("getPsiClassesFromPsiFiles") {
+                getPsiClassesFromPsiFiles(psiFiles, apiPackages)
+            }
 
         // Create the initial set of packages that were found in the source files.
         tracer.trace("createInitialPackages") { createInitialPackages(sourceSet, apiPackages) }
@@ -550,13 +552,22 @@ internal class PsiCodebaseAssembler(
     /**
      * Extract all the top level classes from [psiFiles].
      *
-     * During the processing this checks each [PsiFile] for unresolved imports and syntax errors.
+     * During the processing this checks each [PsiFile] that matches [apiPackages] for unresolved
+     * imports and syntax errors.
      */
-    private fun getPsiClassesFromPsiFiles(psiFiles: List<PsiFile>): List<PsiClass> {
+    private fun getPsiClassesFromPsiFiles(
+        psiFiles: List<PsiFile>,
+        apiPackages: PackageFilter?,
+    ): List<PsiClass> {
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         return psiFiles
             .asSequence()
             .distinct()
+            .filter { psiFile ->
+                apiPackages == null ||
+                    (psiFile as? PsiClassOwner)?.let { apiPackages.matches(it.packageName) } !=
+                        false
+            }
             .flatMap { psiFile ->
                 // Check for syntax errors across the whole file.
                 checkForSyntaxErrors(psiFile)

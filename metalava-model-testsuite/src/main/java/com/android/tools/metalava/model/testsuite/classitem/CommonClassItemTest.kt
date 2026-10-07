@@ -1657,6 +1657,8 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.excluded.pkg;
 
+                        import unresolved.Import;
+
                         public class Excluded {
                             private Excluded() {}
                         }
