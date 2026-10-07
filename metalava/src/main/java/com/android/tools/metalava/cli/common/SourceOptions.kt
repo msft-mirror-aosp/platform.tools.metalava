@@ -22,6 +22,7 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -89,7 +90,11 @@ class SourceOptions(
 
     /** Get the [SourceModelProvider] corresponding to [sourceModelProviderName]. */
     val sourceModelProvider: SourceModelProvider
-        get() = SourceModelProvider.getImplementation(sourceModelProviderName)
+        get() =
+            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
+            executionEnvironment.testEnvironment?.sourceModelProvider
+                // Otherwise, use the one specified on the command line, or the default.
+                ?: SourceModelProvider.getImplementation(sourceModelProviderName)
 
     private val sourcePathString by
         option(
@@ -112,6 +117,11 @@ class SourceOptions(
         if (path == null) {
             emptyList()
         } else if (path.isBlank()) {
+            if (Capability.EMPTY_SOURCE_PATH !in sourceModelProvider.capabilities) {
+                cliError(
+                    "$argName \"\" is not supported by the ${sourceModelProvider.providerName} source model provider"
+                )
+            }
             // Don't compute absolute path; we want to skip this file later on.
             // For current directory one should use ".", not "".
             listOf(File(""))

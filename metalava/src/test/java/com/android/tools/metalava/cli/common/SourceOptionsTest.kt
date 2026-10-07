@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.common
 
 import com.google.common.truth.Truth.assertThat
 import java.io.File
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 val SOURCE_OPTIONS_HELP =
@@ -116,9 +117,9 @@ class SourceOptionsTest :
     @Test
     fun `Test empty source path - psi`() {
         runTest(ARG_SOURCE_MODEL_PROVIDER, "psi", ARG_SOURCE_PATH, "") {
-            // TODO(b/570991958): Should fail as the psi source model provider does not support an
-            //  empty source path.
-            assertThat(options.sourcePath).isEqualTo(listOf(File("")))
+            val exception = assertThrows(MetalavaCliException::class.java) { options.sourcePath }
+            assertThat(exception.message)
+                .isEqualTo("--source-path \"\" is not supported by the psi source model provider")
         }
     }
 

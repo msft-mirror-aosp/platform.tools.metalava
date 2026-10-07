@@ -71,11 +71,7 @@ class MainCommand(
         // Perform any necessary initialization.
         tracer.trace("initializeOptionGroups") { initializeOptionGroups() }
 
-        val sourceModelProvider =
-            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
-            executionEnvironment.testEnvironment?.sourceModelProvider
-                // Otherwise, use the one specified on the command line, or the default.
-                ?: sourceOptions.sourceModelProvider
+        val sourceModelProvider = sourceOptions.sourceModelProvider
 
         tracer
             .trace("createEnvironmentManager") {

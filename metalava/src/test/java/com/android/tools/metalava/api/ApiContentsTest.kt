@@ -520,6 +520,7 @@ class ApiContentsTest : DriverTest() {
         )
     }
 
+    @RequiresCapabilities(Capability.EMPTY_SOURCE_PATH)
     @Test
     fun `Test empty source-path does not scan source roots`() {
         check(
@@ -555,27 +556,15 @@ class ApiContentsTest : DriverTest() {
                 ),
             extraArguments = arrayOf(ARG_SOURCE_PATH, ""),
             checkCompilation = false,
-            // TODO(b/570991958): The psi source model provider does not support an empty
-            //  --source-path.
-            expectedIssues =
-                if (codebaseCreatorConfig.creator.providerName == "psi") {
-                    "src/test/pkg/Foo.java:2: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory TESTROOT/src/test/pkg [InvalidPackage]"
-                } else {
-                    null
-                },
             expectedApiSignature =
-                if (codebaseCreatorConfig.creator.providerName == "psi") {
-                    null
-                } else {
-                    """
-                        // Signature format: 5.0
-                        package test.pkg {
-                          public class Foo {
-                            ctor public Foo();
-                          }
-                        }
-                    """
-                },
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Foo {
+                        ctor public Foo();
+                      }
+                    }
+                """,
         )
     }
 }
