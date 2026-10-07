@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -130,13 +131,16 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         return PackageDocs(packages)
     }
 
-    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
-    fun createInitialPackages(sourceSet: SourceSet) {
+    /**
+     * Create and track [PackageItem]s for every entry in [packageDocs] that matches [apiPackages].
+     */
+    fun createInitialPackages(sourceSet: SourceSet, apiPackages: PackageFilter?) {
         // Make the packageDocs available when creating the packages below.
         this.packageDocs = gatherPackageJavadoc(sourceSet)
 
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages that match apiPackages.
         for (packageName in packageDocs.packageNames) {
+            if (apiPackages != null && !apiPackages.matches(packageName)) continue
             codebase.findOrCreatePackage(packageName)
         }
 

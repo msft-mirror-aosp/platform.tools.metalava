@@ -331,7 +331,7 @@ internal class PsiCodebaseAssembler(
             tracer.trace("getPsiClassesFromPsiFiles") { getPsiClassesFromPsiFiles(psiFiles) }
 
         // Create the initial set of packages that were found in the source files.
-        tracer.trace("createInitialPackages") { createInitialPackages(sourceSet) }
+        tracer.trace("createInitialPackages") { createInitialPackages(sourceSet, apiPackages) }
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
