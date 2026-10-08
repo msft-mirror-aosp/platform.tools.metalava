@@ -2206,9 +2206,6 @@ class ApiGeneratorTest : DriverTest() {
      */
     @Test
     fun `Enclosing class deprecation propagates to inner classes in jar`() {
-        // TODO(b/569883236): Outer$Inner and its members should inherit deprecated="1.0" from
-        //  Outer when read from a jar, instead of only becoming deprecated in 2.0 when read from
-        //  sources.
         checkConsistencyBetweenHistoricalAndLatestCode(
             java(
                 """
@@ -2242,7 +2239,7 @@ class ApiGeneratorTest : DriverTest() {
                             public Outer() { throw new RuntimeException("Stub!"); }
                             /**
                              * @apiSince 1
-                             * @deprecatedSince 2
+                             * @deprecatedSince 1
                              */
                             @Deprecated
                             public static class Inner {
@@ -2268,7 +2265,7 @@ class ApiGeneratorTest : DriverTest() {
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                         </class>
-                        <class name="test/pkg/Outer${'$'}Inner" since="1.0" deprecated="2.0">
+                        <class name="test/pkg/Outer${'$'}Inner" since="1.0" deprecated="1.0">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                             <method name="foo()V"/>
