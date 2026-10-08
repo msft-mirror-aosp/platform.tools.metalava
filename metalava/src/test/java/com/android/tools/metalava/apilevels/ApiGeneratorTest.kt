@@ -2356,4 +2356,93 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verifies that when a superclass is package-private in an earlier version and becomes public
+     * in a later version, its public methods and nearest public superclass are inlined into public
+     * subclasses in the earlier version, and its `<extends>` transition is recorded in the later
+     * version.
+     */
+    @Test
+    fun `Package private super class becomes public in a later version`() {
+        // TODO(b/569883236): BaseObj is package-private in 1.0 (jar) and becomes public in 2.0
+        //  (source), so BaseObj should be present in api-versions.xml with since="2.0" (@apiSince
+        //  2), and Program should record <extends name="java/lang/Object" removed="2.0"/> and
+        //  <extends name="test/pkg/BaseObj" since="2.0"/>.
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class BaseObj {
+                        public void destroy() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Program extends BaseObj {
+                        public Program() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class BaseObj {
+                                public BaseObj() {}
+                                public void destroy() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Program extends BaseObj {
+                                public Program() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class BaseObj {
+                            public BaseObj() { throw new RuntimeException("Stub!"); }
+                            public void destroy() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Program extends test.pkg.BaseObj {
+                            /** @apiSince 1 */
+                            public Program() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Program" since="1.0">
+                            <method name="&lt;init>()V"/>
+                            <method name="destroy()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
