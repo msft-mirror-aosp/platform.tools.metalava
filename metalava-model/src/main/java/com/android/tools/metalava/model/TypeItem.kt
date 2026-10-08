@@ -870,6 +870,7 @@ interface PrimitiveTypeItem : TypeItem {
     enum class Primitive(
         val primitiveName: String,
         val kotlinName: String,
+        val internalName: String,
         val defaultValue: Any?,
         val defaultValueString: String,
         val wrapperClass: Class<*>,
@@ -877,6 +878,7 @@ interface PrimitiveTypeItem : TypeItem {
         BOOLEAN(
             primitiveName = "boolean",
             kotlinName = "Boolean",
+            internalName = "Z",
             defaultValue = false,
             defaultValueString = "false",
             wrapperClass =
@@ -885,6 +887,7 @@ interface PrimitiveTypeItem : TypeItem {
         BYTE(
             primitiveName = "byte",
             kotlinName = "Byte",
+            internalName = "B",
             defaultValue = 0.toByte(),
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Byte::class.java,
@@ -892,6 +895,7 @@ interface PrimitiveTypeItem : TypeItem {
         CHAR(
             primitiveName = "char",
             kotlinName = "Char",
+            internalName = "C",
             defaultValue = 0.toChar(),
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Character::class.java,
@@ -899,6 +903,7 @@ interface PrimitiveTypeItem : TypeItem {
         DOUBLE(
             primitiveName = "double",
             kotlinName = "Double",
+            internalName = "D",
             defaultValue = 0.0,
             defaultValueString = "0",
             wrapperClass =
@@ -907,6 +912,7 @@ interface PrimitiveTypeItem : TypeItem {
         FLOAT(
             primitiveName = "float",
             kotlinName = "Float",
+            internalName = "F",
             defaultValue = 0F,
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Float::class.java,
@@ -914,6 +920,7 @@ interface PrimitiveTypeItem : TypeItem {
         INT(
             primitiveName = "int",
             kotlinName = "Int",
+            internalName = "I",
             defaultValue = 0,
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") Integer::class.java,
@@ -921,6 +928,7 @@ interface PrimitiveTypeItem : TypeItem {
         LONG(
             primitiveName = "long",
             kotlinName = "Long",
+            internalName = "J",
             defaultValue = 0L,
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Long::class.java,
@@ -928,6 +936,7 @@ interface PrimitiveTypeItem : TypeItem {
         SHORT(
             primitiveName = "short",
             kotlinName = "Short",
+            internalName = "S",
             defaultValue = 0.toShort(),
             defaultValueString = "0",
             wrapperClass = @Suppress("PLATFORM_CLASS_MAPPED_TO_KOTLIN") java.lang.Short::class.java,
@@ -937,6 +946,7 @@ interface PrimitiveTypeItem : TypeItem {
             // Unit is not exactly the same as void, but it is what is used in Kotlin when a method
             // has no return, like void in Java.
             kotlinName = "Unit",
+            internalName = "V",
             defaultValue = null,
             defaultValueString = "null",
             wrapperClass = Void::class.java,
@@ -977,6 +987,8 @@ interface PrimitiveTypeItem : TypeItem {
                 kotlinNumericConversionFunctionNameToKind[name]
         }
     }
+
+    override fun internalName(): String = kind.internalName
 
     override fun defaultValue(): Any? = kind.defaultValue
 

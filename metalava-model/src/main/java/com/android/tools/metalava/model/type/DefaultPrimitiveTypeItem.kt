@@ -28,6 +28,8 @@ internal class DefaultPrimitiveTypeItem(
     isValueClassType: Boolean = false,
 ) : PrimitiveTypeItem, DefaultStandaloneTypeItem(modifiers, isValueClassType) {
 
+    override fun internalName(): String = kind.internalName
+
     override fun substitute(modifiers: TypeModifiers) =
         if (modifiers !== this.modifiers)
             TypeItem.createPrimitiveType(modifiers, kind, isValueClassType)
