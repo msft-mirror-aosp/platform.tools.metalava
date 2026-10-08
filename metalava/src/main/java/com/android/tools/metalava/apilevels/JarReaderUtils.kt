@@ -138,6 +138,9 @@ fun Api.readJar(
             } else if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                 continue
             }
+            if ((methodAccess and (Opcodes.ACC_BRIDGE or Opcodes.ACC_SYNTHETIC)) != 0) {
+                continue
+            }
             val methodName = method.name
 
             // The class initializer is an implementation detail.

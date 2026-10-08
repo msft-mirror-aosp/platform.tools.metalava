@@ -2332,8 +2332,6 @@ class ApiGeneratorTest : DriverTest() {
                         """
                     ),
                 ),
-            // TODO(b/569883236): Synthetic bridge method makeCopy()Ljava/lang/Object; should be
-            //  ignored when reading from a jar.
             expectedApiVersionsXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -2344,7 +2342,6 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="test/pkg/Super"/>
                             <method name="&lt;init>()V"/>
-                            <method name="makeCopy()Ljava/lang/Object;" removed="2.0"/>
                             <method name="makeCopy()Ltest/pkg/Foo;"/>
                         </class>
                         <class name="test/pkg/Super" since="1.0">
