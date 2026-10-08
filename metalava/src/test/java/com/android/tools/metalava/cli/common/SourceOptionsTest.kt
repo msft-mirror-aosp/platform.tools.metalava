@@ -36,7 +36,8 @@ Sources:
   --classpath <paths>                        One or more directories or jars (separated by `:`) containing classes that
                                              should be on the classpath when parsing the source files.
   --project <xmlfile>                        Project description written in XML according to Lint's project model.
-  --stub-packages <package-list>             List of packages (separated by :) which will be used to filter out
+  --stub-packages, --package-filter <package-list>
+                                             List of packages (separated by :) which will be used to filter out
                                              irrelevant classes. If specified, only classes in these packages will be
                                              included in signature files, stubs, etc.. This is not limited to just the
                                              stubs; the --stub-packages name is historical.
@@ -81,6 +82,35 @@ class SourceOptionsTest :
     fun `Test source model provider - turbine`() {
         runTest(ARG_SOURCE_MODEL_PROVIDER, "turbine") {
             assertThat(options.sourceModelProvider.providerName).isEqualTo("turbine")
+        }
+    }
+
+    @Test
+    fun `Test package filter`() {
+        runTest(ARG_PACKAGE_FILTER, "foo.bar:baz.*") {
+            val filter = options.apiPackageFilter!!
+            assertThat(filter.matches("foo.bar")).isTrue()
+            assertThat(filter.matches("baz.qux")).isTrue()
+            assertThat(filter.matches("other")).isFalse()
+        }
+    }
+
+    @Test
+    fun `Test multiple package filters`() {
+        runTest(
+            ARG_PACKAGE_FILTER,
+            "foo.bar:baz.*",
+            ARG_PACKAGE_FILTER,
+            "-baz.excluded:qux.*",
+        ) {
+            val filter = options.apiPackageFilter!!
+            // TODO(b/570991958): Multiple --package-filter options should be combined in order, not
+            //  overwritten by the last one.
+            assertThat(filter.matches("foo.bar")).isFalse()
+            assertThat(filter.matches("baz.qux")).isFalse()
+            assertThat(filter.matches("baz.excluded")).isFalse()
+            assertThat(filter.matches("qux.sub")).isTrue()
+            assertThat(filter.matches("other")).isFalse()
         }
     }
 }

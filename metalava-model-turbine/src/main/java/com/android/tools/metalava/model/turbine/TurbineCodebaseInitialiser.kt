@@ -139,7 +139,9 @@ internal class TurbineCodebaseInitialiser(
 
         // Scan the files looking for package.html and overview.html files and extract the
         // documentation just in case they are needed during package creation.
-        tracer.trace("turbine.createInitialPackages") { createInitialPackages(sourceSet) }
+        tracer.trace("turbine.createInitialPackages") {
+            createInitialPackages(sourceSet, apiPackages)
+        }
 
         tracer.trace("turbine.createAllCommandLineClasses") {
             createAllCommandLineClasses(commandLineSourceClasses, apiPackages)

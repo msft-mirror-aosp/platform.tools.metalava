@@ -48,6 +48,7 @@ const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_PROJECT = "--project"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
+const val ARG_PACKAGE_FILTER = "--package-filter"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
@@ -222,6 +223,7 @@ class SourceOptions(
     val apiPackageFilter by
         option(
                 ARG_STUB_PACKAGES,
+                ARG_PACKAGE_FILTER,
                 metavar = "<package-list>",
                 help =
                     """

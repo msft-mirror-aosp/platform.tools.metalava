@@ -17,8 +17,10 @@
 package com.android.tools.metalava.api
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.lint.checks.infrastructure.TestFiles.source
 import com.android.tools.metalava.ARG_HIDE_ANNOTATION
 import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.cli.common.ARG_SOURCE_PATH
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.testing.KnownSourceFiles.restrictToSource
@@ -27,6 +29,7 @@ import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import java.io.File
 import org.junit.Test
 
 /** Integration tests for [ApiContents]. */
@@ -514,6 +517,65 @@ class ApiContentsTest : DriverTest() {
                 """
                     src/test/pkg/InternalInterface.kt:7: error: Class test.pkg.InternalInterface is not public but was referenced (as type parameter) from public method test.pkg.PublicClass.method(T) [ReferencesHidden]
                 """,
+        )
+    }
+
+    @Test
+    fun `Test empty source-path does not scan source roots`() {
+        check(
+            projectSetup = { dir ->
+                // Write an undeclared Java file with invalid syntax in the same source root.
+                // With --source-path "", this file must not be scanned or parsed.
+                File(dir, "src/test/pkg/Undeclared.java")
+                    .apply { parentFile.mkdirs() }
+                    .writeText("package test.pkg; public class Undeclared { INVALID SYNTAX")
+            },
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo {}
+                        """
+                    ),
+                    source(
+                            "src/test/pkg/package.html",
+                            """
+                                <html><body>Package docs</body></html>
+                            """
+                        )
+                        .indented(),
+                    source(
+                            "src/test/pkg/sub/package.html",
+                            """
+                                <html><body>Subpackage docs</body></html>
+                            """
+                        )
+                        .indented(),
+                ),
+            extraArguments = arrayOf(ARG_SOURCE_PATH, ""),
+            checkCompilation = false,
+            // TODO(b/570991958): The psi source model provider does not support an empty
+            //  --source-path.
+            expectedIssues =
+                if (codebaseCreatorConfig.creator.providerName == "psi") {
+                    "src/test/pkg/Foo.java:2: error: Could not find package test.pkg for class test.pkg.Foo. This is most likely due to a mismatch between the package statement and the directory TESTROOT/src/test/pkg [InvalidPackage]"
+                } else {
+                    null
+                },
+            expectedApiSignature =
+                if (codebaseCreatorConfig.creator.providerName == "psi") {
+                    null
+                } else {
+                    """
+                        // Signature format: 5.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                          }
+                        }
+                    """
+                },
         )
     }
 }
