@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model.item
 
-import com.android.tools.metalava.model.ApiVariantSelectorsFactory
 import com.android.tools.metalava.model.BaseModifierList
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Codebase
@@ -29,16 +28,19 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
+import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.duplicatingFactory
+import com.android.tools.metalava.model.scope.NameClassification
+import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.reporter.FileLocation
 
-open class DefaultPropertyItem(
+internal class DefaultPropertyItem(
     codebase: Codebase,
     fileLocation: FileLocation,
     sourceLanguage: SourceLanguage,
     documentationFactory: ItemDocumentationFactory,
-    variantSelectorsFactory: ApiVariantSelectorsFactory,
     modifiers: BaseModifierList,
-    name: String,
+    val name: String,
     containingClass: ClassItem,
     private var type: TypeItem,
     override val getter: MethodItem?,
@@ -47,6 +49,8 @@ open class DefaultPropertyItem(
     override val backingField: FieldItem?,
     override val receiver: TypeItem?,
     override val typeParameterList: TypeParameterList,
+    override val setterVisibility: VisibilityLevel?,
+    contextParameterFactory: (PropertyItem) -> List<ParameterItem>,
 ) :
     DefaultMemberItem(
         codebase,
@@ -57,15 +61,58 @@ open class DefaultPropertyItem(
         targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
         modifiers,
         documentationFactory,
-        variantSelectorsFactory,
         name,
         containingClass,
     ),
     PropertyItem {
 
-    final override fun type(): TypeItem = type
+    override val contextParameters: List<ParameterItem> = contextParameterFactory(this)
 
-    final override fun setType(type: TypeItem) {
+    override fun type(): TypeItem = type
+
+    override fun setType(type: TypeItem) {
         this.type = type
+    }
+
+    override val containingScope: ReferencableNameScope?
+        get() =
+            // Fallback to the containing class.
+            containingClass()
+
+    override fun resolveReferencableItemBySimpleName(
+        simpleName: String,
+        nameClassification: NameClassification,
+        isFirstSimpleName: Boolean
+    ) =
+        // Property does not define a name scope.
+        null
+
+    override var inheritedFrom: ClassItem? = null
+
+    override fun duplicate(targetContainingClass: ClassItem): PropertyItem {
+        return DefaultPropertyItem(
+                // Create it in the same codebase as targetContainingClass.
+                codebase = targetContainingClass.codebase,
+                fileLocation = fileLocation,
+                sourceLanguage = sourceLanguage,
+                documentationFactory = documentation.duplicatingFactory(),
+                modifiers = modifiers,
+                name = name(),
+                containingClass = targetContainingClass,
+                type = type,
+                getter = null,
+                setter = null,
+                constructorParameter = null,
+                backingField = null,
+                receiver = receiver,
+                typeParameterList = typeParameterList,
+                setterVisibility = setterVisibility,
+                contextParameterFactory = { containingProperty ->
+                    contextParameters.map {
+                        it.duplicate(containingProperty, typeConverter = { type -> type })
+                    }
+                },
+            )
+            .also { duplicated -> duplicated.inheritedFrom = containingClass() }
     }
 }

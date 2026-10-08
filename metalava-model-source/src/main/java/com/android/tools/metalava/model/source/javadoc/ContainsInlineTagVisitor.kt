@@ -16,14 +16,21 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.source.doc.BlockTagSection
+import com.android.tools.metalava.model.source.doc.DocComment
+import com.android.tools.metalava.model.source.doc.DocCommentPredicate
+
 /**
- * A [JavadocContentVisitor] that will search [JavadocContent] for any [JavadocInlineTag] with the
- * name [tagTypeName].
+ * A [DocCommentPredicate] that will search [DocComment] for any [JavadocInlineTag] with the name
+ * [tagTypeName].
  */
-internal class ContainsInlineTagVisitor(private val tagTypeName: String) : JavadocContentPredicate {
+internal class ContainsInlineTagVisitor(private val tagTypeName: String) : DocCommentPredicate {
     override fun visit(list: JavadocContentList) = list.contents.any { it.accept(this) }
 
     override fun visit(inlineTag: JavadocInlineTag) = inlineTag.tagType.name == tagTypeName
 
     override fun visit(text: JavadocText) = false
+
+    override fun visit(blockTagSection: BlockTagSection) =
+        blockTagSection.description?.accept(this) == true
 }

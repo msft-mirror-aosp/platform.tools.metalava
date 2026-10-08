@@ -17,8 +17,11 @@
 package com.android.tools.metalava
 
 import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.ClassOrVariableTypeItem
+import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
+import com.android.tools.metalava.model.JVM_FIELD
 import com.android.tools.metalava.model.JVM_NAME
 import com.android.tools.metalava.model.JVM_STATIC
 import com.android.tools.metalava.model.MemberItem
@@ -26,22 +29,17 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.hasAnnotation
-import com.android.tools.metalava.model.psi.PsiEnvironmentManager
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
-import com.intellij.psi.util.PsiUtil
 
 // Enforces the interoperability guidelines outlined in
 //   https://android.github.io/kotlin-guides/interop.html
 //
 // Also potentially makes other API suggestions.
 class KotlinInteropChecks(val reporter: Reporter) {
-
-    @Suppress("DEPRECATION")
-    private val javaLanguageLevel =
-        PsiEnvironmentManager.javaLanguageLevelFromString(options.javaLanguageLevelAsString)
-
     fun checkField(field: FieldItem, isKotlin: Boolean = field.isKotlin()) {
         ensureFieldNameNotKeyword(field)
     }
@@ -50,6 +48,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
         if (isKotlin) {
             ensureDefaultParamsHaveJvmOverloads(method)
             ensureCompanionJvmStatic(method)
+            disallowValueClassUsageWithoutJvmName(method)
         } else {
             ensureMethodNameNotKeyword(method)
             ensureParameterNamesNotKeywords(method)
@@ -72,8 +71,15 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
+    fun checkConstructor(constructor: ConstructorItem, isKotlin: Boolean = constructor.isKotlin()) {
+        if (isKotlin) {
+            disallowValueClassUsageInConstructorParameters(constructor)
+        }
+    }
+
     fun checkProperty(property: PropertyItem) {
         ensureCompanionJvmField(property)
+        disallowValueClassUsageWithoutJvmName(property)
     }
 
     private fun ensureLambdaLastParameter(method: MethodItem) {
@@ -151,9 +157,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                     property,
                     "Companion object constants like ${property.name()} should be using @JvmField, not @JvmStatic; see https://developer.android.com/kotlin/interop#companion_constants"
                 )
-            } else if (
-                property.backingField?.modifiers?.findAnnotation("kotlin.jvm.JvmField") == null
-            ) {
+            } else if (property.backingField?.modifiers?.findAnnotation(JVM_FIELD) == null) {
                 reporter.report(
                     Issues.MISSING_JVMSTATIC,
                     property,
@@ -182,7 +186,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             // field is present on the containing class of the companion.
             companionContainer?.findField(name()) != null &&
             // The compiler does not allow @JvmField on value class type properties.
-            !type().isValueClassType()
+            !type().isValueClassType
     }
 
     private fun ensureFieldNameNotKeyword(field: FieldItem) {
@@ -205,7 +209,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
             return
         }
         val parameters = method.parameters()
-        if (parameters.size <= 1) {
+        if (parameters.isEmpty()) {
             // No need for overloads when there is at most one version...
             return
         }
@@ -263,7 +267,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 item,
                 "Avoid $typeLabel names that are Kotlin hard keywords (\"$name\"); see https://android.github.io/kotlin-guides/interop.html#no-hard-keywords"
             )
-        } else if (isJavaKeyword(name)) {
+        } else if (isReservedJavaKeyword(name)) {
             reporter.report(
                 Issues.KOTLIN_KEYWORD,
                 item,
@@ -272,22 +276,23 @@ class KotlinInteropChecks(val reporter: Reporter) {
         }
     }
 
-    /**
-     * @return whether [parameter] can be invoked by Kotlin callers using SAM conversion. This does
-     *   not check TextParameterItem, as there is missing metadata (such as whether the type is
-     *   defined in Kotlin source or not, which can affect SAM conversion).
-     */
+    /** @return whether [parameter] can be invoked by Kotlin callers using SAM conversion. */
     private fun isSamCompatible(parameter: ParameterItem): Boolean {
-        val cls = parameter.type().asClass()
-        // Some interfaces, while they have a single method are not considered to be SAM that we
-        // want to be the last argument because often it leads to unexpected behavior of the
-        // trailing lambda.
-        when (cls?.qualifiedName()) {
-            "java.util.concurrent.Executor",
-            "java.lang.Iterable" -> return false
+        val type = parameter.type()
+        when (type) {
+            // Handle class types and variable types (check their lower bound).
+            is ClassOrVariableTypeItem -> {
+                // Some interfaces, while they have a single method are not considered to be SAM
+                // that we want to be the last argument because often it leads to unexpected
+                // behavior of the trailing lambda.
+                when (type.asErasedType().qualifiedName) {
+                    "java.util.concurrent.Executor",
+                    "java.lang.Iterable" -> return false
+                }
+            }
         }
 
-        return parameter.type().isSamCompatibleOrKotlinLambda()
+        return type.isSamCompatibleOrKotlinLambda(parameter.codebase)
     }
 
     private fun disallowValueClasses(cls: ClassItem) {
@@ -313,7 +318,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 // Technically it is possible to use JvmMultifileClass without using JvmName, but it
                 // wouldn't make sense to and it is difficult to find the annotations in psi in this
                 // case, so skip the check for multi-file classes.
-                !cls.isMultiFileClass() &&
+                !cls.isMultiFileClass &&
                 !cls.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME } &&
                 filteredMembers.any {
                     // Check that there are no members that can be used from Java. While it is
@@ -327,6 +332,89 @@ class KotlinInteropChecks(val reporter: Reporter) {
                 cls,
                 "Use `@file:JvmName` to provide a name for this file facade class for Java callers"
             )
+        }
+    }
+
+    private fun disallowValueClassUsageWithoutJvmName(property: PropertyItem) {
+        fun missingJvmName(accessor: MethodItem?): Boolean {
+            return accessor == null ||
+                (accessor.targetLanguages == TargetLanguageSet.BYTECODE_ONLY &&
+                    !accessor.effectivelyDeprecated)
+        }
+
+        val description =
+            if (property.type().isValueClassType) {
+                "type"
+            } else if (property.receiver?.isValueClassType == true) {
+                "receiver type"
+            } else {
+                val valueClassContextParam =
+                    property.contextParameters.firstOrNull { it.type().isValueClassType }
+                if (valueClassContextParam != null) {
+                    "context parameter type `${valueClassContextParam.type().toTypeString()}`"
+                } else {
+                    return
+                }
+            }
+        if (missingJvmName(property.getter)) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                property,
+                "Property ${property.name()} with value class $description should use `@get:JvmName` to have a usable getter for Java clients"
+            )
+        }
+        val hasVisibleSetter =
+            property.setterVisibility?.let { it > VisibilityLevel.INTERNAL } ?: false
+        if (hasVisibleSetter && missingJvmName(property.setter)) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                property,
+                "Property ${property.name()} with value class $description should use `@set:JvmName` to have a usable setter for Java clients"
+            )
+        }
+    }
+
+    private fun disallowValueClassUsageWithoutJvmName(method: MethodItem) {
+        if (TargetLanguage.KOTLIN !in method.targetLanguages) return
+        if (method.modifiers.hasAnnotation { it.qualifiedName == JVM_NAME }) return
+
+        if (method.returnType().isValueClassType) {
+            reporter.report(
+                Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                method,
+                "Method ${method.name()} returning value class type should use JvmName to be usable for Java clients"
+            )
+            // Don't need to also check parameters if the issue is already reported on the method.
+            return
+        }
+
+        for (parameter in method.parameters()) {
+            if (parameter.type().isValueClassType) {
+                reporter.report(
+                    Issues.VALUE_CLASS_USAGE_WITHOUT_JVM_NAME,
+                    method,
+                    "Method ${method.name()} with parameter ${parameter.name()} of value class type should use JvmName to be usable for Java clients"
+                )
+                // Don't need to continue checking parameters if the issue is already reported on
+                // the method.
+                break
+            }
+        }
+    }
+
+    private fun disallowValueClassUsageInConstructorParameters(constructor: ConstructorItem) {
+        if (TargetLanguage.KOTLIN !in constructor.targetLanguages) return
+        for (parameter in constructor.parameters()) {
+            if (parameter.type().isValueClassType) {
+                reporter.report(
+                    Issues.VALUE_CLASS_USAGE_FROM_CONSTRUCTOR,
+                    constructor,
+                    "Constructor of class ${constructor.name()} has parameter ${parameter.name()} of value class type which makes it unusable for Java clients"
+                )
+                // Don't need to continue checking parameters if the issue is already reported on
+                // the constructor.
+                break
+            }
         }
     }
 
@@ -368,7 +456,7 @@ class KotlinInteropChecks(val reporter: Reporter) {
     }
 
     /** Returns true if the given string is a reserved Java keyword */
-    private fun isJavaKeyword(keyword: String): Boolean {
-        return PsiUtil.isKeyword(keyword, javaLanguageLevel)
+    private fun isReservedJavaKeyword(keyword: String): Boolean {
+        return JavaKeywords.isReservedJavaKeyword(keyword)
     }
 }

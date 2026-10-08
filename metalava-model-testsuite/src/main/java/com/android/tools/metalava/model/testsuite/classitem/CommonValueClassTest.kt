@@ -17,6 +17,8 @@
 package com.android.tools.metalava.model.testsuite.classitem
 
 import com.android.tools.lint.checks.infrastructure.TestFiles.base64gzip
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.kotlin
 import kotlin.test.assertEquals
@@ -26,6 +28,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.KOTLIN)
 class CommonValueClassTest : BaseModelTest() {
     @Test
     fun `Constructor visibility`() {
@@ -103,8 +106,6 @@ class CommonValueClassTest : BaseModelTest() {
         ) {
             val valueClass = codebase.assertClass("test.pkg.ValueClass")
             assertEquals(valueClass.constructors().size, 1, "Expected exactly one constructor")
-            assertNotNull(valueClass.primaryConstructor, "Expected a primary constructor")
-
             val primaryConstructor = valueClass.constructors().single()
             assertTrue(primaryConstructor.isPrimary, "Expected a primary constructor")
             val param = primaryConstructor.parameters().single()
@@ -350,6 +351,68 @@ class CommonValueClassTest : BaseModelTest() {
             assertTrue(
                 abstractClass.assertMethod("finalFun-RVb1_dM", emptyList()).modifiers.isFinal()
             )
+        }
+    }
+
+    @Test
+    fun `Usage of value class with type parameter`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                @JvmInline value class UnboundedValueClass<T>(val value: T)
+                @JvmInline value class BoundedValueClass<T : CharSequence>(val value: T)
+                class Foo {
+                    @get:JvmName("getUnboundedWithInt")
+                    @set:JvmName("setUnboundedWithInt")
+                    var unboundedWithInt: UnboundedValueClass<Int> = UnboundedValueClass(1)
+
+                    @get:JvmName("getBoundedWithString")
+                    @set:JvmName("setBoundedWithString")
+                    var boundedWithString: BoundedValueClass<String> = BoundedValueClass("")
+                }
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            val unboundedWithInt = fooClass.assertProperty("unboundedWithInt")
+            unboundedWithInt.type().assertClassTypeItem {
+                assertEquals(qualifiedName, "test.pkg.UnboundedValueClass")
+                arguments.single().assertClassTypeItem {
+                    assertEquals(qualifiedName, "java.lang.Integer")
+                }
+            }
+
+            // The accessors use the erased type of the inlined value. For the unbounded type
+            // parameter, this is object. When there is a bound to the variable, it is that bound.
+            val getUnboundedWithInt = fooClass.assertMethod("getUnboundedWithInt", emptyList())
+            assertTrue(getUnboundedWithInt.returnType().isJavaLangObject())
+            assertEquals(unboundedWithInt.getter, getUnboundedWithInt)
+            assertEquals(getUnboundedWithInt.property, unboundedWithInt)
+
+            val setUnboundedWithInt =
+                fooClass.assertMethod("setUnboundedWithInt", listOf("java.lang.Object"))
+            assertEquals(unboundedWithInt.setter, setUnboundedWithInt)
+            assertEquals(setUnboundedWithInt.property, unboundedWithInt)
+
+            val boundedWithString = fooClass.assertProperty("boundedWithString")
+            boundedWithString.type().assertClassTypeItem {
+                assertEquals(qualifiedName, "test.pkg.BoundedValueClass")
+                assertTrue(arguments.single().isString())
+            }
+
+            val getBoundedWithString = fooClass.assertMethod("getBoundedWithString", emptyList())
+            getBoundedWithString.returnType().assertClassTypeItem {
+                assertEquals(qualifiedName, "java.lang.CharSequence")
+            }
+            assertEquals(boundedWithString.getter, getBoundedWithString)
+            assertEquals(getBoundedWithString.property, boundedWithString)
+
+            val setBoundedWithString =
+                fooClass.assertMethod("setBoundedWithString", listOf("java.lang.CharSequence"))
+            assertEquals(boundedWithString.setter, setBoundedWithString)
+            assertEquals(setBoundedWithString.property, boundedWithString)
         }
     }
 }

@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -35,6 +36,7 @@ import com.android.tools.metalava.testing.signature
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
@@ -102,7 +104,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
     private fun versionedSignatureApi(contents: String): VersionedApiFactory {
         return { version ->
             val testFile = signature("$version.txt", contents)
-            val file = testFile.createFile(temporaryFolder.root)
+            val file = testFile.toFile()
             VersionedSignatureApi(
                 DefaultSignatureFileLoader(Codebase.Config.NOOP),
                 listOf(file),
@@ -117,7 +119,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
      */
     private fun versionedSourceApi(vararg sourceFiles: TestFile): VersionedApiFactory {
         return { version ->
-            val parser = environmentManager.createSourceParser(Codebase.Config.NOOP)
             val sourceSet =
                 SourceSet.createFromSourcePath(
                     ThrowingReporter.INSTANCE,
@@ -127,17 +128,25 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 listOf(
                     getAndroidJar(30),
                 )
-            val codebase =
-                parser.parseSources(
-                    sourceSet,
-                    "version $version",
-                    classPath,
-                    apiPackages = null,
-                    projectDescription = null,
-                    compiledSourceJar = null,
-                )
 
-            val codebaseFragment = CodebaseFragment.create(codebase, ::EmittableDelegatingVisitor)
+            val environment =
+                environmentManager.createEnvironment(
+                    reporter = ThrowingReporter.INSTANCE,
+                    tracer = Tracer.getStubTracer(),
+                    sourceSet = sourceSet,
+                    classPath = classPath,
+                )
+            val parser = environment.createSourceParser(Codebase.Config.NOOP)
+
+            val codebase = parser.parseSources("version $version")
+
+            assertNotNull(codebase, message = "Codebase was not created")
+
+            val codebaseFragment =
+                CodebaseFragment.create(
+                    codebase,
+                    factory = ::EmittableDelegatingVisitor,
+                )
             VersionedSourceApi({ codebaseFragment }, version)
         }
     }
@@ -419,6 +428,64 @@ class ApiUpdateConsistencyTest : DriverTest() {
                             <method name="valueOf(Ljava/lang/String;)Ltest/pkg/DeprecatedEnum;"/>
                             <method name="values()[Ltest/pkg/DeprecatedEnum;"/>
                             <field name="CONSTANT"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    @Test
+    fun `Test referenced super class in later package`() {
+        checkVersionedApiFactories(
+            versionedJarApi(
+                classFiles =
+                    setOf(
+                        "java/io/IOError.class",
+                        "java/lang/FunctionalInterface.class",
+                    ),
+            ),
+            versionedSignatureApi(
+                """
+                    // Signature format: 2.0
+                    package java.io {
+                      public class IOError extends Error {
+                        ctor public IOError(Throwable);
+                      }
+                    }
+                    package java.lang {
+                      public @interface FunctionalInterface {
+                      }
+                    }
+                """
+            ),
+            versionedSourceApi(
+                java(
+                    """
+                        package java.io;
+                        public class IOError extends Error {
+                            public IOError(Throwable cause) {super(cause);}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package java.lang;
+                        public @interface FunctionalInterface {
+                        }
+                    """
+                ),
+            ),
+            expected =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="java/io/IOError" since="1">
+                            <extends name="java/lang/Error"/>
+                            <method name="&lt;init>(Ljava/lang/Throwable;)V"/>
+                        </class>
+                        <class name="java/lang/FunctionalInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="java/lang/annotation/Annotation"/>
                         </class>
                     </api>
                 """,

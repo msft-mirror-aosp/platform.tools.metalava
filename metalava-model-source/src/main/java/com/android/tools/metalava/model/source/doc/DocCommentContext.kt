@@ -16,8 +16,13 @@
 
 package com.android.tools.metalava.model.source.doc
 
+import com.android.tools.metalava.model.ClassItem
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
+import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.source.javadoc.ExprBuilderContext
+import com.android.tools.metalava.model.source.javadoc.ExprContext
 
 /**
  * Provides contextual information from the surrounding model for use when processing a
@@ -27,13 +32,7 @@ import com.android.tools.metalava.model.SelectableItem
  * that created at different levels within the [DocComment] whereas this applies to the whole
  * [DocComment].
  */
-internal interface DocCommentContext {
-    /**
-     * The [DocCommentMutationListener] whose [DocCommentMutationListener.docCommentMutated] must be
-     * invoked when the [DocComment] is changed.
-     */
-    val mutationListener: DocCommentMutationListener
-
+internal interface DocCommentContext : ExprBuilderContext, ExprContext {
     /**
      * Compute the ordinal value for parameter [name] in the list of all `@param` tags.
      *
@@ -58,6 +57,16 @@ internal interface DocCommentContext {
      */
     fun isOverridingMethod(): Boolean
 
-    /** Fully qualify the Javadoc [comment]. */
-    fun fullyQualifyComment(comment: String): String
+    /**
+     * The optional [ClassItem] that contains this documentation.
+     *
+     * The value returned depends on the [SelectableItem] this documents:
+     * * For a [PackageItem] this will return `null`.
+     * * For a [ClassItem] this will just return the [ClassItem] itself.
+     * * For a [MemberItem] this will return [MemberItem.containingClass].
+     */
+    val containingClassItem: ClassItem?
+
+    /** Provides support for parsing type references within Javadoc content. */
+    val docTypeParser: DocTypeParser
 }

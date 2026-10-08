@@ -19,18 +19,23 @@ package com.android.tools.metalava.model.testsuite.flags
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANNOTATION_IN_ALL_STUBS
 import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
-import com.android.tools.metalava.model.Showability
-import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction.*
 import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.provider.Capability
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertSame
+import kotlin.test.assertTrue
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.JAVA)
 class CommonFlagTest : BaseModelTest() {
 
     private fun runFlagsTest(
@@ -59,13 +64,8 @@ class CommonFlagTest : BaseModelTest() {
             ),
             testFixture =
                 TestFixture(
-                    annotationManager =
-                        DefaultAnnotationManager(
-                            DefaultAnnotationManager.Config(
-                                apiFlags = apiFlags,
-                            )
-                        ),
                     additionalClassPath = listOf(KnownJarFiles.stubAnnotationsJar),
+                    apiFlags = apiFlags,
                 ),
             test = test,
         )
@@ -81,60 +81,75 @@ class CommonFlagTest : BaseModelTest() {
 
             val apiFlag = annotation.apiFlag
             assertNull(apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // An unconfigured @FlaggedApi has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
+    @RequiresCapabilities(Capability.REVERTED_ITEMS)
     @Test
     fun `Test empty flags`() {
         runFlagsTest(
-            apiFlags = ApiFlags(byQualifiedName = emptyMap()),
+            apiFlags = ApiFlags(emptyList()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.REVERT_FLAGGED_API, apiFlag, "apiFlag")
-            assertEquals(Showability.REVERT_UNSTABLE_API, annotation.showability, "showability")
+            val expectedApiFlag = ApiFlag("test.pkg.flags.flag_name", REVERT, isKnown = false)
+            assertEquals(expectedApiFlag, apiFlag, "apiFlag")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            // A reverted flag has no effect on showability (a flagged API is neither a show nor
+            // a hide annotation).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
+
+            assertTrue(fooClass.selectedApi.revert, message = "class showability revert")
+
+            fooClass.assertItemApiVariants("ApiVariantSet[]")
+
+            assertAndRemoveReportedIssues(
+                """
+                    MAIN_SRC/src/test/pkg/Foo.java:4: error: Cannot revert class test.pkg.Foo (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
+                message = "reporter issues"
+            )
         }
     }
 
     @Test
     fun `Test with flags finalized`() {
         runFlagsTest(
-            apiFlags =
-                ApiFlags(
-                    byQualifiedName =
-                        mapOf("test.pkg.flags.flag_name" to ApiFlag.FINALIZE_FLAGGED_API)
-                ),
+            apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.flag_name", FINALIZE))),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.FINALIZE_FLAGGED_API, apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
+            assertEquals(ApiFlag("test.pkg.flags.flag_name", FINALIZE), apiFlag, "apiFlag")
             assertEquals(NO_ANNOTATION_TARGETS, annotation.targets, "targets")
+
+            // A finalized flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 
     @Test
     fun `Test with flags keep`() {
         runFlagsTest(
-            apiFlags =
-                ApiFlags(
-                    byQualifiedName = mapOf("test.pkg.flags.flag_name" to ApiFlag.KEEP_FLAGGED_API)
-                ),
+            apiFlags = ApiFlags(listOf(ApiFlag("test.pkg.flags.flag_name", KEEP))),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertSame(ApiFlag.KEEP_FLAGGED_API, apiFlag, "apiFlag")
-            assertEquals(Showability.NO_EFFECT, annotation.showability, "showability")
+            assertEquals(ApiFlag("test.pkg.flags.flag_name", KEEP), apiFlag, "apiFlag")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
+
+            // A kept flag has no effect on showability (showability is NO_EFFECT).
+            assertFalse(annotation.isShowabilityAnnotation(), "isShowabilityAnnotation")
         }
     }
 }

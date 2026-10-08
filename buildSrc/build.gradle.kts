@@ -19,10 +19,6 @@ plugins {
     `java-gradle-plugin`
 }
 
-repositories {
-    maven("../../../prebuilts/androidx/external")
-}
-
 dependencies {
     implementation(gradleApi())
     implementation(gradleKotlinDsl())
