@@ -148,15 +148,60 @@ internal class TurbineTypeItemFactory(
             Type.TyKind.ERROR_TY -> {
                 // This is case of unresolved superclass or implemented interface
                 type as Type.ErrorTy
-                TypeItem.createClassType(
-                    TypeModifiers.emptyUndefinedModifiers,
-                    type.qualifiedName(),
-                    createTypeArguments(type.targs()),
-                    null,
-                )
+                createClassTypeItemFromSimpleErrorTys(type.classes(), contextNullability)
             }
             else -> throw IllegalStateException("Invalid type in API surface: $kind")
         }
+    }
+
+    /**
+     * Create a [ClassTypeItem] from a list of [Type.ErrorTy.SimpleErrorTy] using
+     * [contextNullability].
+     */
+    private fun createClassTypeItemFromSimpleErrorTys(
+        simpleErrorTys: List<Type.ErrorTy.SimpleErrorTy>,
+        contextNullability: ContextNullability,
+    ): ClassTypeItem {
+        val iterator = simpleErrorTys.iterator()
+        var simpleErrorTy = iterator.next()
+
+        // Group leading lowercase segments that have no type arguments or annotations into the
+        // package prefix, stopping before the last segment so at least one segment is treated as a
+        // class.
+        val qualifiedNameBuilder = StringBuilder(simpleErrorTy.name())
+        while (
+            iterator.hasNext() &&
+                simpleErrorTy.targs().isEmpty() &&
+                simpleErrorTy.annos().isEmpty() &&
+                simpleErrorTy.name().none { it.isUpperCase() }
+        ) {
+            simpleErrorTy = iterator.next()
+            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+        }
+
+        var outerClass: ClassTypeItem? = null
+        while (true) {
+            val hasNext = iterator.hasNext()
+            val actualContextNullability =
+                if (hasNext) {
+                    ContextNullability.forceNonNull
+                } else {
+                    contextNullability
+                }
+            val modifiers = createModifiers(simpleErrorTy.annos(), actualContextNullability)
+            val arguments = createTypeArguments(simpleErrorTy.targs())
+            outerClass =
+                TypeItem.createClassType(
+                    modifiers,
+                    qualifiedNameBuilder.toString(),
+                    arguments,
+                    outerClass,
+                )
+            if (!hasNext) break
+            simpleErrorTy = iterator.next()
+            qualifiedNameBuilder.append('.').append(simpleErrorTy.name())
+        }
+        return outerClass!!
     }
 
     /**
