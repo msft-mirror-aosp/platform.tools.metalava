@@ -610,6 +610,8 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                                 apiFile("android-incompatibilities")
                                 apiFile("android.test.base")
                                 apiFile("android.test.base-removed")
+                                apiFile("runtime-i18n")
+                                apiFile("runtime-i18n-removed")
                             }
                         }
                     }
@@ -638,6 +640,8 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
+        // TODO(b/569883236): runtime-i18n.txt is not matched because {library} does not allow
+        //  numbers.
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
