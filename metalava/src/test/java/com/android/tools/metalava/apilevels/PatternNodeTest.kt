@@ -504,6 +504,38 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
     }
 
     @Test
+    fun `Scan for android and library does not match android twice`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") { apiFile("android") }
+                dir("2") {
+                    apiFile("android")
+                    apiFile("android.test.base")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "root/{version:level}/android.txt",
+                "root/{version:level}/{library}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        // TODO(b/569883236): android.txt is matched by both patterns with different properties
+        //  (library=null vs library='android') so it is returned twice.
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2, library='android')
+                MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
+            """
+        )
+    }
+
+    @Test
     fun `Scan for extension and non-extension versions`() {
         val rootDir = buildFileStructure {
             dir("1.7") { apiFile("module.txt") }
