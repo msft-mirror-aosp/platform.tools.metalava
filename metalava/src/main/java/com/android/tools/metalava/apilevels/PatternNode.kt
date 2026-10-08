@@ -200,9 +200,10 @@ sealed class PatternNode {
      * * [MatchedPatternFile.surface], i.e. those for which this is `null` come before everything
      *   else, and they are sorted according to their natural order.
      *
-     * If multiple [MatchedPatternFile]s differ only in [MatchedPatternFile.file] then only the
-     * first instance found will be used. The order of discovery is determined by the order in which
-     * patterns were passed to [PatternNode.parsePatterns].
+     * If a [File] is matched by multiple patterns then only the first match will be used.
+     * Similarly, if multiple [MatchedPatternFile]s differ only in [MatchedPatternFile.file] then
+     * only the first instance found will be used. The order of discovery is determined by the order
+     * in which patterns were passed to [PatternNode.parsePatterns].
      */
     internal fun scan(config: ScanConfig): List<MatchedPatternFile> {
         val dir = config.dir
@@ -211,9 +212,15 @@ sealed class PatternNode {
         // Create a sorted set into which the matched files will be added.
         val sortedSet = TreeSet(matchedPatternFileComparator)
 
+        // Track files that have already been matched so that a file matched by an earlier pattern
+        // cannot be matched again by a later pattern with different properties.
+        val matchedFiles = mutableSetOf<File>()
+
         // Scan for files and add them to the sorted set if an equivalent one does not exist. That
         // will eliminate duplicates and order them.
         for (matchedPatternFile in scan(config, start)) {
+            if (!matchedFiles.add(matchedPatternFile.file)) continue
+
             // Add the file if it does not already exist in the set. That ensures that the set
             // contains the first instance of each duplicate.
             sortedSet.add(matchedPatternFile)

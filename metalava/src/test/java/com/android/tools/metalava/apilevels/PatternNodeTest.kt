@@ -522,14 +522,10 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
-        // TODO(b/569883236): android.txt is matched by both patterns with different properties
-        //  (library=null vs library='android') so it is returned twice.
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1)
-                MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1, library='android')
                 MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2)
-                MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2, library='android')
                 MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
             """
         )
