@@ -110,6 +110,18 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
     }
 
     @Test
+    fun `Empty exclusion pattern`() {
+        val patterns =
+            listOf(
+                "!",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals("Exclusion pattern '!' cannot be empty", exception.message)
+    }
+
+    @Test
     fun `Parse common Android public patterns`() {
         val patterns =
             listOf(
@@ -193,6 +205,33 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                     absolute/
                       path/
                         (\d+)\Q.txt\E
+            """
+        )
+    }
+
+    @Test
+    fun `Parse exclusion patterns`() {
+        val patterns =
+            listOf(
+                "prebuilts/sdk/{version:level}/public/api/keep-removed.txt",
+                "!prebuilts/sdk/{version:level}/public/api/*-incompatibilities.txt",
+                "!prebuilts/sdk/{version:level}/public/api/*-removed.txt",
+                "prebuilts/sdk/{version:level}/public/api/{library}.txt",
+            )
+
+        val patternNode = PatternNode.parsePatterns(patterns)
+        patternNode.assertStructure(
+            """
+                <root>
+                  prebuilts/
+                    sdk/
+                      (\d+)/
+                        public/
+                          api/
+                            keep-removed.txt
+                            ([a-z-.]+)\Q.txt\E
+                              !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-incompatibilities.txt\E
+                              !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-removed.txt\E
             """
         )
     }
@@ -527,6 +566,86 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                 MatchedPatternFile(file=TESTROOT/root/1/android.txt, version=1)
                 MatchedPatternFile(file=TESTROOT/root/2/android.txt, version=2)
                 MatchedPatternFile(file=TESTROOT/root/2/android.test.base.txt, version=2, library='android.test.base')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan with exclusion patterns`() {
+        val rootDir = buildFileStructure {
+            dir("prebuilts") {
+                dir("sdk") {
+                    dir("1") {
+                        dir("public") {
+                            dir("api") {
+                                apiFile("android")
+                                apiFile("android-removed")
+                                apiFile("android-incompatibilities")
+                                apiFile("android.test.base")
+                                apiFile("android.test.base-removed")
+                            }
+                        }
+                    }
+                    dir("extensions") {
+                        dir("1") {
+                            dir("public") {
+                                dir("api") {
+                                    apiFile("module-one")
+                                    apiFile("module-one-removed")
+                                    apiFile("module-one-incompatibilities")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "!prebuilts/sdk/{version:level}/public/api/*-incompatibilities.txt",
+                "!prebuilts/sdk/{version:level}/public/api/*-removed.txt",
+                "!prebuilts/sdk/extensions/{version:extension}/public/api/*-incompatibilities.txt",
+                "!prebuilts/sdk/extensions/{version:extension}/public/api/*-removed.txt",
+                "prebuilts/sdk/{version:level}/public/api/android.txt",
+                "prebuilts/sdk/{version:level}/public/api/{library}.txt",
+                "prebuilts/sdk/extensions/{version:extension}/public/api/{module}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.test.base.txt, version=1, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/extensions/1/public/api/module-one.txt, version=1, isExtension=true, module='module-one')
+            """
+        )
+    }
+
+    @Test
+    fun `Scan with ordered inclusion and exclusion patterns`() {
+        val rootDir = buildFileStructure {
+            dir("root") {
+                dir("1") {
+                    apiFile("keep-removed")
+                    apiFile("other-removed")
+                    apiFile("android.test.base")
+                }
+            }
+        }
+
+        val patterns =
+            listOf(
+                "root/{version:level}/keep-removed.txt",
+                "!root/{version:level}/*-removed.txt",
+                "root/{version:level}/{library}.txt",
+            )
+        val node = PatternNode.parsePatterns(patterns)
+        val files = node.scan(PatternNode.ScanConfig(rootDir))
+        files.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=TESTROOT/root/1/keep-removed.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/root/1/android.test.base.txt, version=1, library='android.test.base')
             """
         )
     }

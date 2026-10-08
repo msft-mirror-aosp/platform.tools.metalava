@@ -260,14 +260,18 @@ efficiently scanning a directory for matching files, or matching a given file. I
 information is extracted from the file path, e.g. version, that is used when constructing the API
 history.
 
+A pattern starting with `!` is an exclusion pattern. Any file matched by an exclusion pattern will
+be ignored by any subsequent patterns.
+
 Each pattern contains placeholders which match part of a file name, extracts the value, possibly
 filters it and then stores it in a property. Each property can have at most a single associated
 placeholder in each pattern.
 
-A `version` placeholder is mandatory but the other options are optional. Files that match a
-pattern are assumed to provide the definition of that version of the API. e.g. given a pattern of
-`prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like
-`prebuilts/sdk/1/public/android.jar` and that file is assumed to define version 1 of the API.
+A `version` placeholder is mandatory in non-exclusion patterns, all other placeholders are optional.
+Files that match a non-exclusion pattern are assumed to provide the definition of that version of
+the API. e.g. given a pattern of `prebuilts/sdk/{version:level}/public/android.jar` then it will
+match a file like `prebuilts/sdk/1/public/android.jar` and that file is assumed to define version 1
+of the API.
 
 Patterns can also include any number of wildcards:
 
