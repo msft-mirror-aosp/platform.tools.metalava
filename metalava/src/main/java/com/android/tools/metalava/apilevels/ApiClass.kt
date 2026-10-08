@@ -234,6 +234,8 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                 val superMethod = findMethodInAncestors(method, allClasses)
                 if (superMethod != null) {
                     method.updateLastPresentIn(minOf(lastPresentIn, superMethod.lastPresentIn))
+                    deprecatedIn?.let { method.updateDeprecatedIn(it) }
+                    superMethod.deprecatedIn?.let { method.updateDeprecatedIn(it) }
                 }
             }
         }

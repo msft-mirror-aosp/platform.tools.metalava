@@ -2011,8 +2011,6 @@ class ApiGeneratorTest : DriverTest() {
      */
     @Test
     fun `Method moved up to a super class and deprecated in a later version`() {
-        // TODO(b/569883236): test/pkg/Foo.foo()V should have deprecated="2.0" propagated from
-        //  test/pkg/Super.foo()V when removeOverridingMethods extends its lastPresentIn.
         checkConsistencyBetweenHistoricalAndLatestCode(
             java(
                 """
@@ -2095,7 +2093,7 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="test/pkg/Super"/>
                             <method name="&lt;init>()V"/>
-                            <method name="foo()V"/>
+                            <method name="foo()V" deprecated="2.0"/>
                         </class>
                         <class name="test/pkg/Super" since="1.0">
                             <extends name="java/lang/Object"/>
