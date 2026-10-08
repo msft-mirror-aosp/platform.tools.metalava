@@ -43,6 +43,8 @@ fun addApisFromCodebase(
 
     val delegatedVisitor =
         object : DelegatedVisitor {
+            override val requiresSortedMembers: Boolean
+                get() = false
 
             var currentClass: ApiClass? = null
 
