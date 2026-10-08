@@ -332,7 +332,7 @@ Usage: metalava help historical-api-patterns
   module.
 
   * `{library}` - Placeholder for property `library`. Matches a library name which must consist of lower case letters,
-  hyphens and `.`s.
+  numbers, hyphens and `.`s.
 
   * `{module}` - Placeholder for property `module`. Matches a module name which must consist of lower case letters,
   hyphens and `.`s.

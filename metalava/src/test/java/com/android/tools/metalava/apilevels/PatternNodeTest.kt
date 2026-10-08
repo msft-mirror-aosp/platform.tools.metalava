@@ -256,7 +256,7 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                         public/
                           api/
                             keep-removed.txt
-                            ([a-z-.]+)\Q.txt\E
+                            ([a-z0-9-.]+)\Q.txt\E
                               !(?:[^/]+/)*[^/]*\Q-incompatibilities.txt\E
                               !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-removed.txt\E
             """
@@ -640,12 +640,11 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             )
         val node = PatternNode.parsePatterns(patterns)
         val files = node.scan(PatternNode.ScanConfig(rootDir))
-        // TODO(b/569883236): runtime-i18n.txt is not matched because {library} does not allow
-        //  numbers.
         files.assertMatchedPatternFiles(
             """
                 MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
                 MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.test.base.txt, version=1, library='android.test.base')
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/runtime-i18n.txt, version=1, library='runtime-i18n')
                 MatchedPatternFile(file=TESTROOT/prebuilts/sdk/extensions/1/public/api/module-one.txt, version=1, isExtension=true, module='module-one')
             """
         )

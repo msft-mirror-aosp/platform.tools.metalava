@@ -648,11 +648,11 @@ sealed class PatternNode {
         LIBRARY(
             property = Property.LIBRARY,
             format = null,
-            pattern = """[a-z-.]+""",
+            pattern = """[a-z0-9-.]+""",
             help = {
                 """
-                    Matches a library name which must consist of lower case letters, hyphens and
-                    `.`s.
+                    Matches a library name which must consist of lower case letters, numbers,
+                    hyphens and `.`s.
                 """
             },
         ),
