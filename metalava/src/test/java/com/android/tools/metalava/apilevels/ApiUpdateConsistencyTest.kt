@@ -433,4 +433,66 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test referenced super class in later package`() {
+        checkVersionedApiFactories(
+            versionedJarApi(
+                classFiles =
+                    setOf(
+                        "java/io/IOError.class",
+                        "java/lang/FunctionalInterface.class",
+                    ),
+            ),
+            versionedSignatureApi(
+                """
+                    // Signature format: 2.0
+                    package java.io {
+                      public class IOError extends Error {
+                        ctor public IOError(Throwable);
+                      }
+                    }
+                    package java.lang {
+                      public @interface FunctionalInterface {
+                      }
+                    }
+                """
+            ),
+            versionedSourceApi(
+                java(
+                    """
+                        package java.io;
+                        public class IOError extends Error {
+                            public IOError(Throwable cause) {super(cause);}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package java.lang;
+                        public @interface FunctionalInterface {
+                        }
+                    """
+                ),
+            ),
+            // TODO(b/569883236): java/lang/Error should not be included as it is a stub class
+            //  fabricated when resolving IOError's super class while visiting java.io.
+            expected =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="java/io/IOError" since="1">
+                            <extends name="java/lang/Error"/>
+                            <method name="&lt;init>(Ljava/lang/Throwable;)V"/>
+                        </class>
+                        <class name="java/lang/Error" since="2" removed="3">
+                        </class>
+                        <class name="java/lang/FunctionalInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="java/lang/annotation/Annotation"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
