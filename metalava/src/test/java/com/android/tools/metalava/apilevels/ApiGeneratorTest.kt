@@ -2004,4 +2004,106 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verifies that when a method is moved up to a superclass and deprecated in a later version,
+     * the subclass method's `deprecated` attribute is updated to match.
+     */
+    @Test
+    fun `Method moved up to a super class and deprecated in a later version`() {
+        // TODO(b/569883236): test/pkg/Foo.foo()V should have deprecated="2.0" propagated from
+        //  test/pkg/Super.foo()V when removeOverridingMethods extends its lastPresentIn.
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                /** @deprecated */
+                                @Deprecated
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @deprecated
+                             * @apiSince 2
+                             * @deprecatedSince 2
+                             */
+                            @Deprecated
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0" deprecated="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
