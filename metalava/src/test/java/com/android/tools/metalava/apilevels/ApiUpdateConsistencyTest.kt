@@ -475,8 +475,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     """
                 ),
             ),
-            // TODO(b/569883236): java/lang/Error should not be included as it is a stub class
-            //  fabricated when resolving IOError's super class while visiting java.io.
             expected =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -484,8 +482,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                         <class name="java/io/IOError" since="1">
                             <extends name="java/lang/Error"/>
                             <method name="&lt;init>(Ljava/lang/Throwable;)V"/>
-                        </class>
-                        <class name="java/lang/Error" since="2" removed="3">
                         </class>
                         <class name="java/lang/FunctionalInterface" since="1">
                             <extends name="java/lang/Object"/>

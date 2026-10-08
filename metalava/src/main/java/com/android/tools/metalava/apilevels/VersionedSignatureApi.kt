@@ -18,7 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.model.CodebaseFragment
-import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
+import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.text.SignatureFile
 import java.io.File
 
@@ -41,7 +41,7 @@ class VersionedSignatureApi(
         val codebaseFragment =
             CodebaseFragment.create(
                 codebase,
-                factory = ::NonFilteringDelegatingVisitor,
+                factory = ::EmittableDelegatingVisitor,
             )
         addApisFromCodebase(api, updater, codebaseFragment)
     }
