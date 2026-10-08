@@ -296,6 +296,9 @@ Usage: metalava help historical-api-patterns
   * `*` - matches any characters within a file name, but not into sub-directories. e.g. `foo/b*h/bar` will match
   `foo/blah/bar` but not `foo/blah/blah/bar`.
 
+  * `**` - matches zero or more directories in an exclusion pattern. Must match a whole directory name. e.g.
+  `!**/*-removed.txt` will match `foo-removed.txt` and `a/b/foo-removed.txt`.
+
   The supported properties are:
 
   * `version` - Mandatory property that stores the version of a matched file.

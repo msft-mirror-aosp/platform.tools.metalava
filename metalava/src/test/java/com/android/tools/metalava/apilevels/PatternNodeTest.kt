@@ -122,6 +122,33 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
     }
 
     @Test
+    fun `Invalid recursive wildcard in non-exclusion pattern`() {
+        val patterns =
+            listOf(
+                "prebuilts/sdk/**/{version:level}/android.jar",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals(
+            "Pattern 'prebuilts/sdk/**/{version:level}/android.jar' contains '**', which is only supported in exclusion patterns",
+            exception.message
+        )
+    }
+
+    @Test
+    fun `Invalid wildcard in file name`() {
+        val patterns =
+            listOf(
+                "!**/foo**bar.txt",
+            )
+
+        val exception =
+            assertThrows(IllegalStateException::class.java) { PatternNode.parsePatterns(patterns) }
+        assertEquals("Pattern '!**/foo**bar.txt' contains invalid wildcard '**'", exception.message)
+    }
+
+    @Test
     fun `Parse common Android public patterns`() {
         val patterns =
             listOf(
@@ -214,7 +241,7 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/api/keep-removed.txt",
-                "!prebuilts/sdk/{version:level}/public/api/*-incompatibilities.txt",
+                "!**/*-incompatibilities.txt",
                 "!prebuilts/sdk/{version:level}/public/api/*-removed.txt",
                 "prebuilts/sdk/{version:level}/public/api/{library}.txt",
             )
@@ -230,7 +257,7 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                           api/
                             keep-removed.txt
                             ([a-z-.]+)\Q.txt\E
-                              !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-incompatibilities.txt\E
+                              !(?:[^/]+/)*[^/]*\Q-incompatibilities.txt\E
                               !\Qprebuilts\E/\Qsdk\E/(\d+)/\Qpublic\E/\Qapi\E/[^/]*\Q-removed.txt\E
             """
         )
@@ -603,10 +630,8 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
 
         val patterns =
             listOf(
-                "!prebuilts/sdk/{version:level}/public/api/*-incompatibilities.txt",
-                "!prebuilts/sdk/{version:level}/public/api/*-removed.txt",
-                "!prebuilts/sdk/extensions/{version:extension}/public/api/*-incompatibilities.txt",
-                "!prebuilts/sdk/extensions/{version:extension}/public/api/*-removed.txt",
+                "!**/*-incompatibilities.txt",
+                "!**/*-removed.txt",
                 "prebuilts/sdk/{version:level}/public/api/android.txt",
                 "prebuilts/sdk/{version:level}/public/api/{library}.txt",
                 "prebuilts/sdk/extensions/{version:extension}/public/api/{module}.txt",
@@ -637,7 +662,7 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
         val patterns =
             listOf(
                 "root/{version:level}/keep-removed.txt",
-                "!root/{version:level}/*-removed.txt",
+                "!**/*-removed.txt",
                 "root/{version:level}/{library}.txt",
             )
         val node = PatternNode.parsePatterns(patterns)

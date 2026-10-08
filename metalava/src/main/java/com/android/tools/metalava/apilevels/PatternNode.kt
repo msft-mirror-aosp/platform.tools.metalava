@@ -768,6 +768,13 @@ sealed class PatternNode {
                     index == 0 && namePattern == "" -> {
                         regexBuilder.append("/")
                     }
+                    namePattern == "**" -> {
+                        if (isLast) {
+                            regexBuilder.append(".*")
+                        } else {
+                            regexBuilder.append("(?:[^/]+/)*")
+                        }
+                    }
                     else -> {
                         appendParameterizedRegex(
                             regexBuilder,
@@ -885,7 +892,7 @@ sealed class PatternNode {
         }
 
         /** [Regex] to find placeholders or wildcards in a pattern. */
-        private val PLACEHOLDER_OR_WILDCARD_REGEX = Regex("""(\{[^}]+})|(\*)""")
+        private val PLACEHOLDER_OR_WILDCARD_REGEX = Regex("""(\{[^}]+})|(\*+)""")
 
         /**
          * Parse a parameterized pattern, i.e. one with a placeholder like '{version:level}'.
@@ -950,6 +957,17 @@ sealed class PatternNode {
                         regexBuilder.append("""[^/]*""")
                     }
                     else -> {
+                        if (placeholderOrWildcardText.startsWith("*")) {
+                            if (placeholderOrWildcardText == "**" && pattern == "**") {
+                                error(
+                                    "Pattern '$pathPattern' contains '**', which is only supported in exclusion patterns"
+                                )
+                            }
+                            error(
+                                "Pattern '$pathPattern' contains invalid wildcard '$placeholderOrWildcardText'"
+                            )
+                        }
+
                         // Find the corresponding [Placeholder], failing if it could not be found.
                         val placeholder =
                             Placeholder.placeholderForLabel(placeholderOrWildcardText, pathPattern)
