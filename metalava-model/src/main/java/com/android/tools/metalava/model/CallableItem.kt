@@ -338,27 +338,27 @@ interface CallableItem : MemberItem, TypeParameterListOwner, PossiblyRecordCompo
      * the method "void create(int x, int y)" the internal name of the constructor is "create" and
      * the desc is "(II)V"
      */
-    fun internalDesc(voidConstructorTypes: Boolean = false): String {
-        val sb = StringBuilder()
-        sb.append("(")
+    fun internalDesc(voidConstructorTypes: Boolean = false): String = buildString {
+        append("(")
 
         // Inner, i.e. non-static nested, classes get an implicit constructor parameter for the
         // outer type
-        if (
-            isConstructor() &&
-                containingClass().containingClass() != null &&
-                !containingClass().modifiers.isStatic()
-        ) {
-            sb.append(containingClass().containingClass()?.type()?.internalName() ?: "")
+        if (isConstructor() && !containingClass().modifiers.isStatic()) {
+            containingClass().containingClass()?.let { outerClass ->
+                appendInternalName(outerClass.type())
+            }
         }
 
         for (parameter in parameters()) {
-            sb.append(parameter.type().internalName())
+            appendInternalName(parameter.type())
         }
 
-        sb.append(")")
-        sb.append(if (voidConstructorTypes && isConstructor()) "V" else returnType().internalName())
-        return sb.toString()
+        append(")")
+        if (voidConstructorTypes && isConstructor()) {
+            append("V")
+        } else {
+            appendInternalName(returnType())
+        }
     }
 
     companion object {
