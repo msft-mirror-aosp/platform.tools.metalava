@@ -735,9 +735,22 @@ sealed class PatternNode {
                 parent = parent.getExistingOrAdd(node)
             }
 
-            // Check to make sure that exactly one of the nodes will match an API version.
+            // Check to make sure that the placeholders used in the pattern are valid.
             val usedPlaceholders =
                 nodes.mapNotNull { it as? PlaceholderPatternNode }.flatMap { it.placeholders }
+            validatePlaceholders(pathPattern, usedPlaceholders)
+        }
+
+        /**
+         * Validate the [usedPlaceholders] in [pathPattern].
+         *
+         * @param pathPattern the pattern being validated, used for error reporting.
+         * @param usedPlaceholders the list of [Placeholder]s used in [pathPattern].
+         */
+        private fun validatePlaceholders(
+            pathPattern: String,
+            usedPlaceholders: List<Placeholder>,
+        ) {
             val placeholdersByProperty = usedPlaceholders.groupBy { it.property }
 
             // Do some basic validation of the placeholders in the pattern.
@@ -789,9 +802,23 @@ sealed class PatternNode {
          */
         private fun parseParameterizedPattern(pathPattern: String, pattern: String): PatternNode {
             val regexBuilder = StringBuilder()
-            var literalStart = 0
-
             val placeholders = mutableListOf<Placeholder>()
+            appendParameterizedRegex(regexBuilder, pathPattern, pattern, placeholders)
+            return PlaceholderPatternNode(regexBuilder.toString(), placeholders.toList())
+        }
+
+        /**
+         * Append a regular expression matching [pattern] to [regexBuilder], quoting any literal
+         * text and replacing placeholders/wildcards with an appropriate regular expression. Any
+         * [Placeholder]s encountered are added to [placeholders].
+         */
+        private fun appendParameterizedRegex(
+            regexBuilder: StringBuilder,
+            pathPattern: String,
+            pattern: String,
+            placeholders: MutableList<Placeholder>,
+        ) {
+            var literalStart = 0
 
             /**
              * Quote any literal text found between the start of the pattern or last placeholder and
@@ -841,8 +868,6 @@ sealed class PatternNode {
 
             // Quote any literal text found at the end of the pattern after the last placeholder.
             quoteLiteralText(pattern.length)
-
-            return PlaceholderPatternNode(regexBuilder.toString(), placeholders.toList())
         }
     }
 }
