@@ -2104,4 +2104,101 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verifies that when a superclass method is removed in a later version, a subclass method that
+     * is still present in the later version is not removed as an override.
+     */
+    @Test
+    fun `Method removed from super class in a later version is retained on subclass`() {
+        // TODO(b/569883236): test/pkg/Foo.foo()V is incorrectly removed by
+        //  removeOverridingMethods() because Super.foo()V was introduced in 1.0, even though
+        //  Super.foo()V was removed in 2.0 while Foo.foo()V is still present in 2.0.
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        @Override
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" removed="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
