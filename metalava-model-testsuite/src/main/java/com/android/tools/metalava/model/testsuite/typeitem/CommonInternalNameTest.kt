@@ -185,13 +185,11 @@ class CommonInternalNameTest : BaseModelTest() {
                 ),
                 TestParams(
                     javaType = "test.pkg.Outer.middle.Inner",
-                    // TODO(b/569883236): Should be "Ltest/pkg/Outer$middle$Inner;".
-                    internalName = "Ltest/pkg/Outer\$middle/Inner;",
+                    internalName = "Ltest/pkg/Outer\$middle\$Inner;",
                 ),
                 TestParams(
                     javaType = "test.pkg.lower.Inner",
-                    // TODO(b/569883236): Should be "Ltest/pkg/lower$Inner;".
-                    internalName = "Ltest/pkg/lower/Inner;",
+                    internalName = "Ltest/pkg/lower\$Inner;",
                     // Signature files do not resolve classes when parsing types so cannot
                     // distinguish a top-level class with a lowercase name from a package name.
                     skipForInputFormats = setOf(InputFormat.SIGNATURE),

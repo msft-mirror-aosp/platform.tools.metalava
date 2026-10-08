@@ -366,10 +366,7 @@ internal abstract class DefaultTypeItem(
         return cachedErasedType
     }
 
-    override fun internalName(): String {
-        // Default implementation; PSI subclass is more accurate
-        return toSlashFormat(toErasedTypeString())
-    }
+    override fun internalName(): String = buildString { appendInternalName(this@DefaultTypeItem) }
 
     companion object {
         private val ERASED_TYPE_STRING_CONFIGURATION =
@@ -610,63 +607,40 @@ internal abstract class DefaultTypeItem(
                 append(' ')
             }
         }
+    }
+}
 
-        // Copied from doclava1
-        private fun toSlashFormat(typeName: String): String {
-            var name = typeName
-            var dimension = ""
-            while (name.endsWith("[]")) {
-                dimension += "["
-                name = name.substring(0, name.length - 2)
-            }
-            val base =
-                when (name) {
-                    "void" -> "V"
-                    "byte" -> "B"
-                    "boolean" -> "Z"
-                    "char" -> "C"
-                    "short" -> "S"
-                    "int" -> "I"
-                    "long" -> "J"
-                    "float" -> "F"
-                    "double" -> "D"
-                    else -> "L" + getInternalName(name) + ";"
-                }
-
-            return dimension + base
+/** Appends the JVM type descriptor of [type] (e.g. `I`, `[Ljava/lang/String;`). */
+internal fun StringBuilder.appendInternalName(type: TypeItem) {
+    when (type) {
+        is PrimitiveTypeItem -> append(type.kind.internalName)
+        is ArrayTypeItem -> {
+            append('[')
+            appendInternalName(type.componentType)
         }
+        is ClassTypeItem -> {
+            append('L')
+            appendClassInternalName(type)
+            append(';')
+        }
+        is LambdaTypeItem -> appendInternalName(type.asJvmClassType())
+        is VariableTypeItem -> appendInternalName(type.asTypeParameter.asErasedType())
+        is WildcardTypeItem -> error("Cannot get internal name of wildcard type $type")
+    }
+}
 
-        /**
-         * Computes the internal class name of the given fully qualified class name. For example, it
-         * converts foo.bar.Foo.Bar into foo/bar/Foo$Bar
-         *
-         * @param qualifiedName the fully qualified class name
-         * @return the internal class name
-         */
-        private fun getInternalName(qualifiedName: String): String {
-            if (qualifiedName.indexOf('.') == -1) {
-                return qualifiedName
-            }
-
-            // If class name contains $, it's not an ambiguous nested class name.
-            if (qualifiedName.indexOf('$') != -1) {
-                return qualifiedName.replace('.', '/')
-            }
-            // Let's assume that components that start with Caps are class names.
-            return buildString {
-                var prev: String? = null
-                for (part in qualifiedName.split(".")) {
-                    if (!prev.isNullOrEmpty()) {
-                        if (Character.isUpperCase(prev[0])) {
-                            append('$')
-                        } else {
-                            append('/')
-                        }
-                    }
-                    append(part)
-                    prev = part
-                }
-            }
+/** Appends the binary internal name of [type] (e.g. `java/util/Map$Entry`, without `L` and `;`). */
+internal fun StringBuilder.appendClassInternalName(type: ClassTypeItem) {
+    val outerClassType = type.outerClassType
+    if (outerClassType != null) {
+        appendClassInternalName(outerClassType)
+        append('$')
+        append(type.className)
+    } else {
+        val qualifiedName = type.qualifiedName
+        for (i in 0..<qualifiedName.length) {
+            val c = qualifiedName[i]
+            append(if (c == '.') '/' else c)
         }
     }
 }
