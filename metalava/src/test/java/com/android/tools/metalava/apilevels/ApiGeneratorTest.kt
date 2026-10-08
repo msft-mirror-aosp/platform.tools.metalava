@@ -2111,9 +2111,6 @@ class ApiGeneratorTest : DriverTest() {
      */
     @Test
     fun `Method removed from super class in a later version is retained on subclass`() {
-        // TODO(b/569883236): test/pkg/Foo.foo()V is incorrectly removed by
-        //  removeOverridingMethods() because Super.foo()V was introduced in 1.0, even though
-        //  Super.foo()V was removed in 2.0 while Foo.foo()V is still present in 2.0.
         checkConsistencyBetweenHistoricalAndLatestCode(
             java(
                 """
@@ -2191,6 +2188,7 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="test/pkg/Super"/>
                             <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
                         </class>
                         <class name="test/pkg/Super" since="1.0">
                             <extends name="java/lang/Object"/>

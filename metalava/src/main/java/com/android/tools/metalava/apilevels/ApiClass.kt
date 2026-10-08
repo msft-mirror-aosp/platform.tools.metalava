@@ -255,10 +255,13 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         return if (
             // A hidden class will not be emitted in the API, so do not treat its methods as
             // existing API methods being overridden by subclasses.
-            !alwaysHidden && localMethod != null && localMethod.introducedNotLaterThan(method)
+            !alwaysHidden &&
+                localMethod != null &&
+                localMethod.introducedNotLaterThan(method) &&
+                localMethod.lastPresentIn >= method.lastPresentIn
         ) {
             // This class has the method, and it was introduced in at the same api level
-            // as the child method, or before.
+            // as the child method, or before, and was not removed before the child method.
             true
         } else {
             isOverrideOfInherited(method, allClasses)
