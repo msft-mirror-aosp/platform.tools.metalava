@@ -2199,4 +2199,82 @@ class ApiGeneratorTest : DriverTest() {
                 """,
         )
     }
+
+    /**
+     * Verifies that when an enclosing class is deprecated in bytecode, its inner classes and their
+     * members also inherit the deprecation status.
+     */
+    @Test
+    fun `Enclosing class deprecation propagates to inner classes in jar`() {
+        // TODO(b/569883236): Outer$Inner and its members should inherit deprecated="1.0" from
+        //  Outer when read from a jar, instead of only becoming deprecated in 2.0 when read from
+        //  sources.
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class Outer {
+                        public Outer() {}
+                        public static class Inner {
+                            public Inner() {}
+                            public void foo() {}
+                        }
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated
+                             * @apiSince 1
+                             * @deprecatedSince 1
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Outer {
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public Outer() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 1
+                             * @deprecatedSince 2
+                             */
+                            @Deprecated
+                            public static class Inner {
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public Inner() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Outer" since="1.0" deprecated="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Outer${'$'}Inner" since="1.0" deprecated="2.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
