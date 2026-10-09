@@ -685,7 +685,7 @@ abstract class DriverTest :
         val errorSeverityReportedIssues = StringBuilder()
         val reporterEnvironment =
             object : ReporterEnvironment {
-                override val rootFolder = projectDir
+                override val rootFolder = projectDir.toPath()
 
                 override fun printReport(message: String, severity: Severity) {
                     val cleanedUpMessage = removeTestSpecificDirectories(message).trim()
