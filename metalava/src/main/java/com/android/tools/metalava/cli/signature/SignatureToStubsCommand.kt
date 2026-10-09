@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS
 import com.android.tools.metalava.ARG_STUBS
 import com.android.tools.metalava.ApiFlagsCreator
 import com.android.tools.metalava.ConfigFileOptions
@@ -37,6 +38,7 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
@@ -48,6 +50,7 @@ import com.android.tools.metalava.trace
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
 import com.github.ajalt.clikt.parameters.groups.provideDelegate
+import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 
@@ -81,6 +84,27 @@ class SignatureToStubsCommand :
                 """
                     .trimIndent(),
         )
+
+    /**
+     * Optional [PackageFilter] specifying packages in which `@Nullable`/`@NonNull` annotations in
+     * generated stubs should be replaced with `@RecentlyNullable`/`@RecentlyNonNull`.
+     */
+    private val forceConvertToWarningNullabilityAnnotations by
+        option(
+                ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS,
+                metavar = "<package1:-package2:...>",
+                help =
+                    """
+                        On every API declared in a class referenced by the given filter, makes
+                        nullability issues appear to callers as warnings rather than errors by
+                        replacing @Nullable/@NonNull in these APIs with
+                        @RecentlyNullable/@RecentlyNonNull.
+
+                        See `metalava help package-filters` for more information.
+                    """
+                        .trimIndent(),
+            )
+            .convert { PackageFilter.parse(it) }
 
     /** The directory into which generated stub `.java` files will be written. */
     private val stubsDir by
@@ -161,6 +185,8 @@ class SignatureToStubsCommand :
                     stubWriterConfig = StubWriterConfig(includeDocumentationInStubs = false),
                     stubsDir = stubsDir,
                     generateAnnotations = true,
+                    nullabilityConversionPackageFilter =
+                        forceConvertToWarningNullabilityAnnotations,
                 )
 
             StubGenerator(

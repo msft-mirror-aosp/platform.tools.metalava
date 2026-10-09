@@ -18,6 +18,7 @@ package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS
 import com.android.tools.metalava.ARG_STUBS
 import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
 import com.android.tools.metalava.cli.common.ARG_ERROR
@@ -38,6 +39,13 @@ Usage: metalava signature-to-stubs [options] <files>...
 Options:
   --api-surface <surface>                    The API surface currently being generated. Must correspond to an
                                              <api-surface> element in a --config-file.
+  --force-convert-to-warning-nullability-annotations <package1:-package2:...>
+                                             On every API declared in a class referenced by the given filter, makes
+                                             nullability issues appear to callers as warnings rather than errors by
+                                             replacing @Nullable/@NonNull in these APIs with
+                                             @RecentlyNullable/@RecentlyNonNull.
+
+                                             See `metalava help package-filters` for more information.
   --stubs <dir>                              Base directory to output the generated stub source files for the API.
                                              (required)
   -h, -?, --help                             Show this message and exit
@@ -313,6 +321,73 @@ class SignatureToStubsCommandTest :
                     """
                         .trimIndent(),
                     fooStub.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test force-convert-to-warning-nullability-annotations`() {
+        commandTest {
+            args += "signature-to-stubs"
+            args +=
+                listOf(
+                    ARG_FORCE_CONVERT_TO_WARNING_NULLABILITY_ANNOTATIONS,
+                    "test.pkg",
+                )
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method @Nullable public String bar(@NonNull String);
+                          }
+                        }
+                        package other.pkg {
+                          public class Bar {
+                            ctor public Bar();
+                            method @Nullable public String baz(@NonNull String);
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                val fooStub = stubsDir.resolve("test/pkg/Foo.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        @androidx.annotation.RecentlyNullable
+                        public java.lang.String bar(@androidx.annotation.RecentlyNonNull java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    fooStub.readText().trim(),
+                )
+
+                val barStub = stubsDir.resolve("other/pkg/Bar.java")
+                assertEquals(
+                    """
+                        package other.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Bar {
+                        public Bar() { throw new RuntimeException("Stub!"); }
+                        @android.annotation.Nullable
+                        public java.lang.String baz(@android.annotation.NonNull java.lang.String arg1) { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    barStub.readText().trim(),
                 )
             }
         }
