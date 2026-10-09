@@ -139,6 +139,9 @@ class SelectedApiUpdater(
         // whether one has been seen.
         var hide = false
 
+        // Indicates whether a removed annotation has been seen.
+        var removed = false
+
         var revert = false
 
         // Any @FlaggedApi annotation found on the item. Checking is deferred until after
@@ -177,7 +180,7 @@ class SelectedApiUpdater(
                         }
                     }
                     Effect.REMOVED -> {
-                        selectedApi.removed = true
+                        removed = true
                     }
                 }
             }
@@ -340,9 +343,9 @@ class SelectedApiUpdater(
                 "$item must not contain multiple surfaces - ${itemApiVariants.formatFor(apiSurfaces)}"
             }
 
-            // If this item is not already removed but is enclosed within a removed parent or has a
+            // If this item has a removed annotation, is enclosed within a removed parent, or has a
             // doc tag of @removed then make it removed.
-            if (!selectedApi.removed && (parent.removed || item.hasRemovedDocTag)) {
+            if (removed || parent.removed || item.hasRemovedDocTag) {
                 selectedApi.removed = true
             }
 
