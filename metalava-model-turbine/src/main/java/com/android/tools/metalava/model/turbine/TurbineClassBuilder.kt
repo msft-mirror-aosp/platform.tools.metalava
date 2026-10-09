@@ -783,7 +783,7 @@ internal class TurbineClassBuilder(
             val type = classTypeItemFactory.getGeneralType(componentInfo.type())
 
             itemFactory.createRecordComponentItem(
-                fileLocation = classItem.fileLocation,
+                fileLocation = TurbineFileLocation.forTree(classItem, componentInfo.decl()?.name()),
                 modifiers = modifiers,
                 name = componentInfo.name(),
                 containingClass = classItem,

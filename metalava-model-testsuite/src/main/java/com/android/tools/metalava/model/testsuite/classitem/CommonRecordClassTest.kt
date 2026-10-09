@@ -183,16 +183,8 @@ class CommonRecordClassTest : BaseModelTest() {
                 testClass.recordComponents["a"]!!.describe()
             )
 
-            val expectedLineOffsets =
-                if (codebaseCreatorConfig.providerName == "turbine") {
-                    // TODO(b/571947999): Turbine uses the containing class's fileLocation for
-                    //  record components instead of the component declaration's location.
-                    listOf(0, 0)
-                } else {
-                    listOf(1, 2)
-                }
             assertEquals(
-                expectedLineOffsets,
+                listOf(1, 2),
                 testClass.recordComponents.map {
                     it.fileLocation.line - testClass.fileLocation.line
                 },
