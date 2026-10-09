@@ -238,6 +238,17 @@ class CommonParameterizedReferencableNameScopeTest : BaseModelTest() {
                     expectedItemGetter = { codebase.assertClass("test.pkg.Other") }
                 ),
                 TestParams(
+                    name = "ClassItem - resolve class in same package without SourceFile",
+                    scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
+                    referencableName = "Set",
+                    // TODO(b/571947999): DefaultClassItem.containingScope only checks
+                    //  containingClass() ?: sourceFile() and does not fall back to
+                    //  containingPackage() when sourceFile() is null, so resolving a class in the
+                    //  same package fails on a ClassItem without a SourceFile.
+                    expectedItemGetter = { null },
+                    expectedErrorMessage = "Could not resolve 'Set' in 'class java.util.Map'",
+                ),
+                TestParams(
                     name = "ClassItem - resolve self",
                     scopeGetter = { codebase.assertResolvedClass("java.util.Map") },
                     referencableName = "Map",
