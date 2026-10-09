@@ -19,10 +19,8 @@ package com.android.tools.metalava.stub
 import androidx.tracing.Tracer
 import com.android.tools.metalava.MarkPackagesAsRecent
 import com.android.tools.metalava.NullnessMigration
-import com.android.tools.metalava.SignatureFileCache
 import com.android.tools.metalava.apilevels.ApiVersion
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
-import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.doc.ApiVersionLabelProvider
 import com.android.tools.metalava.doc.DocAnalyzer
 import com.android.tools.metalava.model.Codebase
@@ -43,7 +41,6 @@ internal class StubGenerator(
     private val tracer: Tracer,
     private val executionEnvironment: ExecutionEnvironment,
     private val reporter: Reporter,
-    private val signatureFileCache: SignatureFileCache,
     private val apiSurface: ApiSurface,
 ) {
     data class Config(
@@ -68,10 +65,11 @@ internal class StubGenerator(
         val generateAnnotations: Boolean = false,
 
         /**
-         * An optional [PreviouslyReleasedApi] that is used to determine whether a nullability
-         * annotation was added recently and so requires converting to warning nullability.
+         * An optional lambda that retrieves the previously released API [Codebase] used to
+         * determine whether a nullability annotation was added recently and so requires converting
+         * to warning nullability.
          */
-        val nullabilityConversionPreviouslyReleasedApi: PreviouslyReleasedApi? = null,
+        val nullabilityConversionPreviouslyReleasedCodebase: (() -> Codebase)? = null,
 
         /**
          * An optional [PackageFilter] that matches packages whose nullability annotations all need
@@ -103,7 +101,7 @@ internal class StubGenerator(
         // but the documentation needs to show the correct nullability.
         if (!config.isDocStubs) {
             convertToWarningNullabilityAnnotations(
-                config.nullabilityConversionPreviouslyReleasedApi,
+                config.nullabilityConversionPreviouslyReleasedCodebase,
                 config.nullabilityConversionPackageFilter,
             )
         }
@@ -221,15 +219,13 @@ internal class StubGenerator(
     }
 
     private fun convertToWarningNullabilityAnnotations(
-        previouslyReleasedApi: PreviouslyReleasedApi?,
+        previouslyReleasedCodebaseProvider: (() -> Codebase)?,
         filter: PackageFilter?,
     ) {
-        if (previouslyReleasedApi != null) {
+        if (previouslyReleasedCodebaseProvider != null) {
             val previousCodebase =
                 tracer.trace("NullnessMigration.loadPreviouslyReleasedApi") {
-                    previouslyReleasedApi.load { signatureFiles ->
-                        signatureFileCache.load(signatureFiles)
-                    }
+                    previouslyReleasedCodebaseProvider()
                 }
 
             // If configured, checks for newly added nullness information compared

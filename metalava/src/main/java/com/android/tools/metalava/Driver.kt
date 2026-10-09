@@ -382,6 +382,7 @@ class Driver(
         // modify the [codebase].
         val generatorConfig =
             stubGenerationOptions.generatorConfig(
+                signatureFileLoader = signatureFileCache::load,
                 javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
                 javaSealedClasses = signatureFormatOptions.fileFormat[JAVA_SEALED_CLASSES],
             )
@@ -391,7 +392,6 @@ class Driver(
                 tracer,
                 executionEnvironment,
                 reporter,
-                signatureFileCache,
                 apiSurface,
             )
             .generateStubs()
