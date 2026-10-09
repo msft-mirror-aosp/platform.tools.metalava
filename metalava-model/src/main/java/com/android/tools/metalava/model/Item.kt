@@ -178,6 +178,9 @@ interface Item : Reportable {
     /** Returns the class that contains this item. */
     fun containingClass(): ClassItem?
 
+    /** Returns the corresponding source file, if any. */
+    fun sourceFile(): SourceFile? = containingClass()?.sourceFile()
+
     /**
      * Returns the associated type, if any.
      *
