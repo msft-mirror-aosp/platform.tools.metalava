@@ -402,14 +402,11 @@ class ClassMergerTest : BaseTextCodebaseTest() {
         assertEquals(ClassOrigin.CLASS_PATH, classPathOnly.origin)
         assertFalse(classPathOnly.containingPackage().emit)
 
-        // TODO(b/571981819): When a class initially loaded from a CLASS_PATH signature file is
-        //  re-defined in a COMMAND_LINE signature file, ClassMerger currently leaves its origin as
-        //  CLASS_PATH and emit = false on both the class and its containing package. Instead, it
-        //  should promote origin to COMMAND_LINE and set emit = true on the class and its
-        //  containing package so that the merged class is emitted.
-        val fooClass = codebase.assertClass("test.pkg.Foo", expectedEmit = false)
-        assertEquals(ClassOrigin.CLASS_PATH, fooClass.origin)
-        assertFalse(fooClass.containingPackage().emit)
+        // Classes re-defined in the COMMAND_LINE file must be promoted to COMMAND_LINE and emitted
+        // with members from both files.
+        val fooClass = codebase.assertClass("test.pkg.Foo", expectedEmit = true)
+        assertEquals(ClassOrigin.COMMAND_LINE, fooClass.origin)
+        assertTrue(fooClass.containingPackage().emit)
         assertEquals(
             listOf("baseMethod", "extraMethod"),
             fooClass.methods().map { it.name() },

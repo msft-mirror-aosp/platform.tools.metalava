@@ -828,6 +828,7 @@ internal class SingleSignatureFileParser(
                 superClassType = null,
                 interfaceTypes = emptySet(),
                 optionalAliasedType = type,
+                classOrigin = classOrigin,
             )
         if (checkForExistingClass(classCharacteristics)) {
             return
@@ -914,6 +915,7 @@ internal class SingleSignatureFileParser(
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes,
                 optionalAliasedType = null,
+                classOrigin = classOrigin,
             )
         if (checkForExistingClass(classCharacteristics)) {
             return

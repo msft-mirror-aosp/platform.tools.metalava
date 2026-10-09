@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ModifierList
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -31,8 +32,9 @@ import com.android.tools.metalava.model.value.Value
  * platform source sets in a multiplatform API), a class already registered in an earlier signature
  * file may be re-defined in a subsequent signature file. The re-definition must be checked for
  * compatibility with the existing [SkeletonClassItem] and then merged into it (to add or replace
- * annotations, update modifiers, update superclass or interface types, or transition an `expect
- * class` to an `actual typealias`).
+ * annotations, update modifiers, update superclass or interface types, transition an `expect class`
+ * to an `actual typealias`, or promote its [ClassOrigin] from [ClassOrigin.CLASS_PATH] to
+ * [ClassOrigin.COMMAND_LINE]).
  *
  * Performing this check and merge must be deferred until after all signature files have been
  * parsed:
@@ -114,6 +116,18 @@ internal class ClassMerger(
                 "Incompatible $existingClass definitions",
                 newClassCharacteristics.fileLocation
             )
+        }
+
+        // If the existing class was loaded from the class path (so it was not marked to be emitted)
+        // and the re-definition was loaded from the command line, promote the class and its
+        // containing package so that they will be emitted.
+        if (
+            existingClass.origin == ClassOrigin.CLASS_PATH &&
+                newClassCharacteristics.classOrigin == ClassOrigin.COMMAND_LINE
+        ) {
+            existingClass.origin = ClassOrigin.COMMAND_LINE
+            existingClass.emit = true
+            existingClass.containingPackage().emit = true
         }
 
         // Handle the transition to typealias (other class kind changes are not allowed)
