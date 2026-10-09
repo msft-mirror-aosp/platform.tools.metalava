@@ -19,6 +19,7 @@ package com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Issues.Issue
 import java.io.File
 import java.io.PrintWriter
+import java.nio.file.Path
 import kotlin.text.Charsets.UTF_8
 
 const val DEFAULT_BASELINE_NAME = "baseline.txt"
@@ -170,14 +171,16 @@ private constructor(
      * make sure that it uses `/` consistently as the file separator so that the generated files are
      * platform independent.
      */
-    private fun transformBaselinePath(path: String): String {
+    private fun transformBaselinePath(path: Path): String {
         for (sourcePath in config.sourcePath) {
-            if (path.startsWith(sourcePath.path)) {
-                return path.substring(sourcePath.path.length).replace('\\', '/').removePrefix("/")
+            if (sourcePath.path.isEmpty()) continue
+            val sourceDirPath = sourcePath.toPath()
+            if (path.startsWith(sourceDirPath)) {
+                return sourceDirPath.relativize(path).toString().replace('\\', '/')
             }
         }
 
-        return path.replace('\\', '/')
+        return path.toString().replace('\\', '/')
     }
 
     /**
