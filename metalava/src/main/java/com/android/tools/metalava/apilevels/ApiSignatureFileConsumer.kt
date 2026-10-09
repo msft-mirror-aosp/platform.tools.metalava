@@ -18,6 +18,7 @@ package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createMutableModifiers
@@ -31,7 +32,6 @@ import com.android.tools.metalava.model.text.ParsedTypeParameter
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureFileConsumer
 import com.android.tools.metalava.model.type.TypeString
-import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
 /**
@@ -179,7 +179,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun startPackage(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
     ) {
@@ -189,7 +189,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun consumeTypeAlias(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         typeParameters: List<ParsedTypeParameter>,
@@ -199,7 +199,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun startClass(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         classKind: ClassKind,
@@ -403,7 +403,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun consumeConstructor(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -448,7 +448,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun consumeMethod(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -593,7 +593,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun consumeField(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -613,7 +613,7 @@ internal class ApiSignatureFileConsumer(
     }
 
     override fun consumeProperty(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         receiverTypeString: TypeString?,

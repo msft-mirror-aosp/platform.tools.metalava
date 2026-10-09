@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
@@ -466,6 +467,10 @@ internal class SingleSignatureFileParser(
     /** Get the [FileLocation] of the start of [token]. */
     private fun fileLocation(token: Token): FileLocation = fileLocation(token.startOffset)
 
+    /** Get the [SourcePosition] of the start of [token]. */
+    private fun sourcePositionForToken(token: Token): SourcePosition =
+        SourcePosition(token.startOffset)
+
     /** Get the contents of the file being parsed from [start] to [end]. */
     private fun fileSubstring(start: Int, end: Int): String = apiText.substring(start, end)
 
@@ -553,7 +558,7 @@ internal class SingleSignatureFileParser(
         val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE)
         val name: String = parseQualifiedName()
 
-        consumer.startPackage(fileLocation(packageToken), modifiers, name)
+        consumer.startPackage(sourcePositionForToken(packageToken), modifiers, name)
 
         // Consume the `{` opening the package body, then parse each class/typealias until `}`.
         val openBrace = requireNonEofToken()
@@ -568,7 +573,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses a `typealias` declaration with [modifiers] at [location].
+     * Parses a `typealias` declaration with [modifiers] at [sourcePosition].
      *
      * Before calling, the `typealias` keyword should have been consumed from [tokenStream], and the
      * next token will be the name and optional type parameter list.
@@ -578,7 +583,7 @@ internal class SingleSignatureFileParser(
      */
     private fun parseTypeAlias(
         modifiers: MutableModifierList,
-        location: FileLocation,
+        sourcePosition: SourcePosition,
     ) {
         // Parse the typealias name and optional `<...>` type parameter list.
         val name = parseQualifiedName()
@@ -597,7 +602,7 @@ internal class SingleSignatureFileParser(
         }
 
         consumer.consumeTypeAlias(
-            location = location,
+            sourcePosition = sourcePosition,
             modifiers = modifiers,
             name = name,
             typeParameters = parsedTypeParameters,
@@ -611,7 +616,7 @@ internal class SingleSignatureFileParser(
         val kindToken = requireNonEofToken()
         // Remember this position as this seems like a good place to use to report issues with the
         // class item.
-        val classPosition = fileLocation(kindToken)
+        val classPosition = sourcePositionForToken(kindToken)
 
         val classKind =
             when (kindToken.type) {
@@ -664,7 +669,7 @@ internal class SingleSignatureFileParser(
             }
 
         consumer.startClass(
-            location = classPosition,
+            sourcePosition = classPosition,
             modifiers = modifiers,
             targetLanguages = targetLanguages,
             classKind = classKind,
@@ -899,7 +904,7 @@ internal class SingleSignatureFileParser(
         }
 
         consumer.consumeConstructor(
-            location = fileLocation(semicolon),
+            sourcePosition = sourcePositionForToken(semicolon),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
             name = name,
@@ -961,7 +966,7 @@ internal class SingleSignatureFileParser(
         }
 
         consumer.consumeMethod(
-            location = fileLocation(semicolon),
+            sourcePosition = sourcePositionForToken(semicolon),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
             name = name,
@@ -1014,7 +1019,7 @@ internal class SingleSignatureFileParser(
         }
 
         consumer.consumeField(
-            location = fileLocation(token),
+            sourcePosition = sourcePositionForToken(token),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
             name = name,
@@ -1214,7 +1219,7 @@ internal class SingleSignatureFileParser(
         }
 
         consumer.consumeProperty(
-            location = fileLocation(token),
+            sourcePosition = sourcePositionForToken(token),
             modifiers = modifiers,
             name = name,
             receiverTypeString = receiverTypeString,
@@ -1297,7 +1302,7 @@ internal class SingleSignatureFileParser(
     private fun parseRecordComponent(): ParsedRecordComponent {
         // Consume the `record_component` keyword and record its location.
         val recordComponentToken = requireNonEofToken()
-        val location = fileLocation(recordComponentToken)
+        val sourcePosition = sourcePositionForToken(recordComponentToken)
 
         // Parse a record component index.
         val recordComponentIndex = parseRecordComponentIndex()
@@ -1319,7 +1324,7 @@ internal class SingleSignatureFileParser(
         }
 
         return ParsedRecordComponent(
-            location,
+            sourcePosition,
             modifiers,
             name,
             typeString,
@@ -1505,7 +1510,7 @@ internal class SingleSignatureFileParser(
                     hasDefaultValue = hasOptionalKeyword,
                     typeString,
                     modifiers,
-                    fileLocation(delimiter),
+                    sourcePositionForToken(delimiter),
                     index,
                     optionalKind,
                 )

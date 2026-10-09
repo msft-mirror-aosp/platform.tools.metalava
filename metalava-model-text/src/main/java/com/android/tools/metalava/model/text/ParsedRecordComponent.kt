@@ -18,17 +18,17 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.RecordComponentItem
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.TypeString
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Raw representation of a `record_component` declaration parsed from a signature file before
  * creating a [RecordComponentItem] or parsing its [TypeItem].
  */
 class ParsedRecordComponent(
-    /** The [FileLocation] of the `record_component` keyword in the signature file. */
-    val location: FileLocation,
+    /** The [SourcePosition] of the `record_component` keyword in the signature file. */
+    val sourcePosition: SourcePosition,
 
     /** The modifiers (including annotations) of the record component. */
     val modifiers: MutableModifierList,

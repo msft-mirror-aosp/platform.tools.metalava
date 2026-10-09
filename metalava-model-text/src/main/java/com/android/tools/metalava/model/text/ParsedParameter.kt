@@ -19,10 +19,10 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeString
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * Raw representation of a callable or property context parameter parsed from a signature file
@@ -51,8 +51,8 @@ class ParsedParameter(
     /** The modifiers (including annotations and `vararg`) of the parameter. */
     val modifiers: MutableModifierList,
 
-    /** The [FileLocation] of the parameter in the signature file. */
-    val location: FileLocation,
+    /** The [SourcePosition] of the parameter in the signature file. */
+    val sourcePosition: SourcePosition,
 
     /** The 0-based index of the parameter in the parameter list. */
     val index: Int,

@@ -18,13 +18,13 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.type.TypeString
-import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
 /**
@@ -76,10 +76,11 @@ interface SignatureFileConsumer {
     ): MutableModifierList
 
     /**
-     * Called at the start of a `package` block at [location] with [modifiers] and qualified [name].
+     * Called at the start of a `package` block at [sourcePosition] with [modifiers] and qualified
+     * [name].
      */
     fun startPackage(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
     )
@@ -90,14 +91,14 @@ interface SignatureFileConsumer {
     /**
      * Called when a `typealias` declaration is parsed in the current package.
      *
-     * @param location the [FileLocation] of the `typealias` keyword.
+     * @param sourcePosition the [SourcePosition] of the `typealias` keyword.
      * @param modifiers the modifiers and annotations on the type alias.
      * @param name the simple or outer-qualified name of the type alias within the current package.
      * @param typeParameters the parsed type parameters of the type alias.
      * @param aliasedTypeString the [TypeString] of the aliased type on the right-hand side of `=`.
      */
     fun consumeTypeAlias(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         typeParameters: List<ParsedTypeParameter>,
@@ -109,7 +110,8 @@ interface SignatureFileConsumer {
      * current package, after its header and any leading `record_component` declarations have been
      * parsed.
      *
-     * @param location the [FileLocation] of the class kind keyword (`class`, `interface`, etc.).
+     * @param sourcePosition the [SourcePosition] of the class kind keyword (`class`, `interface`,
+     *   etc.).
      * @param modifiers the modifiers and annotations on the class.
      * @param targetLanguages the [TargetLanguage]s to which the class applies.
      * @param classKind the [ClassKind] of the declaration.
@@ -125,7 +127,7 @@ interface SignatureFileConsumer {
      *   [ClassKind.RECORD], or `null` otherwise.
      */
     fun startClass(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         classKind: ClassKind,
@@ -143,7 +145,7 @@ interface SignatureFileConsumer {
     /**
      * Called when a `ctor` declaration is parsed in the current class.
      *
-     * @param location the [FileLocation] of the constructor declaration.
+     * @param sourcePosition the [SourcePosition] of the constructor declaration.
      * @param modifiers the modifiers and annotations on the constructor.
      * @param targetLanguages the [TargetLanguage]s to which the constructor applies.
      * @param name the simple name of the constructor.
@@ -152,7 +154,7 @@ interface SignatureFileConsumer {
      * @param throwsTypeStrings the [TypeString]s from the `throws` clause.
      */
     fun consumeConstructor(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -164,7 +166,7 @@ interface SignatureFileConsumer {
     /**
      * Called when a `method` declaration is parsed in the current class.
      *
-     * @param location the [FileLocation] of the method declaration.
+     * @param sourcePosition the [SourcePosition] of the method declaration.
      * @param modifiers the modifiers and annotations on the method.
      * @param targetLanguages the [TargetLanguage]s to which the method applies.
      * @param name the name of the method.
@@ -176,7 +178,7 @@ interface SignatureFileConsumer {
      *   method, or `null` if none was specified.
      */
     fun consumeMethod(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -190,7 +192,7 @@ interface SignatureFileConsumer {
     /**
      * Called when a `field` or `enum_constant` declaration is parsed in the current class.
      *
-     * @param location the [FileLocation] of the field declaration.
+     * @param sourcePosition the [SourcePosition] of the field declaration.
      * @param modifiers the modifiers and annotations on the field.
      * @param targetLanguages the [TargetLanguage]s to which the field applies.
      * @param name the name of the field or enum constant.
@@ -201,7 +203,7 @@ interface SignatureFileConsumer {
      *   declaration.
      */
     fun consumeField(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -213,7 +215,7 @@ interface SignatureFileConsumer {
     /**
      * Called when a `property` declaration is parsed in the current class.
      *
-     * @param location the [FileLocation] of the property declaration.
+     * @param sourcePosition the [SourcePosition] of the property declaration.
      * @param modifiers the modifiers and annotations on the property.
      * @param name the name of the property.
      * @param receiverTypeString the [TypeString] of the property's extension receiver, or `null` if
@@ -223,7 +225,7 @@ interface SignatureFileConsumer {
      * @param contextParameters the parsed context parameters of the property.
      */
     fun consumeProperty(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         receiverTypeString: TypeString?,

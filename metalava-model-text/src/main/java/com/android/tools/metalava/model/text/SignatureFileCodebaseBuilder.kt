@@ -40,6 +40,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -51,6 +52,7 @@ import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.parser.LineMap
@@ -120,6 +122,12 @@ internal class SignatureFileCodebaseBuilder(
     /** The [LineMap] of the signature file currently being parsed. */
     private lateinit var currentLineMap: LineMap
 
+    /**
+     * The [FileLocationSource] shared by all [Item]s created while parsing the current signature
+     * file.
+     */
+    private var currentFileLocationSource: FileLocationSource = FileLocationSource.NONE
+
     /** The [ApiVariant] of the signature file currently being parsed. */
     private lateinit var currentApiVariant: ApiVariant
 
@@ -179,6 +187,10 @@ internal class SignatureFileCodebaseBuilder(
     private fun fileLocation(charOffset: Int): FileLocation =
         currentLineMap.fileLocation(currentPath, charOffset)
 
+    /** Get the [FileLocation] at [sourcePosition] in the current file. */
+    private fun fileLocation(sourcePosition: SourcePosition): FileLocation =
+        fileLocation(sourcePosition.offset)
+
     /**
      * Report a recoverable issue encountered while parsing at [location].
      *
@@ -212,6 +224,7 @@ internal class SignatureFileCodebaseBuilder(
     ) {
         currentPath = path
         currentLineMap = lineMap
+        currentFileLocationSource = FileLocationSource.fromLineMap(path, lineMap)
         currentApiVariant = signatureFile.apiVariantFor(codebase.config.apiSurfaces)
         currentClassOrigin = signatureFile.classOrigin
 
@@ -286,14 +299,14 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun startPackage(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
     ) {
         // Note: currentPackage.markSelectedApiVariant() is not called here because packages do not
         // belong to an API surface in their own right; their API variants are populated via
         // propagation from their contained classes and members.
-        currentPackage = findOrCreatePackage(location, name, modifiers)
+        currentPackage = findOrCreatePackage(sourcePosition, name, modifiers)
     }
 
     /**
@@ -302,7 +315,7 @@ internal class SignatureFileCodebaseBuilder(
      * If an existing package exists then this makes sure that its annotations match [modifiers].
      */
     private fun findOrCreatePackage(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         name: String,
         modifiers: MutableModifierList,
     ): PackageItem {
@@ -322,7 +335,7 @@ internal class SignatureFileCodebaseBuilder(
                         existingAnnotations,
                         annotations,
                     ),
-                    location,
+                    fileLocation(sourcePosition),
                 )
             }
 
@@ -332,7 +345,8 @@ internal class SignatureFileCodebaseBuilder(
         // Wrap the file location and annotations in a PackageInfo.
         val packageInfo =
             PackageInfo(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 annotations = annotations,
                 // Packages loaded from signature files have [SelectableItem.documentation] set to
                 // `null`. That is not a problem as it is only needed when creating stubs containing
@@ -346,7 +360,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun consumeTypeAlias(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         typeParameters: List<ParsedTypeParameter>,
@@ -365,7 +379,8 @@ internal class SignatureFileCodebaseBuilder(
         // and return. If it could not be found then drop through to create it.
         val classCharacteristics =
             ClassCharacteristics(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 qualifiedName = qualifiedClassName,
                 fullName = name,
                 classKind = ClassKind.TYPEALIAS,
@@ -381,7 +396,8 @@ internal class SignatureFileCodebaseBuilder(
 
         val typeAlias =
             itemFactory.createTypeAliasItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 qualifiedName = qualifiedClassName,
                 containingPackage = currentPackage,
@@ -394,7 +410,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun startClass(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         classKind: ClassKind,
@@ -411,7 +427,7 @@ internal class SignatureFileCodebaseBuilder(
             outerClass,
             typeParameterList,
             typeItemFactory,
-        ) = resolveDeclaredClassType(currentPackage, fullName, typeParameters, location)
+        ) = resolveDeclaredClassType(currentPackage, fullName, typeParameters, sourcePosition)
 
         var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
         val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
@@ -421,7 +437,8 @@ internal class SignatureFileCodebaseBuilder(
         // and return. If it could not be found then drop through to create it.
         val classCharacteristics =
             ClassCharacteristics(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 qualifiedName = qualifiedClassName,
                 fullName = fullName,
                 classKind = classKind,
@@ -448,7 +465,8 @@ internal class SignatureFileCodebaseBuilder(
         // Create the DefaultClassItem and set its package.
         val cl =
             itemFactory.createClassItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 classKind = classKind,
                 containingClass = outerClass,
@@ -597,7 +615,7 @@ internal class SignatureFileCodebaseBuilder(
         pkg: PackageItem,
         fullName: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
-        classFileLocation: FileLocation,
+        classSourcePosition: SourcePosition,
     ): DeclaredClassTypeComponents {
         val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
@@ -646,7 +664,7 @@ internal class SignatureFileCodebaseBuilder(
                     val location = existingClass.fileLocation
                     throw ApiParseException(
                         "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at $location",
-                        classFileLocation
+                        fileLocation(classSourcePosition)
                     )
                 }
 
@@ -704,7 +722,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun consumeConstructor(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -724,7 +742,8 @@ internal class SignatureFileCodebaseBuilder(
         val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
         val constructor =
             itemFactory.createConstructorItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
@@ -750,7 +769,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun consumeMethod(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -790,7 +809,8 @@ internal class SignatureFileCodebaseBuilder(
 
         val method =
             itemFactory.createMethodItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
@@ -820,7 +840,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun consumeField(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         targetLanguages: Set<TargetLanguage>,
         name: String,
@@ -851,7 +871,7 @@ internal class SignatureFileCodebaseBuilder(
                     reportIssue(
                         Issues.SIGNATURE_FILE_ERROR,
                         "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value",
-                        location,
+                        fileLocation(sourcePosition),
                     )
                     null
                 }
@@ -859,7 +879,8 @@ internal class SignatureFileCodebaseBuilder(
 
         val field =
             itemFactory.createFieldItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 documentationFactory = ItemDocumentation.NONE_FACTORY,
                 name = name,
@@ -878,7 +899,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     override fun consumeProperty(
-        location: FileLocation,
+        sourcePosition: SourcePosition,
         modifiers: MutableModifierList,
         name: String,
         receiverTypeString: TypeString?,
@@ -901,7 +922,8 @@ internal class SignatureFileCodebaseBuilder(
 
         val property =
             itemFactory.createPropertyItem(
-                fileLocation = location,
+                fileLocationSource = currentFileLocationSource,
+                sourcePosition = sourcePosition,
                 modifiers = modifiers,
                 name = name,
                 containingClass = containingClass,
@@ -972,7 +994,8 @@ internal class SignatureFileCodebaseBuilder(
             }
 
         return itemFactory.createParameterItem(
-            fileLocation = location,
+            fileLocationSource = currentFileLocationSource,
+            sourcePosition = sourcePosition,
             modifiers = modifiers,
             name = name,
             publicName = publicName,
@@ -995,7 +1018,8 @@ internal class SignatureFileCodebaseBuilder(
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
         return itemFactory.createParameterItem(
-            fileLocation = location,
+            fileLocationSource = currentFileLocationSource,
+            sourcePosition = sourcePosition,
             modifiers = modifiers,
             name = name,
             publicName = publicName,
@@ -1058,7 +1082,8 @@ internal class SignatureFileCodebaseBuilder(
         typeItemFactory: TextTypeItemFactory,
     ): RecordComponentItem =
         itemFactory.createRecordComponentItem(
-            fileLocation = location,
+            fileLocationSource = currentFileLocationSource,
+            sourcePosition = sourcePosition,
             modifiers = modifiers,
             name = name,
             containingClass = classItem,
