@@ -28,8 +28,20 @@ import org.junit.Test
 @SupportedInputFormats(InputFormat.JAVA)
 class CommonRemovedTest : BaseModelTest() {
 
-    @Test
-    fun `Test class annotated with configured removed annotation is marked as removed`() {
+    private val removedAnnotationSource =
+        java(
+            """
+                package test.pkg;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+
+                @Retention(RetentionPolicy.SOURCE)
+                @interface Removed {}
+            """
+        )
+
+    private fun createApiSurfaceRules(): ApiSurfaceRules {
         val apiSurfaces = ApiSurfaces.create()
         val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
         val variantRules =
@@ -39,21 +51,14 @@ class CommonRemovedTest : BaseModelTest() {
                     effect = SurfaceSelectionRule.Effect.REMOVED,
                 ),
             )
-        val apiSurfaceRules = ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+        return ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+    }
 
+    @Test
+    fun `Test class annotated with configured removed annotation is marked as removed`() {
         runCodebaseTest(
             inputSet(
-                java(
-                    """
-                        package test.pkg;
-
-                        import java.lang.annotation.Retention;
-                        import java.lang.annotation.RetentionPolicy;
-
-                        @Retention(RetentionPolicy.SOURCE)
-                        @interface Removed {}
-                    """
-                ),
+                removedAnnotationSource,
                 java(
                     """
                         package test.pkg;
@@ -65,7 +70,7 @@ class CommonRemovedTest : BaseModelTest() {
                     """
                 ),
             ),
-            testFixture = TestFixture(apiSurfaceRules = apiSurfaceRules),
+            testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             fooClass.assertItemApiVariants(
