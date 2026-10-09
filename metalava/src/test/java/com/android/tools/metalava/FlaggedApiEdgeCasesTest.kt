@@ -570,28 +570,54 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO(b/571827848): No issue should be reported when reverting a @RemovedFromApi item.
-            expectedIssues =
-                """
-                    src/test/pkg/Test.java:12: error: Cannot revert method test.pkg.Test.revertedMethod() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    src/test/pkg/Test.java:20: error: Cannot revert class test.pkg.Test.RevertedNested (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                """,
-            // TODO(b/571827848): Should include KeptRemovedClass, revertedMethod(), keptMethod(),
-            //  RevertedNested, KeptNested, and their NestedTwice classes.
+            // TODO(b/571827848): RevertedNested and RevertedNested.NestedTwice should inherit
+            //  @FlaggedApi("test.pkg.kept_flag").
             expectedApiSignature =
                 """
                     // Signature format: 6.0
                     package test.pkg {
+                      @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
+                        ctor public KeptRemovedClass();
+                        method public void method();
+                      }
                       @FlaggedApi("test.pkg.kept_flag") public class Test {
                         ctor public Test();
+                        method @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
+                        method public void revertedMethod();
+                      }
+                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
+                        ctor public Test.KeptNested();
+                      }
+                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
+                        ctor public Test.KeptNested.NestedTwice();
+                      }
+                      public static class Test.RevertedNested {
+                        ctor public Test.RevertedNested();
+                      }
+                      public static class Test.RevertedNested.NestedTwice {
+                        ctor public Test.RevertedNested.NestedTwice();
                       }
                     }
                 """,
-            // TODO(b/571827848): Should include KeptRemovedClass (without @RequiresFlag), and in
-            //  Test should include revertedMethod(), keptMethod(), RevertedNested, KeptNested, and
-            //  their NestedTwice classes, all with @RequiresFlag("test.pkg.kept_flag").
+            // TODO(b/571827848): KeptRemovedClass should not have @RequiresFlag, and in Test
+            //  revertedMethod(), keptMethod(), RevertedNested, KeptNested, and their NestedTwice
+            //  classes should all have @RequiresFlag("test.pkg.kept_flag") instead of missing or
+            //  using test.pkg.kept_removed_flag.
             expectedStubFiles =
                 arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public class KeptRemovedClass {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public KeptRemovedClass() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
                     java(
                         """
                             package test.pkg;
@@ -600,6 +626,25 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public class Test {
                             @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public void keptMethod() { throw new RuntimeException("Stub!"); }
+                            public void revertedMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public static class KeptNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public KeptNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            public static class RevertedNested {
+                            public RevertedNested() { throw new RuntimeException("Stub!"); }
+                            public static class NestedTwice {
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
                             }
                         """
                     ),

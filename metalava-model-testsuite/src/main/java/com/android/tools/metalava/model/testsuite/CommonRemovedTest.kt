@@ -189,28 +189,26 @@ class CommonRemovedTest : BaseModelTest() {
                 )
 
             val keptRemovedClass = codebase.assertClass("test.pkg.KeptRemovedClass")
-            // TODO(b/571827848): KeptRemovedClass and its method should be in main(C).
             keptRemovedClass.assertItemApiVariants(
-                "ApiVariantSet[main(R)]",
+                "ApiVariantSet[main(C)]",
                 message = "KeptRemovedClass should be in main(C)",
             )
             keptRemovedClass
                 .assertMethod("method", emptyList())
                 .assertItemApiVariants(
-                    "ApiVariantSet[main(R)]",
+                    "ApiVariantSet[main(C)]",
                     message = "KeptRemovedClass.method() should be in main(C)",
                 )
 
             val revertedRemovedClass = codebase.assertClass("test.pkg.RevertedRemovedClass")
-            // TODO(b/571827848): RevertedRemovedClass and its method should be in main(C).
             revertedRemovedClass.assertItemApiVariants(
-                "ApiVariantSet[]",
+                "ApiVariantSet[main(C)]",
                 message = "RevertedRemovedClass should be in main(C)",
             )
             revertedRemovedClass
                 .assertMethod("method", emptyList())
                 .assertItemApiVariants(
-                    "ApiVariantSet[]",
+                    "ApiVariantSet[main(C)]",
                     message = "RevertedRemovedClass.method() should be in main(C)",
                 )
 
@@ -225,18 +223,16 @@ class CommonRemovedTest : BaseModelTest() {
                     "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedMethod() should be removed",
                 )
-            // TODO(b/571827848): Foo.keptRemovedMethod() should be in main(C).
             fooClass
                 .assertMethod("keptRemovedMethod", emptyList())
                 .assertItemApiVariants(
-                    "ApiVariantSet[main(R)]",
+                    "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedMethod() should be in main(C)",
                 )
-            // TODO(b/571827848): Foo.revertedRemovedMethod() should be in main(C).
             fooClass
                 .assertMethod("revertedRemovedMethod", emptyList())
                 .assertItemApiVariants(
-                    "ApiVariantSet[]",
+                    "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedMethod() should be in main(C)",
                 )
             fooClass
@@ -245,29 +241,18 @@ class CommonRemovedTest : BaseModelTest() {
                     "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedField should be removed",
                 )
-            // TODO(b/571827848): Foo.keptRemovedField should be in main(C).
             fooClass
                 .assertField("keptRemovedField")
                 .assertItemApiVariants(
-                    "ApiVariantSet[main(R)]",
+                    "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedField should be in main(C)",
                 )
-            // TODO(b/571827848): Foo.revertedRemovedField should be in main(C).
             fooClass
                 .assertField("revertedRemovedField")
                 .assertItemApiVariants(
-                    "ApiVariantSet[]",
+                    "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedField should be in main(C)",
                 )
-
-            // TODO(b/571827848): No issue should be reported when reverting a @Removed item.
-            assertAndRemoveReportedIssues(
-                """
-                    MAIN_SRC/src/test/pkg/RevertedRemovedClass.java:7: error: Cannot revert class test.pkg.RevertedRemovedClass (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    MAIN_SRC/src/test/pkg/Foo.java:16: error: Cannot revert method test.pkg.Foo.revertedRemovedMethod() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                    MAIN_SRC/src/test/pkg/Foo.java:28: error: Cannot revert field test.pkg.Foo.revertedRemovedField (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
-                """
-            )
         }
     }
 
@@ -294,15 +279,14 @@ class CommonRemovedTest : BaseModelTest() {
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            // TODO(b/571827848): Foo and its method should be in main(C).
             fooClass.assertItemApiVariants(
-                "ApiVariantSet[main(R)]",
+                "ApiVariantSet[main(C)]",
                 message = "Foo should be in main(C)",
             )
             fooClass
                 .assertMethod("method", emptyList())
                 .assertItemApiVariants(
-                    "ApiVariantSet[main(R)]",
+                    "ApiVariantSet[main(C)]",
                     message = "Foo.method() should be in main(C)",
                 )
         }

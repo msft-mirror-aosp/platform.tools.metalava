@@ -276,6 +276,17 @@ class SelectedApiUpdater(
             inheritableApiVariants = enclosingApiVariants
         }
 
+        // If the item has a removed annotation (e.g. @RemovedFromApi) and a @FlaggedApi
+        // annotation, only remove the item if the flag has been finalized. Otherwise (when no
+        // api flags are provided, or the flag is kept or reverted), keep the item in the API.
+        if (removed && flaggedApiAnnotation != null) {
+            if (flaggedApiAnnotation.apiFlag!!.action != ApiFlagAction.FINALIZE) {
+                removed = false
+                revert = false
+            }
+            flaggedApiAnnotation = null
+        }
+
         // Check whether the item is marked for revert only after verifying that it is not
         // explicitly hidden from the target API surface.
         if (!revert) {
