@@ -150,10 +150,10 @@ class HistoricalApiVersionInfoTest : BaseTemporaryFolderOwner() {
         val expected =
             """
                 public
-                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
+                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, classOrigin=COMMAND_LINE, forMainApiSurface=true, apiVariantType=CORE)
                 system
-                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
-                  SignatureFileFromFile(file=TESTROOT/2/system/api/api.txt, forMainApiSurface=true, apiVariantType=CORE)
+                  SignatureFileFromFile(file=TESTROOT/2/public/api/api.txt, classOrigin=COMMAND_LINE, forMainApiSurface=true, apiVariantType=CORE)
+                  SignatureFileFromFile(file=TESTROOT/2/system/api/api.txt, classOrigin=COMMAND_LINE, forMainApiSurface=true, apiVariantType=CORE)
             """
                 .trimIndent()
         assertEquals(

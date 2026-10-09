@@ -93,6 +93,16 @@ sealed class SignatureFile {
     abstract val file: File
 
     /**
+     * The [ClassOrigin] of classes and type aliases loaded from [file].
+     *
+     * Defaults to [ClassOrigin.COMMAND_LINE] so classes are marked to be emitted. Signature files
+     * loaded from `--api-path` use [ClassOrigin.CLASS_PATH] so their classes can be resolved
+     * without being emitted.
+     */
+    open val classOrigin: ClassOrigin
+        get() = ClassOrigin.COMMAND_LINE
+
+    /**
      * Indicates whether [file] is for the main API surface, i.e. the one that is being created, or
      * a base API surface that it extends.
      */
@@ -136,6 +146,7 @@ sealed class SignatureFile {
          * Create a list of [SignatureFile]s from a list of [File]s.
          *
          * @param files the list of [File]s.
+         * @param classOrigin the [ClassOrigin] of classes loaded from [files].
          * @param apiVariantTypeChooser A lambda that will be called with the [File] of each item in
          *   [files] and whose return value will be stored in [SignatureFile.apiVariantType].
          * @param forMainApiSurfacePredicate A predicate that will be called with the index and
@@ -144,12 +155,14 @@ sealed class SignatureFile {
          */
         fun fromFiles(
             files: List<File>,
+            classOrigin: ClassOrigin = ClassOrigin.COMMAND_LINE,
             apiVariantTypeChooser: (File) -> ApiVariantType = { ApiVariantType.CORE },
             forMainApiSurfacePredicate: (Int, File) -> Boolean = { _, _ -> true },
         ): List<SignatureFile> =
             files.mapIndexed { index, file ->
                 SignatureFileFromFile(
                     file,
+                    classOrigin = classOrigin,
                     forMainApiSurface = forMainApiSurfacePredicate(index, file),
                     apiVariantType = apiVariantTypeChooser(file),
                 )
@@ -165,15 +178,21 @@ sealed class SignatureFile {
          *
          * @param filename the name of the file, used for error reporting.
          * @param contents the contents of the file, will be trimmed using [String.trimIndent].
+         * @param classOrigin the [ClassOrigin] of classes loaded from [contents].
          */
-        fun fromText(filename: String, contents: String): SignatureFile {
-            return SignatureFileFromText(File(filename), contents.trimIndent())
+        fun fromText(
+            filename: String,
+            contents: String,
+            classOrigin: ClassOrigin = ClassOrigin.COMMAND_LINE,
+        ): SignatureFile {
+            return SignatureFileFromText(File(filename), contents.trimIndent(), classOrigin)
         }
     }
 
     /** A [SignatureFile] that will read the text from the [file]. */
     private data class SignatureFileFromFile(
         override val file: File,
+        override val classOrigin: ClassOrigin = ClassOrigin.COMMAND_LINE,
         override val forMainApiSurface: Boolean = true,
         override val apiVariantType: ApiVariantType = ApiVariantType.CORE,
     ) : SignatureFile() {
@@ -201,6 +220,7 @@ sealed class SignatureFile {
     private data class SignatureFileFromText(
         override val file: File,
         val contents: String,
+        override val classOrigin: ClassOrigin = ClassOrigin.COMMAND_LINE,
     ) : SignatureFile() {
         override fun readContents() = contents
     }
@@ -459,6 +479,7 @@ private constructor(
                     kotlinStyleNulls = kotlinStyleNullsForThisFile,
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
                     apiVariant = apiVariant,
+                    classOrigin = signatureFile.classOrigin,
                 )
 
             // Set the current parser to provide location information about the current file.
@@ -560,6 +581,9 @@ internal class SingleSignatureFileParser(
 
     /** The [ApiVariant] which is defined within the current signature file being parsed. */
     private val apiVariant: ApiVariant,
+
+    /** The [ClassOrigin] to assign to classes and type aliases defined in this signature file. */
+    private val classOrigin: ClassOrigin,
 ) {
     private val assembler = context.assembler
     private val codebase = assembler.codebase
@@ -817,8 +841,7 @@ internal class SingleSignatureFileParser(
                 containingPackage = pkg,
                 aliasedType = type,
                 typeParameterList = typeParameterList,
-                // All signature files have to be explicitly specified.
-                origin = ClassOrigin.COMMAND_LINE,
+                origin = classOrigin,
             )
         // Mark type alias as belonging to the main API surface of this signature file.
         typeAlias.markSelectedApiVariant()
@@ -925,8 +948,7 @@ internal class SingleSignatureFileParser(
                 containingPackage = pkg,
                 qualifiedName = qualifiedClassName,
                 typeParameterList = typeParameterList,
-                // All signature files have to be explicitly specified.
-                origin = ClassOrigin.COMMAND_LINE,
+                origin = classOrigin,
                 superClassType = superClassType,
                 interfaceTypes = interfaceTypes.toList(),
                 permitTypes = permitTypes,
