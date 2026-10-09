@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -354,6 +355,107 @@ class ClassMergerTest : BaseTextCodebaseTest() {
         assertContains(
             exception.message.orEmpty(),
             Regex(""".*\Q/second.txt:3: Incompatible class test.pkg.Foo definitions\E"""),
+        )
+    }
+
+    @Test
+    fun `Test class from CLASS_PATH re-defined in COMMAND_LINE is promoted to COMMAND_LINE`() {
+        val codebase =
+            ApiFile.parseApi(
+                listOf(
+                    SignatureFile.fromText(
+                        "classpath.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.classpath {
+                                public class ClassPathOnly {
+                                }
+                            }
+                            package test.pkg {
+                                public class Foo {
+                                    method public void baseMethod();
+                                }
+                            }
+                        """
+                            .trimIndent(),
+                        classOrigin = ClassOrigin.CLASS_PATH,
+                    ),
+                    SignatureFile.fromText(
+                        "source.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Foo {
+                                    method public void extraMethod();
+                                }
+                            }
+                        """
+                            .trimIndent(),
+                        classOrigin = ClassOrigin.COMMAND_LINE,
+                    ),
+                )
+            )
+
+        // Classes that only appear in the CLASS_PATH file must not be promoted.
+        val classPathOnly =
+            codebase.assertClass("test.classpath.ClassPathOnly", expectedEmit = false)
+        assertEquals(ClassOrigin.CLASS_PATH, classPathOnly.origin)
+        assertFalse(classPathOnly.containingPackage().emit)
+
+        // TODO(b/571981819): When a class initially loaded from a CLASS_PATH signature file is
+        //  re-defined in a COMMAND_LINE signature file, ClassMerger currently leaves its origin as
+        //  CLASS_PATH and emit = false on both the class and its containing package. Instead, it
+        //  should promote origin to COMMAND_LINE and set emit = true on the class and its
+        //  containing package so that the merged class is emitted.
+        val fooClass = codebase.assertClass("test.pkg.Foo", expectedEmit = false)
+        assertEquals(ClassOrigin.CLASS_PATH, fooClass.origin)
+        assertFalse(fooClass.containingPackage().emit)
+        assertEquals(
+            listOf("baseMethod", "extraMethod"),
+            fooClass.methods().map { it.name() },
+        )
+    }
+
+    @Test
+    fun `Test class from CLASS_PATH re-defined in CLASS_PATH remains CLASS_PATH`() {
+        val codebase =
+            ApiFile.parseApi(
+                listOf(
+                    SignatureFile.fromText(
+                        "classpath1.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Foo {
+                                    method public void firstMethod();
+                                }
+                            }
+                        """
+                            .trimIndent(),
+                        classOrigin = ClassOrigin.CLASS_PATH,
+                    ),
+                    SignatureFile.fromText(
+                        "classpath2.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                                public class Foo {
+                                    method public void secondMethod();
+                                }
+                            }
+                        """
+                            .trimIndent(),
+                        classOrigin = ClassOrigin.CLASS_PATH,
+                    ),
+                )
+            )
+
+        val fooClass = codebase.assertClass("test.pkg.Foo", expectedEmit = false)
+        assertEquals(ClassOrigin.CLASS_PATH, fooClass.origin)
+        assertFalse(fooClass.containingPackage().emit)
+        assertEquals(
+            listOf("firstMethod", "secondMethod"),
+            fooClass.methods().map { it.name() },
         )
     }
 }
