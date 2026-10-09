@@ -59,7 +59,6 @@ import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ValueUseSite
-import com.android.tools.metalava.reporter.FileLocation
 import com.google.common.collect.ImmutableList
 import com.google.common.collect.ImmutableMap
 import com.google.turbine.binder.bound.SourceTypeBoundClass
@@ -132,13 +131,6 @@ internal class TurbineClassBuilder(
             if (sourceTypeBoundClass != null) {
                 sourceFileCache.turbineSourceFile(sourceTypeBoundClass.source())
             } else null
-        val fileLocation =
-            when {
-                sourceFile != null -> TurbineFileLocation.forTree(sourceFile, decl)
-                containingClassItem != null ->
-                    TurbineFileLocation.forTree(containingClassItem, decl)
-                else -> FileLocation.UNKNOWN
-            }
 
         // Create class
         val qualifiedName = classSymbol.qualifiedName
@@ -190,7 +182,7 @@ internal class TurbineClassBuilder(
 
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = fileLocation,
+                sourcePosition = decl.sourcePosition,
                 modifiers = modifiers,
                 documentationFactory = itemDocumentationFactoryForDecl(decl),
                 source = sourceFile,
@@ -478,7 +470,7 @@ internal class TurbineClassBuilder(
 
             val fieldItem =
                 itemFactory.createFieldItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = fieldmodifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = field.name(),
@@ -564,7 +556,7 @@ internal class TurbineClassBuilder(
 
             val methodItem =
                 itemFactory.createMethodItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = methodmodifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(decl),
                     name = name,
@@ -632,11 +624,9 @@ internal class TurbineClassBuilder(
                         parameterDecls.get(parameterIndex)
                     else null
 
-                val fileLocation =
-                    TurbineFileLocation.forTree(containingCallable.containingClass(), decl)
                 val parameterItem =
                     itemFactory.createParameterItem(
-                        fileLocation = fileLocation,
+                        sourcePosition = decl.sourcePosition,
                         modifiers = parametermodifiers,
                         name = parameter.name(),
                         publicName = null,
@@ -722,7 +712,7 @@ internal class TurbineClassBuilder(
 
             val constructorItem =
                 itemFactory.createConstructorItem(
-                    fileLocation = TurbineFileLocation.forTree(classItem, decl),
+                    sourcePosition = decl.sourcePosition,
                     modifiers = modifiers,
                     documentationFactory = itemDocumentationFactoryForDecl(decl),
                     // Turbine's Binder gives return type of constructors as void but the
@@ -783,7 +773,7 @@ internal class TurbineClassBuilder(
             val type = classTypeItemFactory.getGeneralType(componentInfo.type())
 
             itemFactory.createRecordComponentItem(
-                fileLocation = TurbineFileLocation.forTree(classItem, componentInfo.decl()?.name()),
+                sourcePosition = componentInfo.decl()?.name().sourcePosition,
                 modifiers = modifiers,
                 name = componentInfo.name(),
                 containingClass = classItem,

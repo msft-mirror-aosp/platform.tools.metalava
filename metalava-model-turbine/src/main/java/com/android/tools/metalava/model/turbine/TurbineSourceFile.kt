@@ -18,19 +18,23 @@ package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.JavaImport
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.item.AbstractSourceFile
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.diag.LineMap as TurbineDiagLineMap
+import com.google.turbine.tree.Tree
 import com.google.turbine.tree.Tree.CompUnit
+import java.nio.file.Path
 
 internal class TurbineSourceFile(
     override val codebase: DefaultCodebase,
     val compUnit: CompUnit,
 ) : AbstractSourceFile() {
 
-    override val fileLocation: FileLocation = TurbineFileLocation.forTree(this)
+    override val fileLocation: FileLocation =
+        FileLocation.createLocation(Path.of(compUnit.source().path()))
 
     override fun computeLineMap(): LineMap =
         TurbineLineMap(TurbineDiagLineMap.create(compUnit.source().source()))
@@ -63,19 +67,11 @@ internal class TurbineSourceFile(
                 static = import.stat(),
             )
         }
-
-    /**
-     * Get the line number for [position] which was retrieved from
-     * [com.google.turbine.tree.Tree.position].
-     */
-    fun lineForPosition(position: Int) = lineMap.lineNumber(position)
-
-    /**
-     * Get the character position for [position] which was retrieved from
-     * [com.google.turbine.tree.Tree.position].
-     */
-    fun characterPositionForPosition(position: Int) = lineMap.characterPosition(position)
 }
+
+/** Get the [SourcePosition] of this optional [Tree] node. */
+internal val Tree?.sourcePosition: SourcePosition
+    get() = if (this == null) SourcePosition.UNKNOWN else SourcePosition(position())
 
 /** A [LineMap] that wraps a [TurbineDiagLineMap]. */
 private class TurbineLineMap(private val delegate: TurbineDiagLineMap) : LineMap {
