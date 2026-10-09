@@ -356,7 +356,7 @@ internal class DefaultClassItem(
     }
 
     override val containingScope: ReferencableNameScope?
-        get() = containingClass() ?: sourceFile()
+        get() = containingClass() ?: sourceFile() ?: containingPackage()
 
     override fun resolveReferencableItemBySimpleName(
         simpleName: String,
