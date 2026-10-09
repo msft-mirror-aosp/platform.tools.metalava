@@ -24,16 +24,17 @@ import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.duplicatingFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultMethodItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
@@ -50,7 +51,8 @@ internal class DefaultMethodItem(
 ) :
     DefaultCallableItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         targetLanguages,
         modifiers,
@@ -114,7 +116,8 @@ internal class DefaultMethodItem(
             DefaultMethodItem(
                 // Create it in the same codebase as targetContainingClass.
                 codebase = targetContainingClass.codebase,
-                fileLocation = fileLocation,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,

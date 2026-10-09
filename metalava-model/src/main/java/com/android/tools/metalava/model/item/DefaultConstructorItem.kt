@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeComparator
@@ -33,11 +34,11 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultConstructorItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
@@ -53,7 +54,8 @@ internal class DefaultConstructorItem(
 ) :
     DefaultCallableItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
@@ -84,7 +86,7 @@ internal class DefaultConstructorItem(
         fun createImplicitDefaultConstructor(
             codebase: Codebase,
             sourceLanguage: SourceLanguage,
-            containingClass: ClassItem,
+            containingClass: DefaultClassItem,
             visibility: VisibilityLevel,
         ): ConstructorItem {
             val name = containingClass.simpleName()
@@ -94,7 +96,8 @@ internal class DefaultConstructorItem(
                 DefaultConstructorItem(
                     codebase = codebase,
                     // Use the location of the containing class for the default constructor.
-                    fileLocation = containingClass.fileLocation,
+                    fileLocationSource = containingClass.fileLocationSource,
+                    sourcePosition = containingClass.sourcePosition,
                     sourceLanguage = sourceLanguage,
                     targetLanguages = TargetLanguageSet.ALL,
                     modifiers = modifiers,
