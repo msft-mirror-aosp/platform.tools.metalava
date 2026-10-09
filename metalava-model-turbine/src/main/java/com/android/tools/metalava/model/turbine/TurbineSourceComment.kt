@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.turbine
 
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.source.LazySourceComment
 import com.android.tools.metalava.reporter.FileLocation
 import com.google.turbine.model.TurbineJavadoc
@@ -28,13 +29,12 @@ internal class TurbineSourceComment(
 ) : LazySourceComment() {
 
     override fun obtainFileLocation(): FileLocation {
-        val sourceFile = item.sourceFile() as? TurbineSourceFile ?: return FileLocation.UNKNOWN
-        return TurbineFileLocation(
-            sourceFile,
-            turbineJavadoc.startPosition(),
+        val sourceFile = item.sourceFile() ?: return FileLocation.UNKNOWN
+        return sourceFile.fileLocation(
+            SourcePosition(turbineJavadoc.startPosition()),
             // Report character position for documentation locations as that is consistent
             // across models (because it is computed by Metalava not the underlying models).
-            reportCharacterPosition = true,
+            includeCharacterPosition = true,
         )
     }
 

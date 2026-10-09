@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.source.doc.DocComment
 import com.android.tools.metalava.reporter.FileLocation
 
@@ -41,10 +42,8 @@ internal class SourceItemDocumentation(
         val startOffset = sourceComment.startOffset
         if (startOffset < 0) return fileLocation
         val sourceFile = item.sourceFile() ?: return fileLocation
-        val path = sourceFile.fileLocation.path ?: return fileLocation
-        return sourceFile.lineMap.fileLocation(
-            path,
-            startOffset + charOffset,
+        return sourceFile.fileLocation(
+            SourcePosition(startOffset + charOffset),
             includeCharacterPosition = true,
         )
     }
