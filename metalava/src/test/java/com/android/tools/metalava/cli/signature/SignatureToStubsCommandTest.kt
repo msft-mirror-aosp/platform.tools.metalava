@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ARG_STUBS
 import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
@@ -35,6 +36,8 @@ Usage: metalava signature-to-stubs [options] <files>...
   Generate stub source files from API signature files.
 
 Options:
+  --api-surface <surface>                    The API surface currently being generated. Must correspond to an
+                                             <api-surface> element in a --config-file.
   --stubs <dir>                              Base directory to output the generated stub source files for the API.
                                              (required)
   -h, -?, --help                             Show this message and exit
@@ -186,6 +189,132 @@ class SignatureToStubsCommandTest :
                 "TESTROOT/api.txt:5: error: Field bar in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value [SignatureFileError]"
 
             verify { assertEquals(-1, exitCode) }
+        }
+    }
+
+    @Test
+    fun `Test api-surface without configured api-surfaces in config-file`() {
+        commandTest {
+            args += "signature-to-stubs"
+            args += listOf(ARG_API_SURFACE, "public")
+            args += ARG_STUBS to folder("stubs")
+            args +=
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                    """,
+                )
+
+            expectedStderr =
+                "Aborting: --api-surface requires at least one <api-surface> to have been configured in a --config-file"
+        }
+    }
+
+    @Test
+    fun `Test api-surface with unknown surface name`() {
+        commandTest {
+            args += "signature-to-stubs"
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show"/>
+                                    </api-surface>
+                                    <api-surface name="system" extends="public">
+                                        <selection-criteria/>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """,
+                    )
+            args += listOf(ARG_API_SURFACE, "unknown")
+            args += ARG_STUBS to folder("stubs")
+            args +=
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                    """,
+                )
+
+            expectedStderr =
+                "Aborting: --api-surface (`unknown`) does not match an <api-surface> in a --config-file, expected one of `public`, `system`"
+        }
+    }
+
+    @Test
+    fun `Test api-surface with configured extending surface`() {
+        commandTest {
+            args += "signature-to-stubs"
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-surfaces>
+                                    <api-surface name="public">
+                                        <selection-criteria unannotated="show"/>
+                                    </api-surface>
+                                    <api-surface name="system" extends="public">
+                                        <selection-criteria/>
+                                    </api-surface>
+                                </api-surfaces>
+                            </config>
+                        """,
+                    )
+            args += listOf(ARG_API_SURFACE, "system")
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "public.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method public void publicMethod();
+                          }
+                        }
+                    """,
+                )
+            args +=
+                signature(
+                    "system.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void systemMethod();
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                val fooStub = stubsDir.resolve("test/pkg/Foo.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        public void publicMethod() { throw new RuntimeException("Stub!"); }
+                        public void systemMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    fooStub.readText().trim(),
+                )
+            }
         }
     }
 }

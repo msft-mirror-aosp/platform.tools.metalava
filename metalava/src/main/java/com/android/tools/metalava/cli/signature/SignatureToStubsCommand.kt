@@ -16,14 +16,18 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_CONFIG_FILE
 import com.android.tools.metalava.ARG_STUBS
 import com.android.tools.metalava.ApiFlagsCreator
 import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.PROGRAM_NAME
+import com.android.tools.metalava.apiSurfacesFromConfig
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.IssueReportingOptions
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
@@ -31,6 +35,7 @@ import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.registerPostCommandAction
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
+import com.android.tools.metalava.config.ApiSurfacesConfig
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
@@ -60,6 +65,22 @@ class SignatureToStubsCommand :
 
     /** Options for configuring issue reporting. */
     private val issueReportingOptions by IssueReportingOptions()
+
+    /**
+     * Optional name of the target API surface being generated. Must correspond to an
+     * `<api-surface>` element in `--config-file` when specified.
+     */
+    private val apiSurfaceName by
+        option(
+            ARG_API_SURFACE,
+            metavar = "<surface>",
+            help =
+                """
+                    The API surface currently being generated. Must correspond to an <api-surface>
+                    element in a $ARG_CONFIG_FILE.
+                """
+                    .trimIndent(),
+        )
 
     /** The directory into which generated stub `.java` files will be written. */
     private val stubsDir by
@@ -103,9 +124,9 @@ class SignatureToStubsCommand :
         }
 
         try {
-            // Create ApiFlags from the loaded configuration and use the default ApiSurfaces.
+            // Create ApiFlags and ApiSurfaces from the loaded configuration.
             val apiFlags = ApiFlagsCreator.createFromConfig(config.apiFlags)
-            val apiSurfaces = ApiSurfaces.DEFAULT
+            val apiSurfaces = computeApiSurfaces(config.apiSurfaces)
             val apiSurface = apiSurfaces.main
 
             // Configure the annotation manager so that annotations (such as @FlaggedApi) are
@@ -172,5 +193,35 @@ class SignatureToStubsCommand :
             // Make sure that the process exits with an error code.
             throw MetalavaCliException(exitCode = -1)
         }
+    }
+
+    /**
+     * Compute the [ApiSurfaces] model from [apiSurfaceName] and [apiSurfacesConfig].
+     *
+     * If [apiSurfaceName] is not specified then [ApiSurfaces.DEFAULT] is returned; otherwise it
+     * looks up the named surface in [apiSurfacesConfig] and constructs the [ApiSurfaces] for that
+     * surface and any surfaces it extends.
+     */
+    private fun computeApiSurfaces(apiSurfacesConfig: ApiSurfacesConfig?): ApiSurfaces {
+        val targetApiSurfaceName = apiSurfaceName ?: return ApiSurfaces.DEFAULT
+
+        // If --api-surface is specified then <api-surfaces> must be configured in a --config-file.
+        if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
+            cliError(
+                "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a $ARG_CONFIG_FILE"
+            )
+        }
+
+        // Look up the target surface configuration, failing with a CLI error if it does not exist.
+        val targetApiSurfaceConfig =
+            apiSurfacesConfig.getByNameOrError(targetApiSurfaceName, ::cliError) {
+                "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a $ARG_CONFIG_FILE"
+            }
+
+        // Create the ApiSurfaces for the target surface and the hierarchy of surfaces it extends.
+        return apiSurfacesFromConfig(
+            apiSurfacesConfig.surfacesFor(targetApiSurfaceConfig),
+            targetApiSurfaceName,
+        )
     }
 }

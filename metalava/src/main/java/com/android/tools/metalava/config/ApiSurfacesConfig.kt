@@ -113,11 +113,17 @@ data class ApiSurfacesConfig(
     /**
      * Get the [ApiSurfaceConfig] by [name].
      *
-     * If no such config exists then raise an error include [reason].
+     * If no such config exists then raise an error using [errorHandler] and including [reason].
      */
-    inline fun getByNameOrError(name: String, reason: (String) -> String) =
+    inline fun getByNameOrError(
+        name: String,
+        errorHandler: (String) -> Nothing = ::error,
+        reason: (String) -> String,
+    ) =
         byName[name]
-            ?: error("${reason(name)}, expected one of ${byName.keys.joinToString {"`$it`"}}")
+            ?: errorHandler(
+                "${reason(name)}, expected one of ${byName.keys.joinToString {"`$it`"}}"
+            )
 
     /**
      * Ordered set of [ApiSurfaceConfig]s that maintains the order from the configuration except
