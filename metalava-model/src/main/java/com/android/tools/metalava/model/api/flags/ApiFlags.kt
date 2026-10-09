@@ -96,7 +96,10 @@ class ApiFlags(
 
 /** A representation of an [ApiFlag] that is associated with an `@FlaggedApi` annotation. */
 data class ApiFlag(
-    /** The qualified name of the flag. */
+    /**
+     * The qualified name of the flag, or `""` if this is [KEEP_ALL] (when no [ApiFlags] have been
+     * configured).
+     */
     val qualifiedName: String,
 
     /** The action that this flag will perform. */
@@ -114,6 +117,20 @@ data class ApiFlag(
     /** Controls whether `@FlaggedApi` annotations for this [ApiFlag] are kept or discarded. */
     val annotationTargets
         get() = action.annotationTargets
+
+    companion object {
+        /**
+         * Special [ApiFlag] used for `@FlaggedApi` annotations when no [ApiFlags] have been
+         * configured (or when the flag name attribute is missing).
+         */
+        val KEEP_ALL =
+            ApiFlag(
+                qualifiedName = "",
+                action = ApiFlagAction.KEEP,
+                isExported = true,
+                isKnown = false,
+            )
+    }
 }
 
 /**

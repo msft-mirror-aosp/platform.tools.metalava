@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
+import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -527,6 +528,7 @@ class SelectedApiUpdater(
         if (item is PropertyItem) return
 
         val apiFlag = annotation.apiFlag!!
+        if (apiFlag === ApiFlag.KEEP_ALL) return
         val action = apiFlag.action
         // Only record a non-finalized @FlaggedApi on a class as restricting enclosed items if the
         // class does not already exist in the previously released API. Only ClassItems can enclose
