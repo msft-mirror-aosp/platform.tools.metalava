@@ -99,6 +99,11 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 flaggedApiInSignatureRegex,
                                 ""
                             ),
+                        expectedRemovedApiSignature =
+                            expectations.expectedRemovedApiSignature?.replace(
+                                flaggedApiInSignatureRegex,
+                                ""
+                            ),
                         // Remove any RequiresFlag (which is substituted for FlaggedApi) annotations
                         // from the stubs files
                         expectedStubFiles =
@@ -227,6 +232,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         val surface: Surface,
         val flagged: Flagged,
         val expectedApiSignature: String,
+        val expectedRemovedApiSignature: String? = null,
         val expectedIssues: String = "",
         val expectedStubFiles: Array<TestFile> = emptyArray(),
         val expectedStubPaths: Array<String>? = null,
@@ -244,8 +250,13 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
         previouslyReleasedRemovedApi: Map<Surface, String> = emptyMap(),
         expectationsList: List<Expectations>,
     ) {
+        val explicitConfigs = expectationsList.map { it.surface to it.flagged }.toSet()
         val transformedExpectationsList =
-            expectationsList.flatMap { it.flagged.synthesizeAdditionalExpectations(it) }
+            expectationsList.flatMap { expectations ->
+                expectations.flagged.synthesizeAdditionalExpectations(expectations).filter {
+                    it === expectations || (it.surface to it.flagged) !in explicitConfigs
+                }
+            }
 
         val filterExpectations =
             transformedExpectationsList.filter {
@@ -320,6 +331,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             expectedApiSignature = expectations.expectedApiSignature,
+            removedApi = expectations.expectedRemovedApiSignature,
             expectedStubFiles = expectations.expectedStubFiles,
             stubPaths = expectations.expectedStubPaths,
             expectedIssues = expectations.expectedIssues,
@@ -1992,6 +2004,217 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 // Signature format: 2.0
                             """,
                         expectedStubFiles = stubsWithoutFlaggedApis,
+                    ),
+                ),
+        )
+    }
+
+    @Test
+    fun `Test that FlaggedApi annotated RemovedFromApi items can be reverted`() {
+        checkFlaggedApis(
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.RemovedFromApi;
+                    import android.annotation.SystemApi;
+                    import test.pkg.flags.Flags;
+
+                    public class Foo {
+                        @RemovedFromApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void removedPublicApi() {}
+
+                        @SystemApi
+                        @RemovedFromApi
+                        @FlaggedApi(Flags.FLAG_FOO_BAR)
+                        public void removedSystemApi() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+
+                    import android.annotation.FlaggedApi;
+                    import android.annotation.RemovedFromApi;
+                    import test.pkg.flags.Flags;
+
+                    @RemovedFromApi
+                    @FlaggedApi(Flags.FLAG_FOO_BAR)
+                    public class RemovedBar {
+                        public void method() {}
+                    }
+                """
+            ),
+            previouslyReleasedApi =
+                mapOf(
+                    Surface.PUBLIC to
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                              }
+                            }
+                        """,
+                ),
+            expectationsList =
+                listOf(
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.KEEP_ALL,
+                        // TODO(b/571827848): KEEP_ALL should keep Foo.removedPublicApi() and
+                        //  RemovedBar in expectedApiSignature rather than
+                        // expectedRemovedApiSignature.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void removedPublicApi();
+                                  }
+                                  @FlaggedApi("test.pkg.flags.foo_bar") public class RemovedBar {
+                                    ctor public RemovedBar();
+                                    method public void method();
+                                  }
+                                }
+                            """,
+                        // TODO(b/571827848): KEEP_ALL should also include test/pkg/RemovedBar.java.
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // TODO(b/571827848): KEEP_ALL should include Foo.removedPublicApi() and
+                        //  RemovedBar (without @RequiresFlag).
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.PUBLIC,
+                        Flagged.REVERT_ALL,
+                        // TODO(b/571827848): Should include Foo.removedPublicApi() and RemovedBar.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    ctor public Foo();
+                                  }
+                                }
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/571827848): Should also include test/pkg/RemovedBar.java.
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // TODO(b/571827848): Should include Foo.removedPublicApi() and RemovedBar.
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.KEEP_ALL,
+                        // TODO(b/571827848): KEEP_ALL should keep Foo.removedSystemApi() in
+                        //  expectedApiSignature rather than expectedRemovedApiSignature.
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                                package test.pkg {
+                                  public class Foo {
+                                    method @FlaggedApi("test.pkg.flags.foo_bar") public void removedSystemApi();
+                                  }
+                                }
+                            """,
+                        // TODO(b/571827848): KEEP_ALL should also include test/pkg/RemovedBar.java.
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // TODO(b/571827848): KEEP_ALL should include Foo.removedPublicApi(),
+                        //  Foo.removedSystemApi(), and RemovedBar (without @RequiresFlag).
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
+                    ),
+                    Expectations(
+                        Surface.SYSTEM,
+                        Flagged.REVERT_ALL,
+                        // TODO(b/571827848): Should include Foo.removedSystemApi().
+                        expectedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        expectedRemovedApiSignature =
+                            """
+                                // Signature format: 2.0
+                            """,
+                        // TODO(b/571827848): Should also include test/pkg/RemovedBar.java.
+                        expectedStubPaths =
+                            arrayOf(
+                                "test/pkg/Foo.java",
+                            ),
+                        // TODO(b/571827848): Should include Foo.removedPublicApi(),
+                        //  Foo.removedSystemApi(), and RemovedBar.
+                        expectedStubFiles =
+                            arrayOf(
+                                java(
+                                    """
+                                        package test.pkg;
+                                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                                        public class Foo {
+                                        public Foo() { throw new RuntimeException("Stub!"); }
+                                        }
+                                    """
+                                ),
+                            ),
                     ),
                 ),
         )

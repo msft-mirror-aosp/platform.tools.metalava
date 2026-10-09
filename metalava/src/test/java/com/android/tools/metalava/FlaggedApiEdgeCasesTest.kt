@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 /**
@@ -486,6 +487,123 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test flagged API inheritance with RemovedFromApi`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V6,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                    <api-flag package="test.pkg" name="kept_removed_flag" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @FlaggedApi("test.pkg.kept_flag")
+                            public class Test {
+                                public Test() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public void revertedMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public void keptMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public static class RevertedNested {
+                                    public RevertedNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public static class KeptNested {
+                                    public KeptNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi("test.pkg.kept_removed_flag")
+                            public class KeptRemovedClass {
+                                public KeptRemovedClass() {}
+
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            // TODO(b/571827848): No issue should be reported when reverting a @RemovedFromApi item.
+            expectedIssues =
+                """
+                    src/test/pkg/Test.java:12: error: Cannot revert method test.pkg.Test.revertedMethod() (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                    src/test/pkg/Test.java:20: error: Cannot revert class test.pkg.Test.RevertedNested (or any other API item) as no previously released API has been provided [NoPreviouslyReleasedApi]
+                """,
+            // TODO(b/571827848): Should include KeptRemovedClass, revertedMethod(), keptMethod(),
+            //  RevertedNested, KeptNested, and their NestedTwice classes.
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @FlaggedApi("test.pkg.kept_flag") public class Test {
+                        ctor public Test();
+                      }
+                    }
+                """,
+            // TODO(b/571827848): Should include KeptRemovedClass (without @RequiresFlag), and in
+            //  Test should include revertedMethod(), keptMethod(), RevertedNested, KeptNested, and
+            //  their NestedTwice classes, all with @RequiresFlag("test.pkg.kept_flag").
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public class Test {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 
