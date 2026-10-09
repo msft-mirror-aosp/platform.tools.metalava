@@ -289,8 +289,7 @@ abstract class DriverTest :
     }
 
     /** Represents a check that can be performed on a baseline file. */
-    @Suppress("ArrayInDataClass")
-    private data class BaselineCheck(
+    private inner class BaselineCheck(
         /** The option for the input baseline, used in test failure messages. */
         val baselineOption: String,
 
@@ -316,7 +315,7 @@ abstract class DriverTest :
                 file.exists()
             )
 
-            val actualText = readFileFilterBlankLines(file)
+            val actualText = removeTestSpecificDirectories(readFileFilterBlankLines(file))
             assertEquals(
                 stripComments(
                     expectedFileContents.trimIndent(),

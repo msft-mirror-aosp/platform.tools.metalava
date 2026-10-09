@@ -246,4 +246,32 @@ class BaselineTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Check baseline from signature file`() {
+        check(
+            format = FileFormat.V2,
+            signatureSource =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    field public int field = 1;
+                  }
+                }
+                """,
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    // TODO(b/571836667): The file path in the baseline should be relative
+                    //  (`load-api.txt`), not an absolute path (`TESTROOT/load-api.txt`).
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            SignatureFileError: TESTROOT/load-api.txt:
+                                Field field in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value
+                        """,
+                ),
+        )
+    }
 }
