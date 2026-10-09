@@ -224,6 +224,7 @@ Sub-commands:
   signature-to-dex                           Convert API signature files into a file containing a list of DEX
                                              signatures.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  signature-to-stubs                         Generate stub source files from API signature files.
   version                                    Show the version
   multi-surface                              Command that sets up state to run operations for multiple API surfaces.
             """
