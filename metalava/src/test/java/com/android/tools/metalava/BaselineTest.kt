@@ -263,12 +263,10 @@ class BaselineTest : DriverTest() {
             baselineTestInfo =
                 BaselineTestInfo(
                     inputContents = "",
-                    // TODO(b/571836667): The file path in the baseline should be relative
-                    //  (`load-api.txt`), not an absolute path (`TESTROOT/load-api.txt`).
                     expectedOutputContents =
                         """
                             // Baseline format: 1.0
-                            SignatureFileError: TESTROOT/load-api.txt:
+                            SignatureFileError: load-api.txt:
                                 Field field in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value
                         """,
                 ),

@@ -19,6 +19,7 @@ package com.android.tools.metalava.cli.common
 import com.android.tools.metalava.reporter.Baseline
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
+import java.nio.file.Path
 
 const val ARG_DELETE_EMPTY_BASELINES = "--delete-empty-baselines"
 const val ARG_PASS_BASELINE_UPDATES = "--pass-baseline-updates"
@@ -66,12 +67,14 @@ class CommonBaselineOptions() :
     fun compute(
         sourceOptions: SourceOptions = SourceOptions(),
         issueReportingOptions: ComputedIssueReportingOptions,
+        rootFolder: Path = Path.of("").toAbsolutePath(),
     ): ComputedCommonBaselineOptions {
         return ComputedCommonBaselineOptions(
             deleteEmptyBaselines = deleteEmptyBaselines,
             passBaselineUpdates = passBaselineUpdates,
             sourceOptions = sourceOptions,
             issueReportingOptions = issueReportingOptions,
+            rootFolder = rootFolder,
         )
     }
 }
@@ -83,6 +86,7 @@ class ComputedCommonBaselineOptions(
     internal val passBaselineUpdates: Boolean,
     sourceOptions: SourceOptions,
     issueReportingOptions: ComputedIssueReportingOptions,
+    rootFolder: Path,
 ) {
     internal val baselineConfig by
         lazy(LazyThreadSafetyMode.NONE) {
@@ -90,6 +94,7 @@ class ComputedCommonBaselineOptions(
                 issueConfiguration = issueReportingOptions.issueConfiguration,
                 deleteEmptyBaselines = deleteEmptyBaselines,
                 sourcePath = sourceOptions.sourcePath,
+                rootFolder = rootFolder,
             )
         }
 }

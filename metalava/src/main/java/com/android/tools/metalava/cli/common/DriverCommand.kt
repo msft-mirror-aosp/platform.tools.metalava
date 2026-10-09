@@ -146,7 +146,11 @@ abstract class DriverCommand(
         val computedIssueReportingOptions =
             issueReportingOptions.compute(commonOptions, configFileOptions.config.issues)
         val computedCommonBaselineOptions =
-            commonBaselineOptions.compute(sourceOptions, computedIssueReportingOptions)
+            commonBaselineOptions.compute(
+                sourceOptions,
+                computedIssueReportingOptions,
+                executionEnvironment.reporterEnvironment.rootFolder,
+            )
 
         // Manages the [Reporter]s and [Baseline]s.
         val reporterManager =
