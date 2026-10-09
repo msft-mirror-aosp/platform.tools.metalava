@@ -2088,8 +2088,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 "test/pkg/Foo.java",
                                 "test/pkg/RemovedBar.java",
                             ),
-                        // TODO(b/571827848): KEEP_ALL should not have @RequiresFlag on
-                        // RemovedFromApi items.
                         expectedStubFiles =
                             arrayOf(
                                 java(
@@ -2098,7 +2096,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                                         public class Foo {
                                         public Foo() { throw new RuntimeException("Stub!"); }
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void removedPublicApi() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -2107,11 +2104,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                     """
                                         package test.pkg;
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public class RemovedBar {
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public RemovedBar() { throw new RuntimeException("Stub!"); }
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void method() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -2231,8 +2225,6 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                 "test/pkg/Foo.java",
                                 "test/pkg/RemovedBar.java",
                             ),
-                        // TODO(b/571827848): KEEP_ALL should not have @RequiresFlag on
-                        // RemovedFromApi items.
                         expectedStubFiles =
                             arrayOf(
                                 java(
@@ -2241,9 +2233,7 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
                                         public class Foo {
                                         public Foo() { throw new RuntimeException("Stub!"); }
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void removedPublicApi() { throw new RuntimeException("Stub!"); }
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void removedSystemApi() { throw new RuntimeException("Stub!"); }
                                         }
                                     """
@@ -2252,11 +2242,8 @@ class ParameterizedFlaggedApiTest(private val config: Configuration) : DriverTes
                                     """
                                         package test.pkg;
                                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public class RemovedBar {
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public RemovedBar() { throw new RuntimeException("Stub!"); }
-                                        @$ANDROID_REQUIRES_FLAG("test.pkg.flags.foo_bar")
                                         public void method() { throw new RuntimeException("Stub!"); }
                                         }
                                     """

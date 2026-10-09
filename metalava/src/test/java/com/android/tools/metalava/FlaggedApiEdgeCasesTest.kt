@@ -570,8 +570,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource,
                 ),
-            // TODO(b/571827848): RevertedNested and RevertedNested.NestedTwice should inherit
-            //  @FlaggedApi("test.pkg.kept_flag").
             expectedApiSignature =
                 """
                     // Signature format: 6.0
@@ -591,29 +589,22 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
                         ctor public Test.KeptNested.NestedTwice();
                       }
-                      public static class Test.RevertedNested {
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested {
                         ctor public Test.RevertedNested();
                       }
-                      public static class Test.RevertedNested.NestedTwice {
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested.NestedTwice {
                         ctor public Test.RevertedNested.NestedTwice();
                       }
                     }
                 """,
-            // TODO(b/571827848): KeptRemovedClass should not have @RequiresFlag, and in Test
-            //  revertedMethod(), keptMethod(), RevertedNested, KeptNested, and their NestedTwice
-            //  classes should all have @RequiresFlag("test.pkg.kept_flag") instead of missing or
-            //  using test.pkg.kept_removed_flag.
             expectedStubFiles =
                 arrayOf(
                     java(
                         """
                             package test.pkg;
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
                             public class KeptRemovedClass {
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
                             public KeptRemovedClass() { throw new RuntimeException("Stub!"); }
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
                             public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -626,22 +617,27 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             public class Test {
                             @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public Test() { throw new RuntimeException("Stub!"); }
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public void keptMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public void revertedMethod() { throw new RuntimeException("Stub!"); }
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public static class KeptNested {
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public KeptNested() { throw new RuntimeException("Stub!"); }
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public static class NestedTwice {
-                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_removed_flag")
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public NestedTwice() { throw new RuntimeException("Stub!"); }
                             }
                             }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public static class RevertedNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public RevertedNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
                             public NestedTwice() { throw new RuntimeException("Stub!"); }
                             }
                             }
