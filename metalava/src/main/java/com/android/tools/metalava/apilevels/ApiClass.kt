@@ -54,7 +54,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
      * Corrects a historical mistake in android.jar files where methods returning
      * `AbstractStringBuilder` should return the concrete subclass instead.
      */
-    private fun correctMethodSignature(signature: String): String {
+    internal fun correctMethodSignature(signature: String): String {
         if (
             signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
                 signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
@@ -317,56 +317,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             }
         }
         return bestMatch
-    }
-
-    private var haveInlined = false
-
-    fun inlineFromHiddenSuperClasses(hidden: Map<String, ApiClass>) {
-        if (haveInlined) {
-            return
-        }
-        haveInlined = true
-        for (superClass in superClasses) {
-            val hiddenSuper = hidden[superClass.name]
-            if (hiddenSuper != null) {
-                hiddenSuper.inlineFromHiddenSuperClasses(hidden)
-                val myMethods = mMethods
-                val myFields = mFields
-                for ((name, value) in hiddenSuper.mMethods) {
-                    // Constructors are not inherited.
-                    if (name.startsWith("<init>")) {
-                        continue
-                    }
-
-                    // Correct historical mistake in return types (e.g. AbstractStringBuilder ->
-                    // StringBuilder) before checking if the method is already present or adding it.
-                    val correctedName = correctMethodSignature(name)
-
-                    // When reading from sources, HiddenAspectsInheritor copies inherited
-                    // methods from hidden super classes onto the subclass. If the method already
-                    // exists on this class, update its since version with the version from the
-                    // hidden super class in case it was present in an earlier bytecode version.
-                    val existing = myMethods[correctedName]
-                    if (existing == null) {
-                        myMethods[correctedName] = value
-                    } else {
-                        existing.update(value.since)
-                    }
-                }
-                for ((name, value) in hiddenSuper.mFields) {
-                    // When reading from sources, HiddenAspectsInheritor copies inherited
-                    // fields from hidden super classes onto the subclass. If the field already
-                    // exists on this class, update its since version with the version from the
-                    // hidden super class in case it was present in an earlier bytecode version.
-                    val existing = myFields[name]
-                    if (existing == null) {
-                        myFields[name] = value
-                    } else {
-                        existing.update(value.since)
-                    }
-                }
-            }
-        }
     }
 
     fun removeHiddenSuperClasses(api: Map<String, ApiClass>) {

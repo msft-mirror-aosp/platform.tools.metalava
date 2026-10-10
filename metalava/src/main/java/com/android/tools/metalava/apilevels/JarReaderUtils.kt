@@ -83,27 +83,60 @@ fun Api.readJar(
             theClass.updateInterface(interfaceName, updater)
         }
 
+        if (theClass.alwaysHidden) {
+            continue
+        }
+
+        // Walk up the superclass chain, collecting any package-private superclasses in this jar
+        // until the nearest public superclass is reached.
+        var superName = classNode.superName
+        val hiddenSuperClasses = mutableListOf<ClassNode>()
+        while (superName != null) {
+            val superNode = classNodes[superName]
+            if (superNode != null && (superNode.access and Opcodes.ACC_PUBLIC) == 0) {
+                hiddenSuperClasses.add(superNode)
+                superName = superNode.superName
+            } else {
+                break
+            }
+        }
+
         // fields
+        val seenFields = mutableSetOf<String>()
         for (field in classNode.fields) {
             val fieldNode = field as FieldNode
             val access = fieldNode.access
-            if (theClass.alwaysHidden) {
-                // Only public constant (public static final) fields can be inherited into
-                // subclasses from a hidden super class, so ignore any other fields.
-                val publicStaticFinal =
-                    Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
-                if ((access and publicStaticFinal) != publicStaticFinal) {
-                    continue
-                }
-            } else if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+            if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                 continue
             }
             if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
+                seenFields.add(fieldNode.name)
                 theClass.updateField(
                     fieldNode.name,
                     updater,
                     classDeprecated || isDeprecated(access),
                 )
+            }
+        }
+        val publicStaticFinal = Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
+        for (hiddenSuper in hiddenSuperClasses) {
+            for (field in hiddenSuper.fields) {
+                val fieldNode = field as FieldNode
+                val access = fieldNode.access
+                if ((access and publicStaticFinal) != publicStaticFinal) {
+                    continue
+                }
+                if (
+                    !fieldNode.name.startsWith("this\$") &&
+                        fieldNode.name != "\$VALUES" &&
+                        seenFields.add(fieldNode.name)
+                ) {
+                    theClass.updateField(
+                        fieldNode.name,
+                        updater,
+                        classDeprecated || isDeprecated(access),
+                    )
+                }
             }
         }
 
@@ -122,20 +155,12 @@ fun Api.readJar(
             } else null to null
 
         // methods
+        val seenMethods = mutableSetOf<String>()
         for (method in classNode.methods) {
             val methodNode = method as MethodNode
             val methodAccess = methodNode.access
 
-            if (theClass.alwaysHidden) {
-                // Only public, non-abstract methods can be inherited into subclasses from a
-                // hidden super class, so ignore any other methods.
-                if (
-                    (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
-                        (methodAccess and Opcodes.ACC_ABSTRACT) != 0
-                ) {
-                    continue
-                }
-            } else if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+            if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
                 continue
             }
             if ((methodAccess and (Opcodes.ACC_BRIDGE or Opcodes.ACC_SYNTHETIC)) != 0) {
@@ -160,11 +185,46 @@ fun Api.readJar(
             }
 
             // Add the method.
-            theClass.updateMethod(
-                methodName + methodDesc,
-                updater,
-                classDeprecated || isDeprecated(methodAccess),
-            )
+            val element =
+                theClass.updateMethod(
+                    methodName + methodDesc,
+                    updater,
+                    classDeprecated || isDeprecated(methodAccess),
+                )
+            seenMethods.add(element.name)
+        }
+        for (hiddenSuper in hiddenSuperClasses) {
+            for (method in hiddenSuper.methods) {
+                val methodNode = method as MethodNode
+                val methodAccess = methodNode.access
+
+                // Only public, non-abstract methods can be inherited into subclasses from a
+                // hidden super class, so ignore any other methods.
+                if (
+                    (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
+                        (methodAccess and Opcodes.ACC_ABSTRACT) != 0
+                ) {
+                    continue
+                }
+                if ((methodAccess and (Opcodes.ACC_BRIDGE or Opcodes.ACC_SYNTHETIC)) != 0) {
+                    continue
+                }
+                val methodName = method.name
+
+                // Constructors and class initializers are not inherited.
+                if (methodName == "<init>" || methodName == "<clinit>") {
+                    continue
+                }
+
+                val signature = theClass.correctMethodSignature(methodName + methodNode.desc)
+                if (seenMethods.add(signature)) {
+                    theClass.updateMethod(
+                        signature,
+                        updater,
+                        classDeprecated || isDeprecated(methodAccess),
+                    )
+                }
+            }
         }
     }
 }
