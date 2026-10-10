@@ -339,9 +339,6 @@ class ApiSignatureFileConsumerTest {
 
     @Test
     fun `Nested classes and inner class constructors`() {
-        // TODO(b/572064985): ApiSignatureFileConsumer currently does not convert `.` to `$` in
-        //  nested class names, inherit deprecation from outer classes, or prepend the outer class
-        //  instance parameter to non-static inner class constructors.
         checkSignatureFiles(
             """
                 // Signature format: 2.0
@@ -381,14 +378,14 @@ class ApiSignatureFileConsumerTest {
                         <class name="android/Manifest" since="1">
                             <extends name="java/lang/Object"/>
                         </class>
-                        <class name="android/Manifest.permission" since="1">
+                        <class name="android/Manifest${'$'}permission" since="1">
                             <extends name="java/lang/Object"/>
                             <field name="CAMERA"/>
                         </class>
                         <class name="test/pkg/DeprecatedOuter" since="1" deprecated="1">
                             <extends name="java/lang/Object"/>
                         </class>
-                        <class name="test/pkg/DeprecatedOuter.Nested" since="1">
+                        <class name="test/pkg/DeprecatedOuter${'$'}Nested" since="1" deprecated="1">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                             <method name="inheritedDeprecation()V"/>
@@ -398,21 +395,20 @@ class ApiSignatureFileConsumerTest {
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>()V"/>
                         </class>
-                        <class name="test/pkg/Outer.Inner" since="1">
+                        <class name="test/pkg/Outer${'$'}Inner" since="1">
                             <extends name="java/lang/Object"/>
-                            <method name="&lt;init>(Ljava/lang/String;)V"/>
+                            <method name="&lt;init>(Ltest/pkg/Outer;Ljava/lang/String;)V"/>
                         </class>
-                        <class name="test/pkg/Outer.Inner.DeepInner" since="1">
+                        <class name="test/pkg/Outer${'$'}Inner${'$'}DeepInner" since="1">
                             <extends name="java/lang/Object"/>
-                            <method name="&lt;init>(Z)V"/>
+                            <method name="&lt;init>(Ltest/pkg/Outer${'$'}Inner;Z)V"/>
                         </class>
-                        <class name="test/pkg/Outer.StaticNested" since="1">
+                        <class name="test/pkg/Outer${'$'}StaticNested" since="1">
                             <extends name="java/lang/Object"/>
                             <method name="&lt;init>(I)V"/>
                         </class>
                     </api>
                 """,
-            checkCodebaseParity = false,
         )
     }
 }

@@ -51,7 +51,10 @@ internal class ApiSignatureFileConsumer(
      *
      * @property apiClass the [ApiClass] created or updated in [api].
      * @property classKind the [ClassKind] of the class.
-     * @property effectivelyDeprecated whether the class is deprecated.
+     * @property isStatic whether the class has the `static` modifier.
+     * @property outerInternalName the JVM internal name of the enclosing class if this is a nested
+     *   class, or `null` for a top-level class.
+     * @property effectivelyDeprecated whether the class or any enclosing class is deprecated.
      * @property superClassName the internal name of the class's superclass, or `null` for
      *   `java/lang/Object`.
      * @property interfaceNames the internal names of the interfaces implemented by the class.
@@ -59,6 +62,8 @@ internal class ApiSignatureFileConsumer(
     private class ClassContext(
         val apiClass: ApiClass,
         val classKind: ClassKind,
+        val isStatic: Boolean,
+        val outerInternalName: String?,
         val effectivelyDeprecated: Boolean,
         var superClassName: String?,
         var interfaceNames: List<String>,
@@ -70,14 +75,20 @@ internal class ApiSignatureFileConsumer(
     /** Whether [updater] has already updated [api] for this version. */
     private var updatedApi = false
 
+    /** The dot-separated qualified name of the current `package` block. */
+    private var currentPackageName: String = ""
+
     /** The `/`‑separated internal name of the current `package` block. */
     private var currentPackageInternalName: String = ""
 
     /** The [ClassContext] of the class currently being parsed. */
     private lateinit var currentClass: ClassContext
 
-    /** All [ClassContext]s created while parsing signature files for this version. */
-    private val classes = mutableListOf<ClassContext>()
+    /**
+     * Map from dot-separated qualified class name to [ClassContext] for all classes parsed in this
+     * version.
+     */
+    private val classesByQualifiedName = mutableMapOf<String, ClassContext>()
 
     override fun startFile(
         signatureFile: SignatureFile,
@@ -94,7 +105,7 @@ internal class ApiSignatureFileConsumer(
 
     override fun finish() {
         // Apply the superclass and super-interfaces accumulated for each class.
-        for (classContext in classes) {
+        for (classContext in classesByQualifiedName.values) {
             val apiClass = classContext.apiClass
             classContext.superClassName?.let { superClass ->
                 apiClass.updateSuperClass(superClass, updater)
@@ -147,7 +158,8 @@ internal class ApiSignatureFileConsumer(
         modifiers: MutableModifierList,
         name: String,
     ) {
-        // Convert the dot-separated package name into its `/`‑separated JVM internal prefix.
+        // Record both the dot-separated package name and its `/`‑separated JVM internal prefix.
+        currentPackageName = name
         currentPackageInternalName = name.replace('.', '/')
     }
 
@@ -173,14 +185,49 @@ internal class ApiSignatureFileConsumer(
         permitTypeStrings: List<TypeString>,
         recordComponents: List<ParsedRecordComponent>?,
     ) {
-        val internalName =
-            if (currentPackageInternalName.isEmpty()) {
+        val qualifiedName =
+            if (currentPackageName.isEmpty()) {
                 fullName
             } else {
-                "$currentPackageInternalName/$fullName"
+                "$currentPackageName.$fullName"
             }
 
-        val effectivelyDeprecated = modifiers.isDeprecated()
+        val lastDot = fullName.lastIndexOf('.')
+        val internalFullName = if (lastDot == -1) fullName else fullName.replace('.', '$')
+        val internalName =
+            if (currentPackageInternalName.isEmpty()) {
+                internalFullName
+            } else {
+                "$currentPackageInternalName/$internalFullName"
+            }
+
+        // If this is a nested class (`Outer.Inner`), resolve its enclosing class's internal name
+        // and ClassContext so inner class constructors and inherited deprecation work accurately.
+        val outerClass: ClassContext?
+        val outerInternalName: String?
+        if (lastDot == -1) {
+            outerClass = null
+            outerInternalName = null
+        } else {
+            val outerFullName = fullName.substring(0, lastDot)
+            val outerQualifiedName =
+                if (currentPackageName.isEmpty()) {
+                    outerFullName
+                } else {
+                    "$currentPackageName.$outerFullName"
+                }
+            outerClass = classesByQualifiedName[outerQualifiedName]
+            val outerInternalFullName = outerFullName.replace('.', '$')
+            outerInternalName =
+                if (currentPackageInternalName.isEmpty()) {
+                    outerInternalFullName
+                } else {
+                    "$currentPackageInternalName/$outerInternalFullName"
+                }
+        }
+
+        val effectivelyDeprecated =
+            modifiers.isDeprecated() || (outerClass?.effectivelyDeprecated == true)
         val apiClass =
             api.updateClass(
                 internalName,
@@ -232,12 +279,14 @@ internal class ApiSignatureFileConsumer(
             ClassContext(
                 apiClass = apiClass,
                 classKind = classKind,
+                isStatic = modifiers.isStatic(),
+                outerInternalName = outerInternalName,
                 effectivelyDeprecated = effectivelyDeprecated,
                 superClassName = superClassName,
                 interfaceNames = interfaceNames,
             )
         currentClass = classContext
-        classes.add(classContext)
+        classesByQualifiedName[qualifiedName] = classContext
     }
 
     override fun consumeConstructor(
@@ -256,6 +305,13 @@ internal class ApiSignatureFileConsumer(
 
         val descriptor = buildString {
             append("<init>(")
+            // Non-static inner classes have an implicit leading parameter for their enclosing
+            // class instance in bytecode.
+            if (!currentClass.isStatic) {
+                currentClass.outerInternalName?.let { outerInternalName ->
+                    append('L').append(outerInternalName).append(';')
+                }
+            }
             for (parameter in parameters) {
                 typeDescriptorResolver.appendDescriptor(
                     this,
