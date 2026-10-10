@@ -53,7 +53,6 @@ import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
-import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.LineMap
@@ -1935,36 +1934,12 @@ internal class SingleSignatureFileParser(
         enclosingTypeItemFactory: TextTypeItemFactory,
         scopeDescription: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
-    ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        if (parsedTypeParameters.isEmpty()) {
-            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
-        }
-
-        // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
-        // used to resolve TypeParameterItems from the list. This performs the construction in two
-        // stages to handle cycles between the parameters.
-        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
+    ): TypeParameterListAndFactory<TextTypeItemFactory> =
+        context.createTypeParameterListAndFactory(
+            enclosingTypeItemFactory,
             scopeDescription,
             parsedTypeParameters,
-            { parsed ->
-                // TODO: Type use annotations support will need to handle annotations on the
-                //  parameter.
-                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
-                itemFactory.createTypeParameterItem(
-                    modifiers = modifiers,
-                    name = parsed.name,
-                    isReified = parsed.isReified,
-                )
-            },
-            { typeItemFactory, parsed ->
-                if (parsed.bounds.isEmpty()) {
-                    WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
-                } else {
-                    parsed.bounds.map { typeItemFactory.getBoundsType(it) }
-                }
-            },
         )
-    }
 
     /**
      * Parses a list of parameters.

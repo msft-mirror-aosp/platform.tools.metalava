@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.text
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
@@ -27,8 +28,11 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
+import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
@@ -39,6 +43,7 @@ import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
+import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
@@ -64,6 +69,9 @@ internal class SignatureFileCodebaseBuilder(
 ) : SignatureFileConsumer {
     /** The [DefaultCodebase] being populated. */
     val codebase: DefaultCodebase = assembler.codebase
+
+    /** Creates [Item] instances for [codebase]. */
+    val itemFactory = assembler.itemFactory
 
     /** Report recoverable errors encountered while parsing types. */
     private val typeItemParserErrorReporter =
@@ -292,5 +300,47 @@ internal class SignatureFileCodebaseBuilder(
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
         return codebase.packageTracker.createPackage(name, packageInfo)
+    }
+
+    /**
+     * Creates a [TypeParameterListAndFactory] from [parsedTypeParameters] in the context of
+     * [enclosingTypeItemFactory].
+     *
+     * If [parsedTypeParameters] is empty, returns [TypeParameterList.NONE] paired with
+     * [enclosingTypeItemFactory] without allocating a nested factory.
+     */
+    fun createTypeParameterListAndFactory(
+        enclosingTypeItemFactory: TextTypeItemFactory,
+        scopeDescription: String,
+        parsedTypeParameters: List<ParsedTypeParameter>,
+    ): TypeParameterListAndFactory<TextTypeItemFactory> {
+        if (parsedTypeParameters.isEmpty()) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
+
+        // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
+        // used to resolve TypeParameterItems from the list. This performs the construction in two
+        // stages to handle cycles between the parameters.
+        return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
+            scopeDescription,
+            parsedTypeParameters,
+            { parsed ->
+                // TODO: Type use annotations support will need to handle annotations on the
+                //  parameter.
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
+                itemFactory.createTypeParameterItem(
+                    modifiers = modifiers,
+                    name = parsed.name,
+                    isReified = parsed.isReified,
+                )
+            },
+            { typeItemFactory, parsed ->
+                if (parsed.bounds.isEmpty()) {
+                    WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
+                } else {
+                    parsed.bounds.map { typeItemFactory.getBoundsType(it) }
+                }
+            },
+        )
     }
 }
