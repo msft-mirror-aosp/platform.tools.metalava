@@ -15,17 +15,14 @@
  */
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MetalavaApi
-import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
@@ -51,7 +48,6 @@ import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.parser.SignatureFileLexer
 import com.android.tools.metalava.model.text.parser.SignatureTokenType
-import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.utils.extractSimpleName
@@ -713,7 +709,6 @@ internal class SingleSignatureFileParser(
         val containingClass = context.currentClass
         val classTypeItemFactory = context.currentClassTypeItemFactory
         val hasExistingFields = context.hasExistingFields
-        val hasExistingMethods = context.hasExistingMethods
         val hasExistingProperties = context.hasExistingProperties
 
         // Dispatch each member declaration by its leading keyword token type until the closing `}`
@@ -741,12 +736,7 @@ internal class SingleSignatureFileParser(
                     }
                 }
                 SignatureTokenType.METHOD -> {
-                    val method = parseMethod(containingClass, classTypeItemFactory) ?: continue
-                    if (hasExistingMethods) {
-                        containingClass.replaceOrAddMethod(method)
-                    } else {
-                        containingClass.addMethod(method)
-                    }
+                    parseMethod()
                 }
                 SignatureTokenType.PROPERTY -> {
                     val property = parseProperty(containingClass, classTypeItemFactory)
@@ -924,17 +914,6 @@ internal class SingleSignatureFileParser(
         return endOffset
     }
 
-    /**
-     * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
-     * [typeItemFactory] to create types.
-     */
-    private fun createParameterItems(
-        containingCallable: CallableItem,
-        parameters: List<ParsedParameter>,
-        typeItemFactory: TextTypeItemFactory,
-    ): List<ParameterItem> =
-        context.createParameterItems(containingCallable, parameters, typeItemFactory)
-
     /** Parse a constructor member of the current class. */
     private fun parseConstructor() {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
@@ -968,23 +947,11 @@ internal class SingleSignatureFileParser(
         )
     }
 
-    /** Parse a method member of [containingClass]. */
-    private fun parseMethod(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ): MethodItem? {
-        val method: MethodItem
-
+    /** Parse a method member of the current class. */
+    private fun parseMethod() {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
-        // Get a TypeParameterList and accompanying TypeParameterScope
         val parsedTypeParameters = parseTypeParameterList()
-        val (typeParameterList, typeItemFactory) =
-            createTypeParameterListAndFactory(
-                classTypeItemFactory,
-                "method",
-                parsedTypeParameters,
-            )
 
         val returnTypeString: TypeString
         val parameters: List<ParsedParameter>
@@ -1013,19 +980,6 @@ internal class SingleSignatureFileParser(
             parameters = parseParameterList()
         }
 
-        val returnType =
-            typeItemFactory.getMethodReturnType(
-                returnTypeString,
-                modifiers.annotations(),
-                MethodFingerprint(name, parameters.size),
-                containingClass.isAnnotationType()
-            )
-        synchronizeNullability(returnType, modifiers)
-
-        if (containingClass.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
-            modifiers.setAbstract(true)
-        }
-
         var throwsTypeStrings = emptyList<TypeString>()
         var defaultAnnotationMethodValue: String? = null
 
@@ -1044,37 +998,17 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
-        val defaultValueProvider =
-            defaultAnnotationMethodValue?.let { valueString ->
-                valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
-            }
-
-        method =
-            itemFactory.createMethodItem(
-                fileLocation = fileLocation(semicolon),
-                modifiers = modifiers,
-                documentationFactory = ItemDocumentation.NONE_FACTORY,
-                name = name,
-                containingClass = containingClass,
-                typeParameterList = typeParameterList,
-                returnType = returnType,
-                parameterItemsFactory = { containingCallable ->
-                    createParameterItems(containingCallable, parameters, typeItemFactory)
-                },
-                throwsTypes = throwsList,
-                defaultValueProvider = defaultValueProvider,
-                targetLanguages = targetLanguages,
-                isExtensionMethod = false, // no way to tell if this is an extension method
-            )
-
-        // Ignore enum synthetic methods. They are no longer included in signature files as they add
-        // no information. However, they did use to be included and so this filters them out to
-        // ensure that the resulting Codebase is consistent with the original source Codebase.
-        if (method.isEnumSyntheticMethod()) return null
-
-        method.markSelectedApiVariant()
-        return method
+        context.consumeMethod(
+            location = fileLocation(semicolon),
+            modifiers = modifiers,
+            targetLanguages = targetLanguages,
+            name = name,
+            returnTypeString = returnTypeString,
+            typeParameters = parsedTypeParameters,
+            parameters = parameters,
+            throwsTypeStrings = throwsTypeStrings,
+            defaultAnnotationMethodValue = defaultAnnotationMethodValue,
+        )
     }
 
     /** Parse a field member of [containingClass]. */
@@ -1812,12 +1746,6 @@ internal class SingleSignatureFileParser(
             }
         }
     }
-
-    /** Resolves a list of [throwsTypeStrings] into [ExceptionTypeItem]s using [typeItemFactory]. */
-    private fun createThrowsTypes(
-        throwsTypeStrings: List<TypeString>,
-        typeItemFactory: TextTypeItemFactory,
-    ): List<ExceptionTypeItem> = context.createThrowsTypes(throwsTypeStrings, typeItemFactory)
 
     /**
      * Scans the token stream from [tokenStream] for a type string, ensuring that the full type

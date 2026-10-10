@@ -64,6 +64,7 @@ import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
+import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.nio.file.Path
@@ -162,8 +163,7 @@ internal class SignatureFileCodebaseBuilder(
      * Whether [currentClass] is an existing class from a previously parsed signature file that
      * already had methods when [startClass] was called.
      */
-    var hasExistingMethods: Boolean = false
-        private set
+    private var hasExistingMethods: Boolean = false
 
     /**
      * Whether [currentClass] is an existing class from a previously parsed signature file that
@@ -752,6 +752,76 @@ internal class SignatureFileCodebaseBuilder(
         }
     }
 
+    override fun consumeMethod(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        returnTypeString: TypeString,
+        typeParameters: List<ParsedTypeParameter>,
+        parameters: List<ParsedParameter>,
+        throwsTypeStrings: List<TypeString>,
+        defaultAnnotationMethodValue: String?,
+    ) {
+        val containingClass = currentClass
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                currentClassTypeItemFactory,
+                "method",
+                typeParameters,
+            )
+
+        val returnType =
+            typeItemFactory.getMethodReturnType(
+                returnTypeString,
+                modifiers.annotations(),
+                MethodFingerprint(name, parameters.size),
+                containingClass.isAnnotationType(),
+            )
+        synchronizeNullability(returnType, modifiers)
+
+        if (containingClass.isInterface() && !modifiers.isDefault() && !modifiers.isStatic()) {
+            modifiers.setAbstract(true)
+        }
+
+        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
+        val defaultValueProvider =
+            defaultAnnotationMethodValue?.let { valueString ->
+                valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
+            }
+
+        val method =
+            itemFactory.createMethodItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                name = name,
+                containingClass = containingClass,
+                typeParameterList = typeParameterList,
+                returnType = returnType,
+                parameterItemsFactory = { containingCallable ->
+                    createParameterItems(containingCallable, parameters, typeItemFactory)
+                },
+                throwsTypes = throwsList,
+                defaultValueProvider = defaultValueProvider,
+                targetLanguages = targetLanguages,
+                isExtensionMethod = false, // no way to tell if this is an extension method
+            )
+
+        // Ignore enum synthetic methods. They are no longer included in signature files as they add
+        // no information. However, they did use to be included and so this filters them out to
+        // ensure that the resulting Codebase is consistent with the original source Codebase.
+        if (method.isEnumSyntheticMethod()) return
+
+        markSelectedApiVariant(method)
+        if (hasExistingMethods) {
+            containingClass.replaceOrAddMethod(method)
+        } else {
+            containingClass.addMethod(method)
+        }
+    }
+
     /**
      * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
@@ -760,7 +830,7 @@ internal class SignatureFileCodebaseBuilder(
      * its `name` and its reference. In particularly it must not access its
      * [CallableItem.parameters] property as this is called during its initialization.
      */
-    fun createParameterItems(
+    private fun createParameterItems(
         containingCallable: CallableItem,
         parameters: List<ParsedParameter>,
         typeItemFactory: TextTypeItemFactory,
@@ -814,7 +884,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     /** Resolves a list of [throwsTypeStrings] into [ExceptionTypeItem]s using [typeItemFactory]. */
-    fun createThrowsTypes(
+    private fun createThrowsTypes(
         throwsTypeStrings: List<TypeString>,
         typeItemFactory: TextTypeItemFactory,
     ): List<ExceptionTypeItem> {

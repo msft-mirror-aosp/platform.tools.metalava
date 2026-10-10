@@ -160,4 +160,30 @@ interface SignatureFileConsumer {
         parameters: List<ParsedParameter>,
         throwsTypeStrings: List<TypeString>,
     )
+
+    /**
+     * Called when a `method` declaration is parsed in the current class.
+     *
+     * @param location the [FileLocation] of the method declaration.
+     * @param modifiers the modifiers and annotations on the method.
+     * @param targetLanguages the [TargetLanguage]s to which the method applies.
+     * @param name the name of the method.
+     * @param returnTypeString the [TypeString] of the method's return type.
+     * @param typeParameters the parsed type parameters of the method.
+     * @param parameters the parsed parameters of the method.
+     * @param throwsTypeStrings the [TypeString]s from the `throws` clause.
+     * @param defaultAnnotationMethodValue the raw `default` value expression for an annotation
+     *   method, or `null` if none was specified.
+     */
+    fun consumeMethod(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        returnTypeString: TypeString,
+        typeParameters: List<ParsedTypeParameter>,
+        parameters: List<ParsedParameter>,
+        throwsTypeStrings: List<TypeString>,
+        defaultAnnotationMethodValue: String?,
+    )
 }
