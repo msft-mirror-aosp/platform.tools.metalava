@@ -610,7 +610,7 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Creates a type alias in the [pkg] with the [modifiers].
+     * Parses a `typealias` declaration with [modifiers] at [location].
      *
      * Before calling, the `typealias` keyword should have been consumed from [tokenStream], and the
      * next token will be the name and optional type parameter list.
@@ -619,20 +619,12 @@ internal class SingleSignatureFileParser(
      * line.
      */
     private fun parseTypeAlias(
-        pkg: PackageItem,
         modifiers: MutableModifierList,
-        location: FileLocation
+        location: FileLocation,
     ) {
         // Parse the typealias name and optional `<...>` type parameter list.
         val name = parseQualifiedName()
         val parsedTypeParameters = parseTypeParameterList()
-        val (typeParameterList, typeItemFactory) =
-            createTypeParameterListAndFactory(
-                globalTypeItemFactory,
-                "typealias $name",
-                parsedTypeParameters,
-            )
-        val qualifiedClassName = pkg.qualifiedName() + "." + name
 
         // Consume `=`, scan the aliased type, and consume the terminating `;`.
         val equalsToken = requireNonEofToken()
@@ -646,38 +638,13 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        val type = typeItemFactory.getGeneralType(typeString)
-
-        // Check for the existing class from a previously parsed file. If it was found then use that
-        // and return. If it could not be found then drop through to create it.
-        val classCharacteristics =
-            ClassCharacteristics(
-                fileLocation = location,
-                qualifiedName = qualifiedClassName,
-                fullName = name,
-                classKind = ClassKind.TYPEALIAS,
-                modifiers = modifiers.toImmutable(),
-                superClassType = null,
-                interfaceTypes = emptySet(),
-                optionalAliasedType = type,
-                classOrigin = classOrigin,
-            )
-        if (checkForExistingClass(classCharacteristics)) {
-            return
-        }
-
-        val typeAlias =
-            itemFactory.createTypeAliasItem(
-                fileLocation = location,
-                modifiers = modifiers,
-                qualifiedName = pkg.qualifiedName() + "." + name,
-                containingPackage = pkg,
-                aliasedType = type,
-                typeParameterList = typeParameterList,
-                origin = classOrigin,
-            )
-        // Mark type alias as belonging to the main API surface of this signature file.
-        typeAlias.markSelectedApiVariant()
+        context.consumeTypeAlias(
+            location = location,
+            modifiers = modifiers,
+            name = name,
+            typeParameters = parsedTypeParameters,
+            aliasedTypeString = typeString,
+        )
     }
 
     /** Parse a class in [pkg]. */
@@ -705,7 +672,7 @@ internal class SingleSignatureFileParser(
 
         if (classKind == ClassKind.TYPEALIAS) {
             // Type aliases aren't classes, but they are defined at the same level as classes
-            parseTypeAlias(pkg, modifiers, classPosition)
+            parseTypeAlias(modifiers, classPosition)
             // Don't continue creating a class item
             return
         }

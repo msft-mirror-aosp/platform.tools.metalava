@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
@@ -44,6 +45,7 @@ import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTL
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
+import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueParser
 import com.android.tools.metalava.reporter.FileLocation
@@ -300,6 +302,56 @@ internal class SignatureFileCodebaseBuilder(
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
         return codebase.packageTracker.createPackage(name, packageInfo)
+    }
+
+    override fun consumeTypeAlias(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        name: String,
+        typeParameters: List<ParsedTypeParameter>,
+        aliasedTypeString: TypeString,
+    ) {
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                globalTypeItemFactory,
+                "typealias $name",
+                typeParameters,
+            )
+        val qualifiedClassName = currentPackage.qualifiedName() + "." + name
+        val type = typeItemFactory.getGeneralType(aliasedTypeString)
+
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        val classCharacteristics =
+            ClassCharacteristics(
+                fileLocation = location,
+                qualifiedName = qualifiedClassName,
+                fullName = name,
+                classKind = ClassKind.TYPEALIAS,
+                modifiers = modifiers.toImmutable(),
+                superClassType = null,
+                interfaceTypes = emptySet(),
+                optionalAliasedType = type,
+                classOrigin = currentClassOrigin,
+            )
+        val existingClass = codebase.findClassInCodebase(classCharacteristics.qualifiedName)
+        if (existingClass != null) {
+            classMerger.deferMergingIntoExistingClass(existingClass, classCharacteristics)
+            return
+        }
+
+        val typeAlias =
+            itemFactory.createTypeAliasItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                qualifiedName = qualifiedClassName,
+                containingPackage = currentPackage,
+                aliasedType = type,
+                typeParameterList = typeParameterList,
+                origin = currentClassOrigin,
+            )
+        // Mark type alias as belonging to the main API surface of this signature file.
+        markSelectedApiVariant(typeAlias)
     }
 
     /**

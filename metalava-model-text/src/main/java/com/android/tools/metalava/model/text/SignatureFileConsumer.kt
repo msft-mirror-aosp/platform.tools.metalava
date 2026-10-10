@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
@@ -84,4 +85,21 @@ interface SignatureFileConsumer {
 
     /** Called at the end of the current `package` block. */
     fun endPackage() {}
+
+    /**
+     * Called when a `typealias` declaration is parsed in the current package.
+     *
+     * @param location the [FileLocation] of the `typealias` keyword.
+     * @param modifiers the modifiers and annotations on the type alias.
+     * @param name the simple or outer-qualified name of the type alias within the current package.
+     * @param typeParameters the parsed type parameters of the type alias.
+     * @param aliasedTypeString the [TypeString] of the aliased type on the right-hand side of `=`.
+     */
+    fun consumeTypeAlias(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        name: String,
+        typeParameters: List<ParsedTypeParameter>,
+        aliasedTypeString: TypeString,
+    )
 }
