@@ -16,6 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
+import com.android.tools.metalava.model.text.ParsedTypeParameter
+import com.android.tools.metalava.model.type.TypeString
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -106,5 +108,65 @@ class ErasedTypeDescriptorResolverTest {
             "[[Ltest/pkg/Outer\$Inner;",
             resolver.resolveDescriptor("test.pkg.Outer<T>.Inner @NonNull [] @Nullable []"),
         )
+    }
+
+    @Test
+    fun `Type parameter scopes and bounds`() {
+        val outerScope =
+            ErasedTypeScope.Empty.extend(
+                listOf(
+                    ParsedTypeParameter(name = "T", isReified = false, bounds = emptyList()),
+                    ParsedTypeParameter(
+                        name = "S",
+                        isReified = false,
+                        bounds =
+                            listOf(
+                                TypeString("CharSequence", 0),
+                                TypeString("java.io.Serializable", 0),
+                            ),
+                    ),
+                    ParsedTypeParameter(
+                        name = "R",
+                        isReified = false,
+                        bounds = listOf(TypeString("Comparable<R>", 0)),
+                    ),
+                ),
+                resolver,
+            )
+
+        assertEquals("Ljava/lang/Object;", resolver.resolveDescriptor("T", outerScope))
+        assertEquals("[Ljava/lang/Object;", resolver.resolveDescriptor("T[]", outerScope))
+        assertEquals("Ljava/lang/CharSequence;", resolver.resolveDescriptor("S", outerScope))
+        assertEquals("[Ljava/lang/CharSequence;", resolver.resolveDescriptor("S...", outerScope))
+        assertEquals("Ljava/lang/Comparable;", resolver.resolveDescriptor("R", outerScope))
+
+        // Chained forward-referenced bounds (`<U extends V, V extends S>`) and shadowing (`<T
+        // extends Number>`).
+        val innerScope =
+            outerScope.extend(
+                listOf(
+                    ParsedTypeParameter(
+                        name = "U",
+                        isReified = false,
+                        bounds = listOf(TypeString("V", 0)),
+                    ),
+                    ParsedTypeParameter(
+                        name = "V",
+                        isReified = false,
+                        bounds = listOf(TypeString("S", 0)),
+                    ),
+                    ParsedTypeParameter(
+                        name = "T",
+                        isReified = false,
+                        bounds = listOf(TypeString("Number", 0)),
+                    ),
+                ),
+                resolver,
+            )
+
+        assertEquals("Ljava/lang/CharSequence;", resolver.resolveDescriptor("U", innerScope))
+        assertEquals("[Ljava/lang/CharSequence;", resolver.resolveDescriptor("U[]", innerScope))
+        assertEquals("Ljava/lang/CharSequence;", resolver.resolveDescriptor("V", innerScope))
+        assertEquals("Ljava/lang/Number;", resolver.resolveDescriptor("T", innerScope))
     }
 }

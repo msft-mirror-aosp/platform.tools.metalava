@@ -28,12 +28,16 @@ internal class ErasedTypeDescriptorResolver {
      * clause) to its erased JVM internal name (e.g. `java/lang/Object` or `test/pkg/Outer$Inner`).
      *
      * @param type the raw type string from the signature file.
+     * @param scope the [ErasedTypeScope] of in-scope type parameters.
      * @return the erased JVM internal name without `L` or `;` delimiters.
      */
-    fun resolveInternalName(type: String): String {
+    fun resolveInternalName(
+        type: String,
+        scope: ErasedTypeScope = ErasedTypeScope.Empty,
+    ): String {
         val sb = StringBuilder(type.length)
         val scanner = TypeScanner(type)
-        scanner.appendClassInternalName(sb)
+        scanner.appendClassInternalName(sb, scope)
         return sb.toString()
     }
 
@@ -42,14 +46,19 @@ internal class ErasedTypeDescriptorResolver {
      * `Ljava/lang/String;`, `[[Ltest/pkg/Outer$Inner;`).
      *
      * @param type the raw type string from the signature file.
+     * @param scope the [ErasedTypeScope] of in-scope type parameters.
      * @param isVarargs whether the parameter is a varargs parameter (or has a `...` suffix in its
      *   [type] string). If `true` and [type] does not already end with `...`, an extra `[` array
      *   dimension is prepended.
      * @return the erased JVM type descriptor.
      */
-    fun resolveDescriptor(type: String, isVarargs: Boolean = false): String {
+    fun resolveDescriptor(
+        type: String,
+        scope: ErasedTypeScope = ErasedTypeScope.Empty,
+        isVarargs: Boolean = false,
+    ): String {
         val sb = StringBuilder(type.length + 16)
-        appendDescriptor(sb, type, isVarargs)
+        appendDescriptor(sb, type, scope, isVarargs)
         return sb.toString()
     }
 
@@ -58,12 +67,18 @@ internal class ErasedTypeDescriptorResolver {
      *
      * @param out the [StringBuilder] to append the descriptor to.
      * @param type the raw type string from the signature file.
+     * @param scope the [ErasedTypeScope] of in-scope type parameters.
      * @param isVarargs whether an extra array dimension should be added if [type] does not already
      *   include a trailing `...` varargs suffix.
      */
-    fun appendDescriptor(out: StringBuilder, type: String, isVarargs: Boolean = false) {
+    fun appendDescriptor(
+        out: StringBuilder,
+        type: String,
+        scope: ErasedTypeScope = ErasedTypeScope.Empty,
+        isVarargs: Boolean = false,
+    ) {
         val scanner = TypeScanner(type)
-        scanner.appendDescriptor(out, isVarargs)
+        scanner.appendDescriptor(out, scope, isVarargs)
     }
 
     /**
@@ -79,16 +94,24 @@ internal class ErasedTypeDescriptorResolver {
          * Parses a class or interface type and appends its JVM internal name (`pkg/Outer$Inner`) to
          * [out].
          */
-        fun appendClassInternalName(out: StringBuilder) {
+        fun appendClassInternalName(out: StringBuilder, scope: ErasedTypeScope) {
             skipWhitespaceAndAnnotations()
             val firstStart = pos
             val firstEnd = scanIdentifier()
             skipPostSegmentTokens()
 
-            // Single-identifier class name (e.g. `Object`, `String`, `Comparable<T>`).
+            // Single-identifier class name (e.g. `Object`, `String`, `Comparable<T>`) or type
+            // parameter.
             if (!isPackageOrNestedClassDot()) {
                 val simpleName = type.substring(firstStart, firstEnd)
-                if (simpleName == "dynamic") {
+                val typeParamDesc = scope.findDescriptor(simpleName)
+                if (typeParamDesc != null) {
+                    if (typeParamDesc.startsWith('L') && typeParamDesc.endsWith(';')) {
+                        out.append(typeParamDesc, 1, typeParamDesc.length - 1)
+                    } else {
+                        out.append(typeParamDesc)
+                    }
+                } else if (simpleName == "dynamic") {
                     out.append("dynamic")
                 } else {
                     out.append("java/lang/").append(simpleName)
@@ -100,10 +123,14 @@ internal class ErasedTypeDescriptorResolver {
         }
 
         /**
-         * Parses any type (primitive, class, or array/varargs) and appends its JVM type descriptor
-         * to [out].
+         * Parses any type (type parameter, primitive, class, or array/varargs) and appends its JVM
+         * type descriptor to [out].
          */
-        fun appendDescriptor(out: StringBuilder, isVarargs: Boolean) {
+        fun appendDescriptor(
+            out: StringBuilder,
+            scope: ErasedTypeScope,
+            isVarargs: Boolean,
+        ) {
             // Remember the insertion point in `out` so array `[` prefixes can be inserted once all
             // trailing `[]` and `...` dimensions have been counted.
             val descriptorStart = out.length
@@ -114,16 +141,22 @@ internal class ErasedTypeDescriptorResolver {
             skipPostSegmentTokens()
 
             if (!isPackageOrNestedClassDot()) {
-                // Single-identifier base type: primitive (`int`), unqualified `java.lang.*` class
-                // (`String`), or `dynamic`.
+                // Single-identifier base type: check in-scope type parameters first (in case a
+                // Kotlin type parameter shadows a class or primitive name), then primitives, then
+                // unqualified `java.lang.*` classes.
                 val simpleName = type.substring(firstStart, firstEnd)
-                val primitiveDescriptor = primitiveDescriptor(simpleName)
-                if (primitiveDescriptor != null) {
-                    out.append(primitiveDescriptor)
-                } else if (simpleName == "dynamic") {
-                    out.append("Ldynamic;")
+                val typeParamDesc = scope.findDescriptor(simpleName)
+                if (typeParamDesc != null) {
+                    out.append(typeParamDesc)
                 } else {
-                    out.append("Ljava/lang/").append(simpleName).append(';')
+                    val primitiveDescriptor = primitiveDescriptor(simpleName)
+                    if (primitiveDescriptor != null) {
+                        out.append(primitiveDescriptor)
+                    } else if (simpleName == "dynamic") {
+                        out.append("Ldynamic;")
+                    } else {
+                        out.append("Ljava/lang/").append(simpleName).append(';')
+                    }
                 }
             } else {
                 // Multi-segment qualified class or nested class (`java.lang.String`,
