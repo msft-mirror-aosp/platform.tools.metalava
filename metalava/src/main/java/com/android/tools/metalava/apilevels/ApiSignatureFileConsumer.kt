@@ -62,6 +62,9 @@ internal class ApiSignatureFileConsumer(
         var interfaceNames: List<String>,
     )
 
+    /** Resolver for converting raw type strings into erased JVM internal names and descriptors. */
+    private val typeDescriptorResolver = ErasedTypeDescriptorResolver()
+
     /** Whether [updater] has already updated [api] for this version. */
     private var updatedApi = false
 
@@ -184,35 +187,51 @@ internal class ApiSignatureFileConsumer(
                 classKind == ClassKind.ENUM,
             )
 
-        // Determine the default binary superclass for this class kind. Every class kind except
-        // java/lang/Object itself has a binary superclass (either java/lang/Object, java/lang/Enum,
-        // or java/lang/Record).
-        val defaultSuperClass =
-            when (classKind) {
-                ClassKind.ENUM -> JAVA_LANG_ENUM_INTERNAL_NAME
-                ClassKind.RECORD -> JAVA_LANG_RECORD_INTERNAL_NAME
-                ClassKind.CLASS ->
-                    if (internalName == JAVA_LANG_OBJECT_INTERNAL_NAME) null
-                    else JAVA_LANG_OBJECT_INTERNAL_NAME
-                ClassKind.INTERFACE,
-                ClassKind.ANNOTATION_TYPE -> JAVA_LANG_OBJECT_INTERNAL_NAME
-                ClassKind.TYPEALIAS -> null
+        // Resolve the explicit superclass if specified, or fall back to the default binary
+        // superclass for this class kind. Every class kind except java/lang/Object itself has a
+        // binary superclass (java/lang/Object, java/lang/Enum, or java/lang/Record).
+        val superClassName =
+            if (superClassTypeString != null) {
+                typeDescriptorResolver.resolveInternalName(superClassTypeString.type)
+            } else {
+                when (classKind) {
+                    ClassKind.ENUM -> JAVA_LANG_ENUM_INTERNAL_NAME
+                    ClassKind.RECORD -> JAVA_LANG_RECORD_INTERNAL_NAME
+                    ClassKind.CLASS ->
+                        if (internalName == JAVA_LANG_OBJECT_INTERNAL_NAME) null
+                        else JAVA_LANG_OBJECT_INTERNAL_NAME
+                    ClassKind.INTERFACE,
+                    ClassKind.ANNOTATION_TYPE -> JAVA_LANG_OBJECT_INTERNAL_NAME
+                    ClassKind.TYPEALIAS -> null
+                }
             }
 
-        // Annotation types implicitly implement java.lang.annotation.Annotation.
-        val defaultInterfaces =
-            if (classKind == ClassKind.ANNOTATION_TYPE) {
-                listOf(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+        // Resolve any explicit interfaces, combining them with java.lang.annotation.Annotation for
+        // annotation types.
+        val interfaceNames =
+            if (interfaceTypeStrings.isEmpty()) {
+                if (classKind == ClassKind.ANNOTATION_TYPE) {
+                    listOf(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+                } else {
+                    emptyList()
+                }
             } else {
-                emptyList()
+                buildList(interfaceTypeStrings.size + 1) {
+                    if (classKind == ClassKind.ANNOTATION_TYPE) {
+                        add(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+                    }
+                    for (interfaceTypeString in interfaceTypeStrings) {
+                        add(typeDescriptorResolver.resolveInternalName(interfaceTypeString.type))
+                    }
+                }
             }
 
         val classContext =
             ClassContext(
                 apiClass = apiClass,
                 effectivelyDeprecated = effectivelyDeprecated,
-                superClassName = defaultSuperClass,
-                interfaceNames = defaultInterfaces,
+                superClassName = superClassName,
+                interfaceNames = interfaceNames,
             )
         currentClass = classContext
         classes.add(classContext)

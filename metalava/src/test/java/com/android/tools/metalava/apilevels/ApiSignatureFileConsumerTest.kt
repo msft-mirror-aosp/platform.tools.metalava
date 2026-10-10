@@ -218,4 +218,45 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Explicit extends and implements supertypes`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Base {
+                  }
+                  public interface FirstInterface {
+                  }
+                  public interface SecondInterface extends test.pkg.FirstInterface, Runnable {
+                  }
+                  public class Sub extends test.pkg.Base implements test.pkg.SecondInterface, Comparable<test.pkg.Sub> {
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/Base" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/FirstInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/SecondInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="java/lang/Runnable"/>
+                            <implements name="test/pkg/FirstInterface"/>
+                        </class>
+                        <class name="test/pkg/Sub" since="1">
+                            <extends name="test/pkg/Base"/>
+                            <implements name="java/lang/Comparable"/>
+                            <implements name="test/pkg/SecondInterface"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
