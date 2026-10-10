@@ -678,14 +678,17 @@ internal class SingleSignatureFileParser(
 
         classKind.setImplicitModifiers(modifiers)
 
+        // Parse the declared class name and optional `<...>` type parameter list.
+        val fullName = parseQualifiedName()
+        val parsedTypeParameters = parseTypeParameterList()
+
         // Extract lots of information from the declared class type.
         val (
-            fullName,
             qualifiedClassName,
             outerClass,
             typeParameterList,
             typeItemFactory,
-        ) = parseDeclaredClassType(pkg, classPosition)
+        ) = resolveDeclaredClassType(pkg, fullName, parsedTypeParameters, classPosition)
 
         val superClassTypeString = parseSuperClassTypeString(classKind)
         val interfaceTypeStrings = parseInterfaceTypeStrings()
@@ -1057,10 +1060,8 @@ internal class SingleSignatureFileParser(
         return TypeString(fileSubstring(startOffset, endOffset), startOffset)
     }
 
-    /** Encapsulates multiple return values from [parseDeclaredClassType]. */
+    /** Encapsulates multiple return values from [resolveDeclaredClassType]. */
     private data class DeclaredClassTypeComponents(
-        /** The full name of the class, including outer class prefix. */
-        val fullName: String,
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
@@ -1075,19 +1076,17 @@ internal class SingleSignatureFileParser(
     )
 
     /**
-     * Parses the declared class type from [tokenStream] into [DeclaredClassTypeComponents].
-     *
-     * For example "Foo" would split into full name "Foo" and an empty type parameter list, while
-     * `"Foo.Bar<A, B extends java.lang.String, C>"` would split into full name `"Foo.Bar"` and type
-     * parameter list with `"A"`,`"B extends java.lang.String"`, and `"C"` as type parameters.
+     * Resolves the declared class name [fullName] and [parsedTypeParameters] in [pkg] into
+     * [DeclaredClassTypeComponents].
      *
      * If the qualified name matches an existing class then return its information.
      */
-    private fun parseDeclaredClassType(
+    private fun resolveDeclaredClassType(
         pkg: PackageItem,
+        fullName: String,
+        parsedTypeParameters: List<ParsedTypeParameter>,
         classFileLocation: FileLocation,
     ): DeclaredClassTypeComponents {
-        val fullName = parseQualifiedName()
         val pkgName = pkg.qualifiedName()
         val qualifiedName = qualifiedName(pkgName, fullName)
 
@@ -1110,8 +1109,6 @@ internal class SingleSignatureFileParser(
         // Get the [TextTypeItemFactory] for the outer class, if any.
         val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
 
-        // Parse the optional `<...>` type parameter list from [tokenStream].
-        val parsedTypeParameters = parseTypeParameterList()
         val (typeParameterList, typeItemFactory) =
             createTypeParameterListAndFactory(
                 outerClassTypeItemFactory,
@@ -1145,7 +1142,6 @@ internal class SingleSignatureFileParser(
             } ?: Pair(typeParameterList, typeItemFactory)
 
         return DeclaredClassTypeComponents(
-            fullName = fullName,
             qualifiedName = qualifiedName,
             outerClass = outerClass,
             typeParameterList = actualTypeParameterList,
