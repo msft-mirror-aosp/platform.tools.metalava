@@ -336,4 +336,83 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Nested classes and inner class constructors`() {
+        // TODO(b/572064985): ApiSignatureFileConsumer currently does not convert `.` to `$` in
+        //  nested class names, inherit deprecation from outer classes, or prepend the outer class
+        //  instance parameter to non-static inner class constructors.
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package android {
+                  public final class Manifest {
+                  }
+                  public static final class Manifest.permission {
+                    field public static final String CAMERA = "android.permission.CAMERA";
+                  }
+                }
+                package test.pkg {
+                  public class Outer {
+                    ctor public Outer();
+                  }
+                  public static class Outer.StaticNested {
+                    ctor public Outer.StaticNested(int);
+                  }
+                  public class Outer.Inner {
+                    ctor public Outer.Inner(String);
+                  }
+                  public class Outer.Inner.DeepInner {
+                    ctor public Outer.Inner.DeepInner(boolean);
+                  }
+                  public deprecated class DeprecatedOuter {
+                  }
+                  public static class DeprecatedOuter.Nested {
+                    ctor public DeprecatedOuter.Nested();
+                    method public void inheritedDeprecation();
+                    field public int inheritedDeprecatedField;
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="android/Manifest" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="android/Manifest.permission" since="1">
+                            <extends name="java/lang/Object"/>
+                            <field name="CAMERA"/>
+                        </class>
+                        <class name="test/pkg/DeprecatedOuter" since="1" deprecated="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/DeprecatedOuter.Nested" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="inheritedDeprecation()V"/>
+                            <field name="inheritedDeprecatedField"/>
+                        </class>
+                        <class name="test/pkg/Outer" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Outer.Inner" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>(Ljava/lang/String;)V"/>
+                        </class>
+                        <class name="test/pkg/Outer.Inner.DeepInner" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>(Z)V"/>
+                        </class>
+                        <class name="test/pkg/Outer.StaticNested" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>(I)V"/>
+                        </class>
+                    </api>
+                """,
+            checkCodebaseParity = false,
+        )
+    }
 }
