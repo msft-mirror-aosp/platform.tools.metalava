@@ -25,6 +25,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.RecordComponentItem
@@ -63,13 +64,13 @@ import java.nio.file.Path
  */
 internal class SignatureFileCodebaseBuilder(
     /** Populates the [Codebase] from the parsed signature file. */
-    val assembler: TextCodebaseAssembler,
+    private val assembler: TextCodebaseAssembler,
 
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     override val defaultTargetLanguageSet: Set<TargetLanguage>,
 
     /** Merges class re-definitions across signature files. */
-    val classMerger: ClassMerger,
+    private val classMerger: ClassMerger,
 
     /** Consumer of [TextTypeParser.Stats] after all signature files have been parsed. */
     private val apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
@@ -96,24 +97,19 @@ internal class SignatureFileCodebaseBuilder(
         )
 
     /** Provides support for parsing and caching [TypeItem]s. Initialized in [startFile]. */
-    lateinit var typeParser: TextTypeParser
-        private set
+    private lateinit var typeParser: TextTypeParser
 
     /** Provides support for creating [TypeItem]s for specific uses. Initialized in [startFile]. */
-    lateinit var globalTypeItemFactory: TextTypeItemFactory
-        private set
+    private lateinit var globalTypeItemFactory: TextTypeItemFactory
 
     /** The [Path] of the signature file currently being parsed. */
-    lateinit var currentPath: Path
-        private set
+    private lateinit var currentPath: Path
 
     /** The [LineMap] of the signature file currently being parsed. */
-    lateinit var currentLineMap: LineMap
-        private set
+    private lateinit var currentLineMap: LineMap
 
     /** The [ApiVariant] of the signature file currently being parsed. */
-    lateinit var currentApiVariant: ApiVariant
-        private set
+    private lateinit var currentApiVariant: ApiVariant
 
     /**
      * The [ClassOrigin] to assign to classes and type aliases defined in the signature file
@@ -130,7 +126,42 @@ internal class SignatureFileCodebaseBuilder(
         private set
 
     /** The [PackageItem] of the `package` block currently being parsed. */
-    lateinit var currentPackage: PackageItem
+    private lateinit var currentPackage: PackageItem
+
+    /** The [SkeletonClassItem] of the class currently being parsed. */
+    lateinit var currentClass: SkeletonClassItem
+        private set
+
+    /** The [TextTypeItemFactory] for [currentClass]. */
+    lateinit var currentClassTypeItemFactory: TextTypeItemFactory
+        private set
+
+    /**
+     * Whether [currentClass] is an existing class from a previously parsed signature file that
+     * already had constructors when [startClass] was called.
+     */
+    var hasExistingConstructors: Boolean = false
+        private set
+
+    /**
+     * Whether [currentClass] is an existing class from a previously parsed signature file that
+     * already had fields when [startClass] was called.
+     */
+    var hasExistingFields: Boolean = false
+        private set
+
+    /**
+     * Whether [currentClass] is an existing class from a previously parsed signature file that
+     * already had methods when [startClass] was called.
+     */
+    var hasExistingMethods: Boolean = false
+        private set
+
+    /**
+     * Whether [currentClass] is an existing class from a previously parsed signature file that
+     * already had properties when [startClass] was called.
+     */
+    var hasExistingProperties: Boolean = false
         private set
 
     /** The [Path] of the previously parsed signature file, if any. */
@@ -140,7 +171,7 @@ internal class SignatureFileCodebaseBuilder(
     private var previousKotlinStyleNulls: Boolean? = null
 
     /** Get the [FileLocation] at the 0-based [charOffset] in the current file. */
-    fun fileLocation(charOffset: Int): FileLocation =
+    private fun fileLocation(charOffset: Int): FileLocation =
         currentLineMap.fileLocation(currentPath, charOffset)
 
     /**
@@ -322,7 +353,7 @@ internal class SignatureFileCodebaseBuilder(
                 "typealias $name",
                 typeParameters,
             )
-        val qualifiedClassName = currentPackage.qualifiedName() + "." + name
+        val qualifiedClassName = qualifiedName(currentPackage.qualifiedName(), name)
         val type = typeItemFactory.getGeneralType(aliasedTypeString)
 
         // Check for the existing class from a previously parsed file. If it was found then use that
@@ -339,9 +370,7 @@ internal class SignatureFileCodebaseBuilder(
                 optionalAliasedType = type,
                 classOrigin = currentClassOrigin,
             )
-        val existingClass = codebase.findClassInCodebase(classCharacteristics.qualifiedName)
-        if (existingClass != null) {
-            classMerger.deferMergingIntoExistingClass(existingClass, classCharacteristics)
+        if (checkForExistingClass(classCharacteristics)) {
             return
         }
 
@@ -359,15 +388,136 @@ internal class SignatureFileCodebaseBuilder(
         markSelectedApiVariant(typeAlias)
     }
 
+    override fun startClass(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        classKind: ClassKind,
+        fullName: String,
+        typeParameters: List<ParsedTypeParameter>,
+        superClassTypeString: TypeString?,
+        interfaceTypeStrings: List<TypeString>,
+        permitTypeStrings: List<TypeString>,
+        recordComponents: List<ParsedRecordComponent>?,
+    ) {
+        // Resolve the declared class name, outer class, and type parameters in the current package.
+        val (
+            qualifiedClassName,
+            outerClass,
+            typeParameterList,
+            typeItemFactory,
+        ) = resolveDeclaredClassType(currentPackage, fullName, typeParameters, location)
+
+        var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
+        val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
+        val permitTypes = createPermitTypes(permitTypeStrings, typeItemFactory)
+
+        // Check for the existing class from a previously parsed file. If it was found then use that
+        // and return. If it could not be found then drop through to create it.
+        val classCharacteristics =
+            ClassCharacteristics(
+                fileLocation = location,
+                qualifiedName = qualifiedClassName,
+                fullName = fullName,
+                classKind = classKind,
+                modifiers = modifiers.toImmutable(),
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes,
+                optionalAliasedType = null,
+                classOrigin = currentClassOrigin,
+            )
+        if (checkForExistingClass(classCharacteristics)) {
+            return
+        }
+
+        // Default the superClassType() to java.lang.Object for any class that is not an interface,
+        // annotation, or enum and which is not itself java.lang.Object.
+        if (
+            classKind == ClassKind.CLASS &&
+                superClassType == null &&
+                qualifiedClassName != JAVA_LANG_OBJECT
+        ) {
+            superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
+        }
+
+        // Create the DefaultClassItem and set its package.
+        val cl =
+            itemFactory.createClassItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                classKind = classKind,
+                containingClass = outerClass,
+                containingPackage = currentPackage,
+                qualifiedName = qualifiedClassName,
+                typeParameterList = typeParameterList,
+                origin = currentClassOrigin,
+                superClassType = superClassType,
+                interfaceTypes = interfaceTypes.toList(),
+                permitTypes = permitTypes,
+                targetLanguages = targetLanguages,
+                // Classes with the placeholder name for top level declarations in a
+                // MultiplatformCodebase are definitely facade classes. There isn't enough
+                // information to tell for other classes, so this defaults to false otherwise.
+                isFileFacade = fullName == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME,
+                recordComponentItemsFactory =
+                    if (recordComponents == null) null
+                    else
+                        { classItem ->
+                            recordComponents.map {
+                                it.createRecordComponent(classItem, typeItemFactory)
+                            }
+                        }
+            )
+        markSelectedApiVariant(cl)
+
+        currentClass = cl
+        currentClassTypeItemFactory = typeItemFactory
+        hasExistingConstructors = false
+        hasExistingFields = false
+        hasExistingMethods = false
+        hasExistingProperties = false
+    }
+
+    /**
+     * Checks to see if there is an existing class with the same qualified name as
+     * [classCharacteristics] already existing in the codebase. If there is, sets [currentClass] and
+     * marks that [classCharacteristics] should be merged into the existing class.
+     *
+     * Returns whether a matching class was found.
+     */
+    private fun checkForExistingClass(
+        classCharacteristics: ClassCharacteristics,
+    ): Boolean {
+        val existingClass =
+            codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
+
+        // Set up the current class state so that any members in the class body are added to the
+        // existing class (typealiases do not have a class body).
+        if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
+            currentClass = existingClass
+            currentClassTypeItemFactory = typeItemFactoryForClass(existingClass)
+            hasExistingConstructors = existingClass.constructors().isNotEmpty()
+            hasExistingFields = existingClass.fields().isNotEmpty()
+            hasExistingMethods = existingClass.methods().isNotEmpty()
+            hasExistingProperties = existingClass.properties().isNotEmpty()
+        }
+
+        // Perform any merge checks after loading all the files. That is needed because merging
+        // may resolve classes and doing that during parsing can lead to issues.
+        classMerger.deferMergingIntoExistingClass(existingClass, classCharacteristics)
+
+        return true
+    }
+
     /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
-    fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
+    private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
         globalTypeItemFactory.from(classItem)
 
     /**
      * Resolves [superClassTypeString] using [typeItemFactory], falling back to
      * [ClassKind.implicitSuperClassType] if [superClassTypeString] is `null`.
      */
-    fun createSuperClassType(
+    private fun createSuperClassType(
         classKind: ClassKind,
         superClassTypeString: TypeString?,
         typeItemFactory: TextTypeItemFactory,
@@ -382,7 +532,7 @@ internal class SignatureFileCodebaseBuilder(
      * Resolves [interfaceTypeStrings] using [typeItemFactory] and combines them with any
      * [ClassKind.implicitInterfaceType].
      */
-    fun createInterfaceTypes(
+    private fun createInterfaceTypes(
         classKind: ClassKind,
         interfaceTypeStrings: List<TypeString>,
         typeItemFactory: TextTypeItemFactory,
@@ -402,7 +552,7 @@ internal class SignatureFileCodebaseBuilder(
      * Resolves [permitTypeStrings] using [typeItemFactory], returning the permitted subclass types
      * sorted by qualified name.
      */
-    fun createPermitTypes(
+    private fun createPermitTypes(
         permitTypeStrings: List<TypeString>,
         typeItemFactory: TextTypeItemFactory,
     ): List<ClassTypeItem> {
@@ -418,7 +568,7 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     /** Encapsulates multiple return values from [resolveDeclaredClassType]. */
-    data class DeclaredClassTypeComponents(
+    private data class DeclaredClassTypeComponents(
         /** The fully qualified name, including package and full name. */
         val qualifiedName: String,
         /** The optional, resolved outer [ClassItem]. */
@@ -438,7 +588,7 @@ internal class SignatureFileCodebaseBuilder(
      *
      * If the qualified name matches an existing class then return its information.
      */
-    fun resolveDeclaredClassType(
+    private fun resolveDeclaredClassType(
         pkg: PackageItem,
         fullName: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
@@ -552,7 +702,7 @@ internal class SignatureFileCodebaseBuilder(
      * Create a [RecordComponentItem] on [classItem] from this [ParsedRecordComponent] using
      * [typeItemFactory] to resolve its [ParsedRecordComponent.typeString].
      */
-    fun ParsedRecordComponent.createRecordComponent(
+    private fun ParsedRecordComponent.createRecordComponent(
         classItem: ClassItem,
         typeItemFactory: TextTypeItemFactory,
     ): RecordComponentItem =

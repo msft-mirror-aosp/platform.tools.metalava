@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
-import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
@@ -30,11 +29,9 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
@@ -47,7 +44,6 @@ import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
-import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
@@ -461,18 +457,14 @@ internal class SingleSignatureFileParser(
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder: Boolean,
 ) {
-    private val assembler = context.assembler
     private val codebase = context.codebase
 
     /** Creates [Item] instances for [codebase]. */
-    private val itemFactory = assembler.itemFactory
+    private val itemFactory = context.itemFactory
 
-    private val globalTypeItemFactory = context.globalTypeItemFactory
     private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
-    private val classMerger = context.classMerger
     private val kotlinStyleNulls = context.kotlinStyleNulls
-    private val classOrigin = context.currentClassOrigin
 
     /** The [TokenStream] of tokens from [apiText]. */
     private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
@@ -600,7 +592,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected '{' got ${text(openBrace)}", openBrace)
         }
         while (!match(SharedTokenType.BRACE_CLOSE)) {
-            parseClass(context.currentPackage)
+            parseClass()
         }
 
         context.endPackage()
@@ -644,8 +636,8 @@ internal class SingleSignatureFileParser(
         )
     }
 
-    /** Parse a class in [pkg]. */
-    private fun parseClass(pkg: PackageItem) {
+    /** Parse a class or typealias in the current package. */
+    private fun parseClass() {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
         val kindToken = requireNonEofToken()
         // Remember this position as this seems like a good place to use to report issues with the
@@ -680,23 +672,9 @@ internal class SingleSignatureFileParser(
         val fullName = parseQualifiedName()
         val parsedTypeParameters = parseTypeParameterList()
 
-        // Extract lots of information from the declared class type.
-        val (
-            qualifiedClassName,
-            outerClass,
-            typeParameterList,
-            typeItemFactory,
-        ) = context.resolveDeclaredClassType(pkg, fullName, parsedTypeParameters, classPosition)
-
         val superClassTypeString = parseSuperClassTypeString(classKind)
         val interfaceTypeStrings = parseInterfaceTypeStrings()
         val permitTypeStrings = parsePermitTypeStrings()
-
-        var superClassType =
-            context.createSuperClassType(classKind, superClassTypeString, typeItemFactory)
-        val interfaceTypes =
-            context.createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
-        val permitTypes = context.createPermitTypes(permitTypeStrings, typeItemFactory)
 
         val openBrace = requireNonEofToken()
         if (openBrace.type != SharedTokenType.BRACE_OPEN) {
@@ -708,34 +686,6 @@ internal class SingleSignatureFileParser(
             modifiers.setStatic(false)
         }
 
-        // Check for the existing class from a previously parsed file. If it was found then use that
-        // and return. If it could not be found then drop through to create it.
-        val classCharacteristics =
-            ClassCharacteristics(
-                fileLocation = classPosition,
-                qualifiedName = qualifiedClassName,
-                fullName = fullName,
-                classKind = classKind,
-                modifiers = modifiers.toImmutable(),
-                superClassType = superClassType,
-                interfaceTypes = interfaceTypes,
-                optionalAliasedType = null,
-                classOrigin = classOrigin,
-            )
-        if (checkForExistingClass(classCharacteristics)) {
-            return
-        }
-
-        // Default the superClassType() to java.lang.Object for any class that is not an interface,
-        // annotation, or enum and which is not itself java.lang.Object.
-        if (
-            classKind == ClassKind.CLASS &&
-                superClassType == null &&
-                qualifiedClassName != JAVA_LANG_OBJECT
-        ) {
-            superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
-        }
-
         val recordComponents =
             if (classKind == ClassKind.RECORD) {
                 // Parse record components
@@ -744,87 +694,37 @@ internal class SingleSignatureFileParser(
                 null
             }
 
-        // Create the DefaultClassItem and set its package but do not add it to the package or
-        // register it.
-        val cl =
-            itemFactory.createClassItem(
-                fileLocation = classPosition,
-                modifiers = modifiers,
-                classKind = classKind,
-                containingClass = outerClass,
-                containingPackage = pkg,
-                qualifiedName = qualifiedClassName,
-                typeParameterList = typeParameterList,
-                origin = classOrigin,
-                superClassType = superClassType,
-                interfaceTypes = interfaceTypes.toList(),
-                permitTypes = permitTypes,
-                targetLanguages = targetLanguages,
-                // Classes with the placeholder name for top level declarations in a
-                // MultiplatformCodebase are definitely facade classes. There isn't enough
-                // information to tell for other classes, so this defaults to false otherwise.
-                isFileFacade = fullName == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME,
-                recordComponentItemsFactory =
-                    if (recordComponents == null) null
-                    else
-                        { classItem ->
-                            recordComponents.map {
-                                with(context) {
-                                    it.createRecordComponent(classItem, typeItemFactory)
-                                }
-                            }
-                        }
-            )
-        cl.markSelectedApiVariant()
+        context.startClass(
+            location = classPosition,
+            modifiers = modifiers,
+            targetLanguages = targetLanguages,
+            classKind = classKind,
+            fullName = fullName,
+            typeParameters = parsedTypeParameters,
+            superClassTypeString = superClassTypeString,
+            interfaceTypeStrings = interfaceTypeStrings,
+            permitTypeStrings = permitTypeStrings,
+            recordComponents = recordComponents,
+        )
 
         // Parse the class body adding each member created to the class item being populated.
-        parseClassBody(cl, typeItemFactory, existingClass = false)
+        parseClassBody()
+
+        context.endClass()
     }
 
     /**
-     * Checks to see if there is an existing class with the same qualified name as
-     * [classCharacteristics] already existing in the codebase. If there is, marks that the
-     * [classCharacteristics] should be merged into the existing class.
-     *
-     * Returns whether a matching class was found.
-     */
-    private fun checkForExistingClass(
-        classCharacteristics: ClassCharacteristics,
-    ): Boolean {
-        val existingClass =
-            codebase.findClassInCodebase(classCharacteristics.qualifiedName) ?: return false
-
-        // Parse the class body adding each member created to the existing class (typealiases do not
-        // have a class body).
-        if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
-            parseClassBody(
-                existingClass,
-                context.typeItemFactoryForClass(existingClass),
-                existingClass = true,
-            )
-        }
-
-        // Perform any merge checks after loading all the files. That is needed because merging
-        // may resolve classes and doing that during parsing can lead to issues.
-        classMerger.deferMergingIntoExistingClass(existingClass, classCharacteristics)
-
-        return true
-    }
-
-    /**
-     * Parse the class body, adding members to [containingClass].
+     * Parse the class body, adding members to [SignatureFileCodebaseBuilder.currentClass].
      *
      * When the method returns, [tokenStream] will have consumed the closing `}` of the class body.
      */
-    private fun parseClassBody(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-        existingClass: Boolean,
-    ) {
-        val hasExistingConstructors = existingClass && containingClass.constructors().isNotEmpty()
-        val hasExistingFields = existingClass && containingClass.fields().isNotEmpty()
-        val hasExistingMethods = existingClass && containingClass.methods().isNotEmpty()
-        val hasExistingProperties = existingClass && containingClass.properties().isNotEmpty()
+    private fun parseClassBody() {
+        val containingClass = context.currentClass
+        val classTypeItemFactory = context.currentClassTypeItemFactory
+        val hasExistingConstructors = context.hasExistingConstructors
+        val hasExistingFields = context.hasExistingFields
+        val hasExistingMethods = context.hasExistingMethods
+        val hasExistingProperties = context.hasExistingProperties
 
         // Dispatch each member declaration by its leading keyword token type until the closing `}`
         // is consumed.
