@@ -41,6 +41,7 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
@@ -925,7 +926,7 @@ internal class SingleSignatureFileParser(
             superClassType = WellKnownTypes.JAVA_LANG_OBJECT_NON_NULL_TYPE
         }
 
-        val textRecordComponents =
+        val recordComponents =
             if (classKind == ClassKind.RECORD) {
                 // Parse record components
                 parseRecordComponents()
@@ -954,10 +955,10 @@ internal class SingleSignatureFileParser(
                 // information to tell for other classes, so this defaults to false otherwise.
                 isFileFacade = fullName == ClassItem.TOP_LEVEL_DECLARATION_FACADE_NAME,
                 recordComponentItemsFactory =
-                    if (textRecordComponents == null) null
+                    if (recordComponents == null) null
                     else
                         { classItem ->
-                            textRecordComponents.map {
+                            recordComponents.map {
                                 it.createRecordComponent(classItem, typeItemFactory)
                             }
                         }
@@ -1900,27 +1901,22 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parse record components, returning them as a list of [TextRecordComponent].
+     * Parse record components, returning them as a list of [ParsedRecordComponent].
      *
      * Consumes all consecutive `record_component` declarations from [tokenStream].
      */
-    private fun parseRecordComponents() = buildList {
+    private fun parseRecordComponents(): List<ParsedRecordComponent> = buildList {
         while (peekType() == SignatureTokenType.RECORD_COMPONENT) {
-            val textRecordComponent = parseRecordComponent()
-            add(textRecordComponent)
+            val recordComponent = parseRecordComponent()
+            add(recordComponent)
         }
     }
 
-    /** Encapsulates information about a record component extracted from the signature file. */
-    private data class TextRecordComponent(
-        val location: FileLocation,
-        val modifiers: MutableModifierList,
-        val name: String,
-        val typeString: TypeString,
-        val recordComponentIndex: Int,
-    )
-
-    private fun TextRecordComponent.createRecordComponent(
+    /**
+     * Create a [RecordComponentItem] on [classItem] from this [ParsedRecordComponent] using
+     * [typeItemFactory] to resolve its [ParsedRecordComponent.typeString].
+     */
+    private fun ParsedRecordComponent.createRecordComponent(
         classItem: ClassItem,
         typeItemFactory: TextTypeItemFactory,
     ) =
@@ -1933,8 +1929,8 @@ internal class SingleSignatureFileParser(
             recordComponentIndex = recordComponentIndex,
         )
 
-    /** Parse a record component class member into a [TextRecordComponent]. */
-    private fun parseRecordComponent(): TextRecordComponent {
+    /** Parse a record component class member into a [ParsedRecordComponent]. */
+    private fun parseRecordComponent(): ParsedRecordComponent {
         // Consume the `record_component` keyword and record its location.
         val recordComponentToken = requireNonEofToken()
         val location = fileLocation(recordComponentToken)
@@ -1958,7 +1954,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        return TextRecordComponent(
+        return ParsedRecordComponent(
             location,
             modifiers,
             name,
