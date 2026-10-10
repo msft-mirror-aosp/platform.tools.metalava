@@ -1445,15 +1445,18 @@ internal class SingleSignatureFileParser(
 
         val parameters = parseParameterList()
         // Parse the optional `throws` clause and terminating `;`.
-        var throwsList = emptyList<ExceptionTypeItem>()
-        if (match(SignatureTokenType.THROWS)) {
-            throwsList = parseThrows(typeItemFactory)
-        }
+        val throwsTypeStrings =
+            if (match(SignatureTokenType.THROWS)) {
+                parseThrowsTypeStrings()
+            } else {
+                emptyList()
+            }
         val semicolon = requireNonEofToken()
         if (semicolon.type != SignatureTokenType.SEMICOLON) {
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
+        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
         method =
             itemFactory.createConstructorItem(
                 fileLocation = fileLocation(semicolon),
@@ -1535,14 +1538,14 @@ internal class SingleSignatureFileParser(
             modifiers.setAbstract(true)
         }
 
-        var throwsList = emptyList<ExceptionTypeItem>()
+        var throwsTypeStrings = emptyList<TypeString>()
         var defaultAnnotationMethodValue: String? = null
 
         // Parse an optional `throws` clause or annotation method `default` value before the
         // terminating `;`.
         when {
             match(SignatureTokenType.THROWS) -> {
-                throwsList = parseThrows(typeItemFactory)
+                throwsTypeStrings = parseThrowsTypeStrings()
             }
             match(SignatureTokenType.DEFAULT) -> {
                 defaultAnnotationMethodValue = scanValueUntilSemicolon()
@@ -1553,6 +1556,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
+        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
         val defaultValueProvider =
             defaultAnnotationMethodValue?.let { valueString ->
                 valueParser.providerFor(returnType, valueString, ValueUseSite.ANNOTATION)
@@ -2380,11 +2384,9 @@ internal class SingleSignatureFileParser(
 
     /**
      * Parses a comma-separated list of exception types in a `throws` clause up to (but not
-     * consuming) the terminating `;`.
+     * consuming) the terminating `;`, returning their [TypeString]s.
      */
-    private fun parseThrows(
-        typeItemFactory: TextTypeItemFactory,
-    ): List<ExceptionTypeItem> {
+    private fun parseThrowsTypeStrings(): List<TypeString> {
         return buildList {
             // Tracks whether an exception type is expected next (true at the start of the list and
             // immediately after a comma).
@@ -2411,17 +2413,22 @@ internal class SingleSignatureFileParser(
                             )
                         }
                         comma = false
-                        // Parse the qualified name of the thrown exception and resolve its type.
+                        // Parse the qualified name of the thrown exception.
                         val startOffset = peek().startOffset
-                        val exceptionType =
-                            typeItemFactory.getExceptionType(
-                                TypeString(parseQualifiedName(), startOffset)
-                            )
-                        add(exceptionType)
+                        add(TypeString(parseQualifiedName(), startOffset))
                     }
                 }
             }
         }
+    }
+
+    /** Resolves a list of [throwsTypeStrings] into [ExceptionTypeItem]s using [typeItemFactory]. */
+    private fun createThrowsTypes(
+        throwsTypeStrings: List<TypeString>,
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ExceptionTypeItem> {
+        if (throwsTypeStrings.isEmpty()) return emptyList()
+        return throwsTypeStrings.map { typeString -> typeItemFactory.getExceptionType(typeString) }
     }
 
     /**
