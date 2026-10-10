@@ -425,11 +425,8 @@ private constructor(
         signatureFiles: List<SignatureFile>,
         apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
     ): Codebase {
-        val apiSurfaces = codebase.config.apiSurfaces
+        val parserContext = createParserContext(apiStatsConsumer)
         var appending = false
-        var previousPath: Path? = null
-        var previousKotlinStyleNulls: Boolean? = null
-        var parserContext: ParserContext? = null
         for (signatureFile in signatureFiles) {
             // When we're appending, and the content is empty, there is nothing to do.
             val apiText = signatureFile.readContents()
@@ -438,7 +435,6 @@ private constructor(
             }
 
             val path = signatureFile.file.toPath()
-            val apiVariant = signatureFile.apiVariantFor(apiSurfaces)
 
             // Parse the header of the signature file to determine the format. If the signature file
             // is empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
@@ -446,37 +442,16 @@ private constructor(
                 FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
                     ?: FileFormat.V2
 
-            // Disallow a mixture of kotlinStyleNulls settings.
-            val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
-            if (
-                previousKotlinStyleNulls != null &&
-                    previousKotlinStyleNulls != kotlinStyleNullsForThisFile
-            ) {
-                codebase.reporter.report(
-                    Issues.SIGNATURE_FILE_ERROR,
-                    null,
-                    "Preceding file $previousPath has different setting of kotlin-style-nulls which may cause issues",
-                    FileLocation.createLocation(path, 1),
-                )
-            }
-            previousPath = path
-            previousKotlinStyleNulls = kotlinStyleNullsForThisFile
-
-            val context =
-                parserContext
-                    ?: createParserContext(kotlinStyleNullsForThisFile, apiStatsConsumer).also {
-                        parserContext = it
-                    }
+            val lineMap = LineMap.create(apiText)
+            parserContext.startFile(signatureFile, path, lineMap, format)
 
             val parser =
                 SingleSignatureFileParser(
-                    context = context,
+                    context = parserContext,
                     path = path,
                     apiText = apiText,
-                    kotlinStyleNulls = kotlinStyleNullsForThisFile,
+                    lineMap = lineMap,
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
-                    apiVariant = apiVariant,
-                    classOrigin = signatureFile.classOrigin,
                 )
 
             // Set the current parser to provide location information about the current file.
@@ -484,12 +459,12 @@ private constructor(
 
             parser.parse()
 
+            parserContext.endFile()
+
             appending = true
         }
 
-        // Known to be non-null as `signatureFiles` is never empty and the first file is never
-        // skipped.
-        parserContext!!.finish()
+        parserContext.finish()
 
         return codebase
     }
@@ -497,31 +472,15 @@ private constructor(
     /**
      * Creates the [ParserContext] shared across all signature files parsed by [parseMultipleFiles].
      *
-     * Called once the header of the first signature file has been parsed so that the
-     * [TextTypeParser] is configured with the [kotlinStyleNulls] setting from the first file.
-     *
-     * @param kotlinStyleNulls whether types should be interpreted to be in Kotlin format (e.g. `?`
-     *   suffix means nullable, `!` suffix means unknown, and absence of a suffix means not
-     *   nullable).
      * @param apiStatsConsumer consumer of [TextTypeParser.Stats] after all signature files have
      *   been parsed.
      */
     private fun createParserContext(
-        kotlinStyleNulls: Boolean,
         apiStatsConsumer: (TextTypeParser.Stats) -> Unit,
     ): ParserContext {
-        val typeParser = TextTypeParser(codebase, kotlinStyleNulls, typeItemParserErrorReporter)
-        val globalTypeItemFactory = TextTypeItemFactory(assembler, typeParser)
-        val valueParser =
-            ValueParser(
-                codebase,
-                TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
-            )
         return ParserContext(
             assembler = assembler,
-            typeParser = typeParser,
-            globalTypeItemFactory = globalTypeItemFactory,
-            valueParser = valueParser,
+            typeItemParserErrorReporter = typeItemParserErrorReporter,
             defaultTargetLanguageSet = defaultTargetLanguageSet,
             classMerger = ClassMerger(allowClassModifierChanges),
             apiStatsConsumer = apiStatsConsumer,
@@ -537,14 +496,8 @@ internal class ParserContext(
     /** Populates the [Codebase] from the parsed signature file. */
     val assembler: TextCodebaseAssembler,
 
-    /** Provides support for parsing and caching [TypeItem]s. */
-    val typeParser: TextTypeParser,
-
-    /** Provides support for creating [TypeItem]s for specific uses. */
-    val globalTypeItemFactory: TextTypeItemFactory,
-
-    /** The [ValueParser] to use for creating [Value]s from a signature file. */
-    val valueParser: ValueParser,
+    /** Reports recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter: TypeItemParserErrorReporter,
 
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     val defaultTargetLanguageSet: Set<TargetLanguage>,
@@ -555,6 +508,100 @@ internal class ParserContext(
     /** Consumer of [TextTypeParser.Stats] after all signature files have been parsed. */
     private val apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
 ) {
+    /** The [DefaultCodebase] being populated. */
+    val codebase: DefaultCodebase = assembler.codebase
+
+    /** The [ValueParser] to use for creating [Value]s from a signature file. */
+    val valueParser: ValueParser =
+        ValueParser(
+            codebase,
+            TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
+        )
+
+    /** Provides support for parsing and caching [TypeItem]s. Initialized in [startFile]. */
+    lateinit var typeParser: TextTypeParser
+        private set
+
+    /** Provides support for creating [TypeItem]s for specific uses. Initialized in [startFile]. */
+    lateinit var globalTypeItemFactory: TextTypeItemFactory
+        private set
+
+    /** The [Path] of the signature file currently being parsed. */
+    lateinit var currentPath: Path
+        private set
+
+    /** The [LineMap] of the signature file currently being parsed. */
+    lateinit var currentLineMap: LineMap
+        private set
+
+    /** The [ApiVariant] of the signature file currently being parsed. */
+    lateinit var currentApiVariant: ApiVariant
+        private set
+
+    /**
+     * The [ClassOrigin] to assign to classes and type aliases defined in the signature file
+     * currently being parsed.
+     */
+    lateinit var currentClassOrigin: ClassOrigin
+        private set
+
+    /**
+     * Whether types in the current file should be interpreted to be in Kotlin format (e.g. `?`
+     * suffix means nullable, `!` suffix means unknown, and absence of a suffix means not nullable).
+     */
+    var kotlinStyleNulls: Boolean = false
+        private set
+
+    /** The [Path] of the previously parsed signature file, if any. */
+    private var previousPath: Path? = null
+
+    /** The [kotlinStyleNulls] setting of the previously parsed signature file, if any. */
+    private var previousKotlinStyleNulls: Boolean? = null
+
+    /**
+     * Called before parsing each [signatureFile] at [path] with [lineMap] and [format].
+     *
+     * Validates that [KOTLIN_STYLE_NULLS] is consistent across all parsed files and initializes
+     * [typeParser] and [globalTypeItemFactory] on the first file.
+     */
+    fun startFile(
+        signatureFile: SignatureFile,
+        path: Path,
+        lineMap: LineMap,
+        format: FileFormat,
+    ) {
+        currentPath = path
+        currentLineMap = lineMap
+        currentApiVariant = signatureFile.apiVariantFor(codebase.config.apiSurfaces)
+        currentClassOrigin = signatureFile.classOrigin
+
+        // Disallow a mixture of kotlinStyleNulls settings.
+        val kotlinStyleNullsForThisFile = format[KOTLIN_STYLE_NULLS]
+        if (
+            previousKotlinStyleNulls != null &&
+                previousKotlinStyleNulls != kotlinStyleNullsForThisFile
+        ) {
+            codebase.reporter.report(
+                Issues.SIGNATURE_FILE_ERROR,
+                null,
+                "Preceding file $previousPath has different setting of kotlin-style-nulls which may cause issues",
+                FileLocation.createLocation(path, 1),
+            )
+        }
+        previousPath = path
+        previousKotlinStyleNulls = kotlinStyleNullsForThisFile
+        kotlinStyleNulls = kotlinStyleNullsForThisFile
+
+        if (!::typeParser.isInitialized) {
+            typeParser =
+                TextTypeParser(codebase, kotlinStyleNullsForThisFile, typeItemParserErrorReporter)
+            globalTypeItemFactory = TextTypeItemFactory(assembler, typeParser)
+        }
+    }
+
+    /** Called after finishing parsing the current signature file. */
+    fun endFile() {}
+
     /**
      * Completes processing after all signature files have been parsed, performing any deferred
      * class merges, reporting type parser statistics, and updating implicit permit types on sealed
@@ -566,7 +613,7 @@ internal class ParserContext(
         apiStatsConsumer(typeParser.stats())
 
         // Update implicit permit types in any sealed class that does not have one provided.
-        SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(assembler.codebase)
+        SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
     }
 }
 
@@ -580,23 +627,14 @@ internal class SingleSignatureFileParser(
     /** The contents of the signature file being parsed. */
     private val apiText: String,
 
-    /**
-     * Whether types should be interpreted to be in Kotlin format (e.g. `?` suffix means nullable,
-     * `!` suffix means unknown, and absence of a suffix means not nullable).
-     */
-    private val kotlinStyleNulls: Boolean,
+    /** Maps character offsets in [apiText] to line numbers. */
+    private val lineMap: LineMap,
 
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder: Boolean,
-
-    /** The [ApiVariant] which is defined within the current signature file being parsed. */
-    private val apiVariant: ApiVariant,
-
-    /** The [ClassOrigin] to assign to classes and type aliases defined in this signature file. */
-    private val classOrigin: ClassOrigin,
 ) {
     private val assembler = context.assembler
-    private val codebase = assembler.codebase
+    private val codebase = context.codebase
 
     /** Creates [Item] instances for [codebase]. */
     private val itemFactory = assembler.itemFactory
@@ -605,9 +643,9 @@ internal class SingleSignatureFileParser(
     private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
     private val classMerger = context.classMerger
-
-    /** Maps character offsets in [apiText] to line numbers. */
-    private val lineMap: LineMap = LineMap.create(apiText)
+    private val kotlinStyleNulls = context.kotlinStyleNulls
+    private val apiVariant = context.currentApiVariant
+    private val classOrigin = context.currentClassOrigin
 
     /** The [TokenStream] of tokens from [apiText]. */
     private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
