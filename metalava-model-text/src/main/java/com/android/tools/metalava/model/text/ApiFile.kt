@@ -15,10 +15,6 @@
  */
 package com.android.tools.metalava.model.text
 
-import com.android.tools.metalava.model.ANDROIDX_NONNULL
-import com.android.tools.metalava.model.ANDROIDX_NULLABLE
-import com.android.tools.metalava.model.AnnotationItem
-import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
@@ -34,7 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
-import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -457,14 +452,11 @@ internal class SingleSignatureFileParser(
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder: Boolean,
 ) {
-    private val codebase = context.codebase
-
-    /** Creates [Item] instances for [codebase]. */
+    /** Creates [Item] instances for the codebase. */
     private val itemFactory = context.itemFactory
 
     private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
-    private val kotlinStyleNulls = context.kotlinStyleNulls
 
     /** The [TokenStream] of tokens from [apiText]. */
     private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
@@ -942,19 +934,13 @@ internal class SingleSignatureFileParser(
     /**
      * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
-     *
-     * This is called from within the constructor of the [containingCallable] so must only access
-     * its `name` and its reference. In particularly it must not access its
-     * [CallableItem.parameters] property as this is called during its initialization.
      */
     private fun createParameterItems(
         containingCallable: CallableItem,
         parameters: List<ParsedParameter>,
-        typeItemFactory: TextTypeItemFactory
-    ): List<ParameterItem> {
-        val methodFingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
-        return parameters.map { it.create(containingCallable, typeItemFactory, methodFingerprint) }
-    }
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ParameterItem> =
+        context.createParameterItems(containingCallable, parameters, typeItemFactory)
 
     /** Parse a constructor member of [containingClass]. */
     private fun parseConstructor(
@@ -1754,53 +1740,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Turn this [ParsedParameter] into a [ParameterItem] of the [containingCallable] by parsing the
-     * [ParsedParameter.typeString].
-     */
-    private fun ParsedParameter.create(
-        containingCallable: CallableItem,
-        typeItemFactory: TextTypeItemFactory,
-        methodFingerprint: MethodFingerprint,
-    ): ParameterItem {
-        val type =
-            typeItemFactory.getMethodParameterType(
-                typeString,
-                modifiers.annotations(),
-                methodFingerprint,
-                index,
-                modifiers.isVarArg()
-            )
-        synchronizeNullability(type, modifiers)
-
-        // The last parameter of a suspend function is the continuation parameter. If there was
-        // a parameter kind listed in the file, use that, otherwise this is a value parameter.
-        val kind =
-            if (
-                containingCallable.modifiers.isSuspend() &&
-                    index == methodFingerprint.parameterCount - 1
-            ) {
-                ParameterKind.CONTINUATION
-            } else {
-                optionalKind ?: ParameterKind.VALUE
-            }
-
-        val parameter =
-            itemFactory.createParameterItem(
-                fileLocation = location,
-                modifiers = modifiers,
-                name = name,
-                publicName = publicName,
-                containingItem = containingCallable,
-                parameterIndex = index,
-                type = type,
-                hasDefaultValue = hasDefaultValue,
-                kind = kind,
-            )
-
-        return parameter
-    }
-
-    /**
      * Turn this [ParsedParameter] into a context [ParameterItem] of the [containingProperty] by
      * parsing the [ParsedParameter.typeString].
      */
@@ -1911,10 +1850,7 @@ internal class SingleSignatureFileParser(
     private fun createThrowsTypes(
         throwsTypeStrings: List<TypeString>,
         typeItemFactory: TextTypeItemFactory,
-    ): List<ExceptionTypeItem> {
-        if (throwsTypeStrings.isEmpty()) return emptyList()
-        return throwsTypeStrings.map { typeString -> typeItemFactory.getExceptionType(typeString) }
-    }
+    ): List<ExceptionTypeItem> = context.createThrowsTypes(throwsTypeStrings, typeItemFactory)
 
     /**
      * Scans the token stream from [tokenStream] for a type string, ensuring that the full type
@@ -1986,27 +1922,7 @@ internal class SingleSignatureFileParser(
      * @param modifiers the API item's modifiers.
      */
     private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
-        if (kotlinStyleNulls) {
-            // Add an annotation to the context item for the type's nullability if applicable.
-            val annotationClassNameToAdd =
-                // Treat varargs as non-null for consistency with the psi model.
-                if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
-                    ANDROIDX_NONNULL
-                } else {
-                    val nullability = typeItem.modifiers.nullability
-                    if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
-                        ANDROIDX_NONNULL
-                    } else if (nullability == TypeNullability.NULLABLE) {
-                        ANDROIDX_NULLABLE
-                    } else {
-                        // No annotation to add, return.
-                        return
-                    }
-                }
-            val annotation =
-                AnnotationItem.createMarkerAnnotation(codebase, annotationClassNameToAdd)
-            modifiers.addAnnotation(annotation)
-        }
+        context.synchronizeNullability(typeItem, modifiers)
     }
 
     /**

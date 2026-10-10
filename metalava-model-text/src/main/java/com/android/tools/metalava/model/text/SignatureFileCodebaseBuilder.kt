@@ -16,24 +16,33 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ANDROIDX_NONNULL
+import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ArrayTypeItem
+import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.ParameterItem
+import com.android.tools.metalava.model.ParameterKind
+import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
@@ -47,6 +56,7 @@ import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.SharedTokenType
 import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
+import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
@@ -76,7 +86,7 @@ internal class SignatureFileCodebaseBuilder(
     private val apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
 ) : SignatureFileConsumer {
     /** The [DefaultCodebase] being populated. */
-    val codebase: DefaultCodebase = assembler.codebase
+    private val codebase: DefaultCodebase = assembler.codebase
 
     /** Creates [Item] instances for [codebase]. */
     val itemFactory = assembler.itemFactory
@@ -122,8 +132,7 @@ internal class SignatureFileCodebaseBuilder(
      * Whether types in the current file should be interpreted to be in Kotlin format (e.g. `?`
      * suffix means nullable, `!` suffix means unknown, and absence of a suffix means not nullable).
      */
-    var kotlinStyleNulls: Boolean = false
-        private set
+    private var kotlinStyleNulls: Boolean = false
 
     /** The [PackageItem] of the `package` block currently being parsed. */
     private lateinit var currentPackage: PackageItem
@@ -140,8 +149,7 @@ internal class SignatureFileCodebaseBuilder(
      * Whether [currentClass] is an existing class from a previously parsed signature file that
      * already had constructors when [startClass] was called.
      */
-    var hasExistingConstructors: Boolean = false
-        private set
+    private var hasExistingConstructors: Boolean = false
 
     /**
      * Whether [currentClass] is an existing class from a previously parsed signature file that
@@ -696,6 +704,109 @@ internal class SignatureFileCodebaseBuilder(
                 }
             },
         )
+    }
+
+    /**
+     * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
+     * [typeItemFactory] to create types.
+     *
+     * This is called from within the constructor of the [containingCallable] so must only access
+     * its `name` and its reference. In particularly it must not access its
+     * [CallableItem.parameters] property as this is called during its initialization.
+     */
+    fun createParameterItems(
+        containingCallable: CallableItem,
+        parameters: List<ParsedParameter>,
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ParameterItem> {
+        val methodFingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
+        return parameters.map { it.create(containingCallable, typeItemFactory, methodFingerprint) }
+    }
+
+    /**
+     * Turn this [ParsedParameter] into a [ParameterItem] of the [containingCallable] by parsing the
+     * [ParsedParameter.typeString].
+     */
+    private fun ParsedParameter.create(
+        containingCallable: CallableItem,
+        typeItemFactory: TextTypeItemFactory,
+        methodFingerprint: MethodFingerprint,
+    ): ParameterItem {
+        val type =
+            typeItemFactory.getMethodParameterType(
+                typeString,
+                modifiers.annotations(),
+                methodFingerprint,
+                index,
+                modifiers.isVarArg(),
+            )
+        synchronizeNullability(type, modifiers)
+
+        // The last parameter of a suspend function is the continuation parameter. If there was
+        // a parameter kind listed in the file, use that, otherwise this is a value parameter.
+        val kind =
+            if (
+                containingCallable.modifiers.isSuspend() &&
+                    index == methodFingerprint.parameterCount - 1
+            ) {
+                ParameterKind.CONTINUATION
+            } else {
+                optionalKind ?: ParameterKind.VALUE
+            }
+
+        return itemFactory.createParameterItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            name = name,
+            publicName = publicName,
+            containingItem = containingCallable,
+            parameterIndex = index,
+            type = type,
+            hasDefaultValue = hasDefaultValue,
+            kind = kind,
+        )
+    }
+
+    /** Resolves a list of [throwsTypeStrings] into [ExceptionTypeItem]s using [typeItemFactory]. */
+    fun createThrowsTypes(
+        throwsTypeStrings: List<TypeString>,
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ExceptionTypeItem> {
+        if (throwsTypeStrings.isEmpty()) return emptyList()
+        return throwsTypeStrings.map { typeString -> typeItemFactory.getExceptionType(typeString) }
+    }
+
+    /**
+     * Synchronize nullability annotations on the API item and [TypeNullability].
+     *
+     * If the type string uses a Kotlin nullability suffix, this adds an annotation representing
+     * that nullability to [modifiers].
+     *
+     * @param typeItem the type of the API item.
+     * @param modifiers the API item's modifiers.
+     */
+    fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
+        if (kotlinStyleNulls) {
+            // Add an annotation to the context item for the type's nullability if applicable.
+            val annotationClassNameToAdd =
+                // Treat varargs as non-null for consistency with the psi model.
+                if (typeItem is ArrayTypeItem && typeItem.isVarargs) {
+                    ANDROIDX_NONNULL
+                } else {
+                    val nullability = typeItem.modifiers.nullability
+                    if (typeItem !is PrimitiveTypeItem && nullability == TypeNullability.NONNULL) {
+                        ANDROIDX_NONNULL
+                    } else if (nullability == TypeNullability.NULLABLE) {
+                        ANDROIDX_NULLABLE
+                    } else {
+                        // No annotation to add, return.
+                        return
+                    }
+                }
+            val annotation =
+                AnnotationItem.createMarkerAnnotation(codebase, annotationClassNameToAdd)
+            modifiers.addAnnotation(annotation)
+        }
     }
 
     /**
