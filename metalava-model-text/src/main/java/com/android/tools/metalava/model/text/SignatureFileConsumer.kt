@@ -209,4 +209,26 @@ interface SignatureFileConsumer {
         valueString: String?,
         isEnumConstant: Boolean,
     )
+
+    /**
+     * Called when a `property` declaration is parsed in the current class.
+     *
+     * @param location the [FileLocation] of the property declaration.
+     * @param modifiers the modifiers and annotations on the property.
+     * @param name the name of the property.
+     * @param receiverTypeString the [TypeString] of the property's extension receiver, or `null` if
+     *   none was specified.
+     * @param typeString the [TypeString] of the property's type.
+     * @param typeParameters the parsed type parameters of the property.
+     * @param contextParameters the parsed context parameters of the property.
+     */
+    fun consumeProperty(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        name: String,
+        receiverTypeString: TypeString?,
+        typeString: TypeString,
+        typeParameters: List<ParsedTypeParameter>,
+        contextParameters: List<ParsedParameter>,
+    )
 }

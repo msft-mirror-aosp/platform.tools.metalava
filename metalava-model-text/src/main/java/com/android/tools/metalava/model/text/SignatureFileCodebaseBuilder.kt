@@ -36,6 +36,7 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
@@ -90,7 +91,7 @@ internal class SignatureFileCodebaseBuilder(
     private val codebase: DefaultCodebase = assembler.codebase
 
     /** Creates [Item] instances for [codebase]. */
-    val itemFactory = assembler.itemFactory
+    private val itemFactory = assembler.itemFactory
 
     /** Report recoverable errors encountered while parsing types. */
     private val typeItemParserErrorReporter =
@@ -139,12 +140,10 @@ internal class SignatureFileCodebaseBuilder(
     private lateinit var currentPackage: PackageItem
 
     /** The [SkeletonClassItem] of the class currently being parsed. */
-    lateinit var currentClass: SkeletonClassItem
-        private set
+    private lateinit var currentClass: SkeletonClassItem
 
     /** The [TextTypeItemFactory] for [currentClass]. */
-    lateinit var currentClassTypeItemFactory: TextTypeItemFactory
-        private set
+    private lateinit var currentClassTypeItemFactory: TextTypeItemFactory
 
     /**
      * Whether [currentClass] is an existing class from a previously parsed signature file that
@@ -168,8 +167,7 @@ internal class SignatureFileCodebaseBuilder(
      * Whether [currentClass] is an existing class from a previously parsed signature file that
      * already had properties when [startClass] was called.
      */
-    var hasExistingProperties: Boolean = false
-        private set
+    private var hasExistingProperties: Boolean = false
 
     /** The [Path] of the previously parsed signature file, if any. */
     private var previousPath: Path? = null
@@ -196,7 +194,7 @@ internal class SignatureFileCodebaseBuilder(
      * If this item was already defined in a different API surface, this will not add the new
      * surface.
      */
-    fun markSelectedApiVariant(item: SelectableItem) {
+    private fun markSelectedApiVariant(item: SelectableItem) {
         item.selectedApi.addItemApiVariant(currentApiVariant)
     }
 
@@ -670,7 +668,7 @@ internal class SignatureFileCodebaseBuilder(
      * If [parsedTypeParameters] is empty, returns [TypeParameterList.NONE] paired with
      * [enclosingTypeItemFactory] without allocating a nested factory.
      */
-    fun createTypeParameterListAndFactory(
+    private fun createTypeParameterListAndFactory(
         enclosingTypeItemFactory: TextTypeItemFactory,
         scopeDescription: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
@@ -879,6 +877,52 @@ internal class SignatureFileCodebaseBuilder(
         }
     }
 
+    override fun consumeProperty(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        name: String,
+        receiverTypeString: TypeString?,
+        typeString: TypeString,
+        typeParameters: List<ParsedTypeParameter>,
+        contextParameters: List<ParsedParameter>,
+    ) {
+        val containingClass = currentClass
+        // Get a TypeParameterList and accompanying TypeParameterScope
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                currentClassTypeItemFactory,
+                "property",
+                typeParameters,
+            )
+
+        val type = typeItemFactory.getGeneralType(typeString)
+        synchronizeNullability(type, modifiers)
+        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
+
+        val property =
+            itemFactory.createPropertyItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                name = name,
+                containingClass = containingClass,
+                type = type,
+                receiver = receiverType,
+                typeParameterList = typeParameterList,
+                // There isn't any information about whether a setter exists or its visibility if it
+                // does in API files currently.
+                setterVisibility = null,
+                contextParameterFactory = { propertyItem ->
+                    contextParameters.map { it.create(propertyItem, typeItemFactory) }
+                },
+            )
+        markSelectedApiVariant(property)
+        if (hasExistingProperties) {
+            containingClass.replaceOrAddProperty(property)
+        } else {
+            containingClass.addProperty(property)
+        }
+    }
+
     /**
      * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
@@ -940,6 +984,29 @@ internal class SignatureFileCodebaseBuilder(
         )
     }
 
+    /**
+     * Turn this [ParsedParameter] into a context [ParameterItem] of the [containingProperty] by
+     * parsing the [ParsedParameter.typeString].
+     */
+    private fun ParsedParameter.create(
+        containingProperty: PropertyItem,
+        typeItemFactory: TextTypeItemFactory,
+    ): ParameterItem {
+        val type = typeItemFactory.getGeneralType(typeString)
+        synchronizeNullability(type, modifiers)
+        return itemFactory.createParameterItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            name = name,
+            publicName = publicName,
+            containingItem = containingProperty,
+            parameterIndex = index,
+            type = type,
+            hasDefaultValue = hasDefaultValue,
+            kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
+        )
+    }
+
     /** Resolves a list of [throwsTypeStrings] into [ExceptionTypeItem]s using [typeItemFactory]. */
     private fun createThrowsTypes(
         throwsTypeStrings: List<TypeString>,
@@ -958,7 +1025,7 @@ internal class SignatureFileCodebaseBuilder(
      * @param typeItem the type of the API item.
      * @param modifiers the API item's modifiers.
      */
-    fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
+    private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
         if (kotlinStyleNulls) {
             // Add an annotation to the context item for the type's nullability if applicable.
             val annotationClassNameToAdd =

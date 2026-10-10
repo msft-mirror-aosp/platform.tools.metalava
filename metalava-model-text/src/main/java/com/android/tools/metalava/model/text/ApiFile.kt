@@ -22,16 +22,9 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MutableModifierList
-import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
-import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.SelectableItem
-import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
-import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.TypeNullability
-import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
@@ -46,7 +39,6 @@ import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_NAME_TYPE_ORDER
 import com.android.tools.metalava.model.text.parser.SignatureFileLexer
 import com.android.tools.metalava.model.text.parser.SignatureTokenType
-import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.reporter.FileLocation
@@ -389,7 +381,7 @@ private constructor(
 
             val parser =
                 SingleSignatureFileParser(
-                    context = builder,
+                    consumer = builder,
                     path = path,
                     apiText = apiText,
                     lineMap = lineMap,
@@ -429,7 +421,8 @@ private constructor(
 
 /** Parser for a single signature file. */
 internal class SingleSignatureFileParser(
-    private val context: SignatureFileCodebaseBuilder,
+    /** The [SignatureFileConsumer] notified of parsed declarations in this file. */
+    private val consumer: SignatureFileConsumer,
 
     /** The [Path] to the signature file being parsed. */
     private val path: Path,
@@ -443,10 +436,7 @@ internal class SingleSignatureFileParser(
     /** See [KOTLIN_NAME_TYPE_ORDER]. */
     private val kotlinNameTypeOrder: Boolean,
 ) {
-    /** Creates [Item] instances for the codebase. */
-    private val itemFactory = context.itemFactory
-
-    private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
+    private val defaultTargetLanguageSet = consumer.defaultTargetLanguageSet
 
     /** The [TokenStream] of tokens from [apiText]. */
     private val tokenStream: TokenStream = SignatureFileLexer(apiText).tokenize()
@@ -525,18 +515,7 @@ internal class SingleSignatureFileParser(
         return fileSubstring(firstToken.startOffset, endOffset)
     }
 
-    /**
-     * Record that this [SelectableItem] was loaded from a signature file that contains
-     * [SignatureFileCodebaseBuilder.currentApiVariant].
-     *
-     * If this class was already defined in a different API surface, this will not add the new
-     * surface.
-     */
-    private fun SelectableItem.markSelectedApiVariant() {
-        context.markSelectedApiVariant(this)
-    }
-
-    /** Parse the signature file from [tokenStream], populating [codebase]. */
+    /** Parse the signature file from [tokenStream], notifying [consumer] of each declaration. */
     fun parse() {
         // Consume each top-level `package` block until the end of the file is reached.
         while (peekType() != SharedTokenType.EOF) {
@@ -555,7 +534,7 @@ internal class SingleSignatureFileParser(
         val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE)
         val name: String = parseQualifiedName()
 
-        context.startPackage(fileLocation(packageToken), modifiers, name)
+        consumer.startPackage(fileLocation(packageToken), modifiers, name)
 
         // Consume the `{` opening the package body, then parse each class/typealias until `}`.
         val openBrace = requireNonEofToken()
@@ -566,7 +545,7 @@ internal class SingleSignatureFileParser(
             parseClass()
         }
 
-        context.endPackage()
+        consumer.endPackage()
     }
 
     /**
@@ -598,7 +577,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        context.consumeTypeAlias(
+        consumer.consumeTypeAlias(
             location = location,
             modifiers = modifiers,
             name = name,
@@ -665,7 +644,7 @@ internal class SingleSignatureFileParser(
                 null
             }
 
-        context.startClass(
+        consumer.startClass(
             location = classPosition,
             modifiers = modifiers,
             targetLanguages = targetLanguages,
@@ -681,19 +660,15 @@ internal class SingleSignatureFileParser(
         // Parse the class body adding each member created to the class item being populated.
         parseClassBody()
 
-        context.endClass()
+        consumer.endClass()
     }
 
     /**
-     * Parse the class body, adding members to [SignatureFileCodebaseBuilder.currentClass].
+     * Parse the class body, notifying [consumer] of each member declaration.
      *
      * When the method returns, [tokenStream] will have consumed the closing `}` of the class body.
      */
     private fun parseClassBody() {
-        val containingClass = context.currentClass
-        val classTypeItemFactory = context.currentClassTypeItemFactory
-        val hasExistingProperties = context.hasExistingProperties
-
         // Dispatch each member declaration by its leading keyword token type until the closing `}`
         // is consumed.
         while (!match(SharedTokenType.BRACE_CLOSE)) {
@@ -712,12 +687,7 @@ internal class SingleSignatureFileParser(
                     parseMethod()
                 }
                 SignatureTokenType.PROPERTY -> {
-                    val property = parseProperty(containingClass, classTypeItemFactory)
-                    if (hasExistingProperties) {
-                        containingClass.replaceOrAddProperty(property)
-                    } else {
-                        containingClass.addProperty(property)
-                    }
+                    parseProperty()
                 }
                 else ->
                     throw parseException(
@@ -909,7 +879,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        context.consumeConstructor(
+        consumer.consumeConstructor(
             location = fileLocation(semicolon),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
@@ -971,7 +941,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        context.consumeMethod(
+        consumer.consumeMethod(
             location = fileLocation(semicolon),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
@@ -1024,7 +994,7 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(token)}", token)
         }
 
-        context.consumeField(
+        consumer.consumeField(
             location = fileLocation(token),
             modifiers = modifiers,
             targetLanguages = targetLanguages,
@@ -1186,22 +1156,14 @@ internal class SingleSignatureFileParser(
      */
     private fun parseModifierAnnotations(
         visibilityLevel: VisibilityLevel,
-    ): MutableModifierList = context.parseModifierAnnotations(tokenStream, apiText, visibilityLevel)
+    ): MutableModifierList =
+        consumer.parseModifierAnnotations(tokenStream, apiText, visibilityLevel)
 
-    private fun parseProperty(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ): PropertyItem {
+    /** Parse a property member of the current class. */
+    private fun parseProperty() {
         val modifiers = parseModifiers()
 
-        // Get a TypeParameterList and accompanying TypeParameterScope
         val parsedTypeParameters = parseTypeParameterList()
-        val (typeParameterList, typeItemFactory) =
-            createTypeParameterListAndFactory(
-                classTypeItemFactory,
-                "property",
-                parsedTypeParameters,
-            )
 
         val typeString: TypeString
         val (receiverTypeString, name) =
@@ -1215,9 +1177,6 @@ internal class SingleSignatureFileParser(
                 typeString = scanForTypeString()
                 parsePropertyReceiverAndName()
             }
-        val type = typeItemFactory.getGeneralType(typeString)
-        synchronizeNullability(type, modifiers)
-        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
 
         // If an opening `(` follows the property declaration, parse its context parameter list.
         val contextParameters =
@@ -1234,24 +1193,16 @@ internal class SingleSignatureFileParser(
         if (token.type != SignatureTokenType.SEMICOLON) {
             throw parseException("expected ; found ${text(token)}", token)
         }
-        val property =
-            itemFactory.createPropertyItem(
-                fileLocation = fileLocation(token),
-                modifiers = modifiers,
-                name = name,
-                containingClass = containingClass,
-                type = type,
-                receiver = receiverType,
-                typeParameterList = typeParameterList,
-                // There isn't any information about whether a setter exists or its visibility if it
-                // does in API files currently.
-                setterVisibility = null,
-                contextParameterFactory = { propertyItem ->
-                    contextParameters.map { it.create(propertyItem, typeItemFactory) }
-                },
-            )
-        property.markSelectedApiVariant()
-        return property
+
+        consumer.consumeProperty(
+            location = fileLocation(token),
+            modifiers = modifiers,
+            name = name,
+            receiverTypeString = receiverTypeString,
+            typeString = typeString,
+            typeParameters = parsedTypeParameters,
+            contextParameters = contextParameters,
+        )
     }
 
     /**
@@ -1436,24 +1387,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Creates a [TypeParameterListAndFactory] from [parsedTypeParameters] in the context of
-     * [enclosingTypeItemFactory].
-     *
-     * If [parsedTypeParameters] is empty, returns [TypeParameterList.NONE] paired with
-     * [enclosingTypeItemFactory] without allocating a nested factory.
-     */
-    private fun createTypeParameterListAndFactory(
-        enclosingTypeItemFactory: TextTypeItemFactory,
-        scopeDescription: String,
-        parsedTypeParameters: List<ParsedTypeParameter>,
-    ): TypeParameterListAndFactory<TextTypeItemFactory> =
-        context.createTypeParameterListAndFactory(
-            enclosingTypeItemFactory,
-            scopeDescription,
-            parsedTypeParameters,
-        )
-
-    /**
      * Parses a list of parameters.
      *
      * Before calling, [tokenStream] should point to the opening `(` of the parameter list.
@@ -1563,29 +1496,6 @@ internal class SingleSignatureFileParser(
                 return parameters
             }
         }
-    }
-
-    /**
-     * Turn this [ParsedParameter] into a context [ParameterItem] of the [containingProperty] by
-     * parsing the [ParsedParameter.typeString].
-     */
-    private fun ParsedParameter.create(
-        containingProperty: PropertyItem,
-        typeItemFactory: TextTypeItemFactory,
-    ): ParameterItem {
-        val type = typeItemFactory.getGeneralType(typeString)
-        synchronizeNullability(type, modifiers)
-        return itemFactory.createParameterItem(
-            fileLocation = location,
-            modifiers = modifiers,
-            name = name,
-            publicName = publicName,
-            containingItem = containingProperty,
-            parameterIndex = index,
-            type = type,
-            hasDefaultValue = hasDefaultValue,
-            kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
-        )
     }
 
     /**
@@ -1730,19 +1640,6 @@ internal class SingleSignatureFileParser(
         }
 
         return TypeString(fileSubstring(startOffset, endOffset), startOffset)
-    }
-
-    /**
-     * Synchronize nullability annotations on the API item and [TypeNullability].
-     *
-     * If the type string uses a Kotlin nullability suffix, this adds an annotation representing
-     * that nullability to [modifiers].
-     *
-     * @param typeItem the type of the API item.
-     * @param modifiers the API item's modifiers.
-     */
-    private fun synchronizeNullability(typeItem: TypeItem, modifiers: MutableModifierList) {
-        context.synchronizeNullability(typeItem, modifiers)
     }
 
     /**
