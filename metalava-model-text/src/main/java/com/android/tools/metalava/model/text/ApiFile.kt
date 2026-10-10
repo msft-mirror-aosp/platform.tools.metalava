@@ -321,12 +321,7 @@ private constructor(
                     formatForLegacyFiles = formatForLegacyFiles,
                     allowClassModifierChanges = allowClassModifierChanges
                 )
-            val codebase = parser.parseMultipleFiles(signatureFiles, apiStatsConsumer)
-
-            // Update implicit permit types in any sealed class that does not have one provided.
-            SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
-
-            return codebase
+            return parser.parseMultipleFiles(signatureFiles, apiStatsConsumer)
         }
 
         /**
@@ -469,7 +464,9 @@ private constructor(
 
             val context =
                 parserContext
-                    ?: createParserContext(kotlinStyleNullsForThisFile).also { parserContext = it }
+                    ?: createParserContext(kotlinStyleNullsForThisFile, apiStatsConsumer).also {
+                        parserContext = it
+                    }
 
             val parser =
                 SingleSignatureFileParser(
@@ -492,11 +489,7 @@ private constructor(
 
         // Known to be non-null as `signatureFiles` is never empty and the first file is never
         // skipped.
-        parserContext!!
-
-        parserContext.classMerger.performAnyDeferredMerges()
-
-        apiStatsConsumer(parserContext.typeParser.stats())
+        parserContext!!.finish()
 
         return codebase
     }
@@ -510,8 +503,13 @@ private constructor(
      * @param kotlinStyleNulls whether types should be interpreted to be in Kotlin format (e.g. `?`
      *   suffix means nullable, `!` suffix means unknown, and absence of a suffix means not
      *   nullable).
+     * @param apiStatsConsumer consumer of [TextTypeParser.Stats] after all signature files have
+     *   been parsed.
      */
-    private fun createParserContext(kotlinStyleNulls: Boolean): ParserContext {
+    private fun createParserContext(
+        kotlinStyleNulls: Boolean,
+        apiStatsConsumer: (TextTypeParser.Stats) -> Unit,
+    ): ParserContext {
         val typeParser = TextTypeParser(codebase, kotlinStyleNulls, typeItemParserErrorReporter)
         val globalTypeItemFactory = TextTypeItemFactory(assembler, typeParser)
         val valueParser =
@@ -526,6 +524,7 @@ private constructor(
             valueParser = valueParser,
             defaultTargetLanguageSet = defaultTargetLanguageSet,
             classMerger = ClassMerger(allowClassModifierChanges),
+            apiStatsConsumer = apiStatsConsumer,
         )
     }
 }
@@ -552,7 +551,24 @@ internal class ParserContext(
 
     /** Merges class re-definitions across signature files. */
     val classMerger: ClassMerger,
-)
+
+    /** Consumer of [TextTypeParser.Stats] after all signature files have been parsed. */
+    private val apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
+) {
+    /**
+     * Completes processing after all signature files have been parsed, performing any deferred
+     * class merges, reporting type parser statistics, and updating implicit permit types on sealed
+     * classes.
+     */
+    fun finish() {
+        classMerger.performAnyDeferredMerges()
+
+        apiStatsConsumer(typeParser.stats())
+
+        // Update implicit permit types in any sealed class that does not have one provided.
+        SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(assembler.codebase)
+    }
+}
 
 /** Parser for a single signature file. */
 internal class SingleSignatureFileParser(
