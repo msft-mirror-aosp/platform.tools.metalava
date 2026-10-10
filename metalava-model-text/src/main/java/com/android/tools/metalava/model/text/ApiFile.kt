@@ -889,8 +889,9 @@ internal class SingleSignatureFileParser(
         ) = parseDeclaredClassType(pkg, classPosition)
 
         val superClassTypeString = parseSuperClassTypeString(classKind)
+        val interfaceTypeStrings = parseInterfaceTypeStrings()
         var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
-        val interfaceTypes = parseInterfaceTypes(classKind, typeItemFactory)
+        val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
         val permitTypes = parsePermitTypes(typeItemFactory)
 
         val openBrace = requireNonEofToken()
@@ -1106,20 +1107,15 @@ internal class SingleSignatureFileParser(
         }
 
     /**
-     * Parses the optional `implements` (or `extends` for interfaces) clause and combines it with
-     * any [ClassKind.implicitInterfaceType].
+     * Parses the optional `implements` (or `extends` for interfaces) clause from [tokenStream],
+     * returning the list of raw interface [TypeString]s.
      */
-    private fun parseInterfaceTypes(
-        classKind: ClassKind,
-        typeItemFactory: TextTypeItemFactory,
-    ): Set<ClassTypeItem> {
-        val interfaceTypes = mutableSetOf<ClassTypeItem>()
-
-        // Add any ClassKind specific implicit interface types.
-        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
-
-        if (peekType() == SignatureTokenType.IMPLEMENTS || peekType() == SharedTokenType.EXTENDS) {
-            consume()
+    private fun parseInterfaceTypeStrings(): List<TypeString> {
+        if (peekType() != SignatureTokenType.IMPLEMENTS && peekType() != SharedTokenType.EXTENDS) {
+            return emptyList()
+        }
+        consume()
+        return buildList {
             // Consume super-interface types separated by optional commas until the class body `{`
             // or a `permits` clause is reached.
             while (true) {
@@ -1129,13 +1125,30 @@ internal class SingleSignatureFileParser(
                 ) {
                     break
                 } else if (nextType != SharedTokenType.COMMA) {
-                    val interfaceTypeString = parseSuperTypeString()
-                    val interfaceType = typeItemFactory.getInterfaceType(interfaceTypeString)
-                    interfaceTypes.add(interfaceType)
+                    add(parseSuperTypeString())
                 } else {
                     consume()
                 }
             }
+        }
+    }
+
+    /**
+     * Resolves [interfaceTypeStrings] using [typeItemFactory] and combines them with any
+     * [ClassKind.implicitInterfaceType].
+     */
+    private fun createInterfaceTypes(
+        classKind: ClassKind,
+        interfaceTypeStrings: List<TypeString>,
+        typeItemFactory: TextTypeItemFactory,
+    ): Set<ClassTypeItem> {
+        val interfaceTypes = mutableSetOf<ClassTypeItem>()
+
+        // Add any ClassKind specific implicit interface types.
+        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
+
+        for (interfaceTypeString in interfaceTypeStrings) {
+            interfaceTypes.add(typeItemFactory.getInterfaceType(interfaceTypeString))
         }
         return interfaceTypes
     }
