@@ -186,4 +186,27 @@ interface SignatureFileConsumer {
         throwsTypeStrings: List<TypeString>,
         defaultAnnotationMethodValue: String?,
     )
+
+    /**
+     * Called when a `field` or `enum_constant` declaration is parsed in the current class.
+     *
+     * @param location the [FileLocation] of the field declaration.
+     * @param modifiers the modifiers and annotations on the field.
+     * @param targetLanguages the [TargetLanguage]s to which the field applies.
+     * @param name the name of the field or enum constant.
+     * @param typeString the [TypeString] of the field's type.
+     * @param valueString the raw initial value expression following `=`, or `null` if none was
+     *   specified.
+     * @param isEnumConstant `true` for an `enum_constant` declaration, `false` for a `field`
+     *   declaration.
+     */
+    fun consumeField(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        typeString: TypeString,
+        valueString: String?,
+        isEnumConstant: Boolean,
+    )
 }

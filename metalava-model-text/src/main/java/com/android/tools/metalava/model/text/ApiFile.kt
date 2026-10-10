@@ -19,9 +19,7 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
@@ -51,9 +49,7 @@ import com.android.tools.metalava.model.text.parser.SignatureTokenType
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.type.TypeString
 import com.android.tools.metalava.model.utils.extractSimpleName
-import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
-import com.android.tools.metalava.reporter.Issues
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -450,7 +446,6 @@ internal class SingleSignatureFileParser(
     /** Creates [Item] instances for the codebase. */
     private val itemFactory = context.itemFactory
 
-    private val valueParser = context.valueParser
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
 
     /** The [TokenStream] of tokens from [apiText]. */
@@ -528,17 +523,6 @@ internal class SingleSignatureFileParser(
         }
 
         return fileSubstring(firstToken.startOffset, endOffset)
-    }
-
-    /**
-     * Report a recoverable issue encountered while parsing.
-     *
-     * Retrieves the location of the error for [token] from [fileLocation].
-     *
-     * Note: Non-recoverable issues result in an exception being thrown.
-     */
-    private fun reportIssue(issue: Issues.Issue, message: String, token: Token) {
-        context.reportIssue(issue, message, fileLocation(token))
     }
 
     /**
@@ -708,7 +692,6 @@ internal class SingleSignatureFileParser(
     private fun parseClassBody() {
         val containingClass = context.currentClass
         val classTypeItemFactory = context.currentClassTypeItemFactory
-        val hasExistingFields = context.hasExistingFields
         val hasExistingProperties = context.hasExistingProperties
 
         // Dispatch each member declaration by its leading keyword token type until the closing `}`
@@ -720,20 +703,10 @@ internal class SingleSignatureFileParser(
                     parseConstructor()
                 }
                 SignatureTokenType.ENUM_CONSTANT -> {
-                    val field = parseEnumConstant(containingClass, classTypeItemFactory)
-                    if (hasExistingFields) {
-                        containingClass.replaceOrAddField(field)
-                    } else {
-                        containingClass.addField(field)
-                    }
+                    parseEnumConstant()
                 }
                 SignatureTokenType.FIELD -> {
-                    val field = parseField(containingClass, classTypeItemFactory)
-                    if (hasExistingFields) {
-                        containingClass.replaceOrAddField(field)
-                    } else {
-                        containingClass.addField(field)
-                    }
+                    parseField()
                 }
                 SignatureTokenType.METHOD -> {
                     parseMethod()
@@ -1011,34 +984,18 @@ internal class SingleSignatureFileParser(
         )
     }
 
-    /** Parse a field member of [containingClass]. */
-    private fun parseField(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ) =
-        parseFieldOrEnumConstant(
-            containingClass,
-            classTypeItemFactory,
-            isEnumConstant = false,
-        )
+    /** Parse a field member of the current class. */
+    private fun parseField() {
+        parseFieldOrEnumConstant(isEnumConstant = false)
+    }
 
-    /** Parse an enum constant member of [containingClass]. */
-    private fun parseEnumConstant(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ) =
-        parseFieldOrEnumConstant(
-            containingClass,
-            classTypeItemFactory,
-            isEnumConstant = true,
-        )
+    /** Parse an enum constant member of the current class. */
+    private fun parseEnumConstant() {
+        parseFieldOrEnumConstant(isEnumConstant = true)
+    }
 
-    /** Parse a field or enum constant of [containingClass]. */
-    private fun parseFieldOrEnumConstant(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-        isEnumConstant: Boolean,
-    ): FieldItem {
+    /** Parse a field or enum constant of the current class. */
+    private fun parseFieldOrEnumConstant(isEnumConstant: Boolean) {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         val typeString: TypeString
@@ -1063,51 +1020,19 @@ internal class SingleSignatureFileParser(
                 scanValueUntilSemicolon().also { token = requireNonEofToken() }
             } else null
 
-        // Parse the type string and then synchronize the field's nullability with the type.
-        val type =
-            classTypeItemFactory.getFieldType(
-                underlyingType = typeString,
-                isEnumConstant = isEnumConstant,
-                isFinal = modifiers.isFinal(),
-                isInitialValueNonNull = { valueString != null && valueString != "null" },
-                itemAnnotations = modifiers.annotations(),
-            )
-        synchronizeNullability(type, modifiers)
-
-        // In signature files fields have to be static and final in order for them to have a
-        // constant value in addition to a value.
-        val constantValueProvider =
-            if (valueString != null) {
-                if (modifiers.isStatic() && modifiers.isFinal())
-                    valueParser.providerFor(type, valueString, ValueUseSite.FIELD)
-                else {
-                    // Report that the value is being ignored.
-                    reportIssue(
-                        Issues.SIGNATURE_FILE_ERROR,
-                        "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value",
-                        token,
-                    )
-                    null
-                }
-            } else null
-
         if (token.type != SignatureTokenType.SEMICOLON) {
             throw parseException("expected ; found ${text(token)}", token)
         }
-        val field =
-            itemFactory.createFieldItem(
-                fileLocation = fileLocation(token),
-                modifiers = modifiers,
-                documentationFactory = ItemDocumentation.NONE_FACTORY,
-                name = name,
-                containingClass = containingClass,
-                type = type,
-                isEnumConstant = isEnumConstant,
-                constantValueProvider = constantValueProvider,
-                targetLanguages = targetLanguages,
-            )
-        field.markSelectedApiVariant()
-        return field
+
+        context.consumeField(
+            location = fileLocation(token),
+            modifiers = modifiers,
+            targetLanguages = targetLanguages,
+            name = name,
+            typeString = typeString,
+            valueString = valueString,
+            isEnumConstant = isEnumConstant,
+        )
     }
 
     /**

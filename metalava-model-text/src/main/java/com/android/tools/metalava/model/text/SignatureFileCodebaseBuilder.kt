@@ -101,7 +101,7 @@ internal class SignatureFileCodebaseBuilder(
         }
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
-    val valueParser: ValueParser =
+    private val valueParser: ValueParser =
         ValueParser(
             codebase,
             TypeItemParser.forValueParser(codebase, typeItemParserErrorReporter),
@@ -156,8 +156,7 @@ internal class SignatureFileCodebaseBuilder(
      * Whether [currentClass] is an existing class from a previously parsed signature file that
      * already had fields when [startClass] was called.
      */
-    var hasExistingFields: Boolean = false
-        private set
+    private var hasExistingFields: Boolean = false
 
     /**
      * Whether [currentClass] is an existing class from a previously parsed signature file that
@@ -187,7 +186,7 @@ internal class SignatureFileCodebaseBuilder(
      *
      * Note: Non-recoverable issues result in an exception being thrown.
      */
-    fun reportIssue(issue: Issues.Issue, message: String, location: FileLocation) {
+    private fun reportIssue(issue: Issues.Issue, message: String, location: FileLocation) {
         codebase.reporter.report(issue, null, message, location)
     }
 
@@ -819,6 +818,64 @@ internal class SignatureFileCodebaseBuilder(
             containingClass.replaceOrAddMethod(method)
         } else {
             containingClass.addMethod(method)
+        }
+    }
+
+    override fun consumeField(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        typeString: TypeString,
+        valueString: String?,
+        isEnumConstant: Boolean,
+    ) {
+        val containingClass = currentClass
+        // Parse the type string and then synchronize the field's nullability with the type.
+        val type =
+            currentClassTypeItemFactory.getFieldType(
+                underlyingType = typeString,
+                isEnumConstant = isEnumConstant,
+                isFinal = modifiers.isFinal(),
+                isInitialValueNonNull = { valueString != null && valueString != "null" },
+                itemAnnotations = modifiers.annotations(),
+            )
+        synchronizeNullability(type, modifiers)
+
+        // In signature files fields have to be static and final in order for them to have a
+        // constant value in addition to a value.
+        val constantValueProvider =
+            if (valueString != null) {
+                if (modifiers.isStatic() && modifiers.isFinal())
+                    valueParser.providerFor(type, valueString, ValueUseSite.FIELD)
+                else {
+                    // Report that the value is being ignored.
+                    reportIssue(
+                        Issues.SIGNATURE_FILE_ERROR,
+                        "Field $name in $containingClass has a value of `$valueString` but is not `static` and `final`; ignoring value",
+                        location,
+                    )
+                    null
+                }
+            } else null
+
+        val field =
+            itemFactory.createFieldItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                name = name,
+                containingClass = containingClass,
+                type = type,
+                isEnumConstant = isEnumConstant,
+                constantValueProvider = constantValueProvider,
+                targetLanguages = targetLanguages,
+            )
+        markSelectedApiVariant(field)
+        if (hasExistingFields) {
+            containingClass.replaceOrAddField(field)
+        } else {
+            containingClass.addField(field)
         }
     }
 
