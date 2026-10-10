@@ -890,9 +890,11 @@ internal class SingleSignatureFileParser(
 
         val superClassTypeString = parseSuperClassTypeString(classKind)
         val interfaceTypeStrings = parseInterfaceTypeStrings()
+        val permitTypeStrings = parsePermitTypeStrings()
+
         var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
         val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
-        val permitTypes = parsePermitTypes(typeItemFactory)
+        val permitTypes = createPermitTypes(permitTypeStrings, typeItemFactory)
 
         val openBrace = requireNonEofToken()
         if (openBrace.type != SharedTokenType.BRACE_OPEN) {
@@ -1079,10 +1081,12 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses the optional `extends <superclass>` clause for a non-interface class from
-     * [tokenStream], returning the raw [TypeString] if present or `null` otherwise.
+     * Parses the optional `extends <superclass>` clause for a non-interface class, returning the
+     * raw [TypeString] if present or `null` otherwise.
      */
-    private fun parseSuperClassTypeString(classKind: ClassKind): TypeString? {
+    private fun parseSuperClassTypeString(
+        classKind: ClassKind,
+    ): TypeString? {
         // Interfaces use `extends` for super-interfaces rather than a superclass.
         if (peekType() == SharedTokenType.EXTENDS && classKind != ClassKind.INTERFACE) {
             consume()
@@ -1099,16 +1103,16 @@ internal class SingleSignatureFileParser(
         classKind: ClassKind,
         superClassTypeString: TypeString?,
         typeItemFactory: TextTypeItemFactory,
-    ): ClassTypeItem? =
+    ): ClassTypeItem? {
         if (superClassTypeString != null) {
-            typeItemFactory.getSuperClassType(superClassTypeString)
-        } else {
-            classKind.implicitSuperClassType
+            return typeItemFactory.getSuperClassType(superClassTypeString)
         }
+        return classKind.implicitSuperClassType
+    }
 
     /**
      * Parses the optional `implements` (or `extends` for interfaces) clause from [tokenStream],
-     * returning the list of raw interface [TypeString]s.
+     * returning the list of raw super-interface [TypeString]s.
      */
     private fun parseInterfaceTypeStrings(): List<TypeString> {
         if (peekType() != SignatureTokenType.IMPLEMENTS && peekType() != SharedTokenType.EXTENDS) {
@@ -1154,23 +1158,37 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses the optional `permits` clause for a sealed class or interface, returning the permitted
-     * subclass types sorted by qualified name.
+     * Parses the optional `permits` clause for a sealed class or interface from [tokenStream],
+     * returning the list of raw permitted subclass [TypeString]s.
      */
-    private fun parsePermitTypes(
-        typeItemFactory: TextTypeItemFactory,
-    ): List<ClassTypeItem> {
-        val permitTypes = mutableListOf<ClassTypeItem>()
-
-        if (match(SignatureTokenType.PERMITS)) {
+    private fun parsePermitTypeStrings(): List<TypeString> {
+        if (!match(SignatureTokenType.PERMITS)) {
+            return emptyList()
+        }
+        return buildList {
             // Consume permitted subclass types up to the opening `{` of the class body.
             while (peekType() != SharedTokenType.BRACE_OPEN) {
-                val typeString = parseSuperTypeString()
-                val permitsType = typeItemFactory.getHierarchicalClassType(typeString)
-                permitTypes.add(permitsType)
+                add(parseSuperTypeString())
             }
-            permitTypes.sortWith(TypeItem.qualifiedComparator)
         }
+    }
+
+    /**
+     * Resolves [permitTypeStrings] using [typeItemFactory], returning the permitted subclass types
+     * sorted by qualified name.
+     */
+    private fun createPermitTypes(
+        permitTypeStrings: List<TypeString>,
+        typeItemFactory: TextTypeItemFactory,
+    ): List<ClassTypeItem> {
+        if (permitTypeStrings.isEmpty()) {
+            return emptyList()
+        }
+        val permitTypes =
+            permitTypeStrings.mapTo(mutableListOf()) {
+                typeItemFactory.getHierarchicalClassType(it)
+            }
+        permitTypes.sortWith(TypeItem.qualifiedComparator)
         return permitTypes
     }
 
