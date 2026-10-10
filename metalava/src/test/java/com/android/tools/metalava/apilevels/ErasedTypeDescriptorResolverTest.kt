@@ -169,4 +169,59 @@ class ErasedTypeDescriptorResolverTest {
         assertEquals("Ljava/lang/CharSequence;", resolver.resolveDescriptor("V", innerScope))
         assertEquals("Ljava/lang/Number;", resolver.resolveDescriptor("T", innerScope))
     }
+
+    @Test
+    fun `Source-style type formatting and qualified names`() {
+        val scope =
+            ErasedTypeScope.Empty.extend(
+                listOf(ParsedTypeParameter(name = "T", isReified = false, bounds = emptyList())),
+                resolver,
+            )
+
+        assertEquals("java.lang.Object", resolver.resolveQualifiedName("Object"))
+        assertEquals(
+            "test.pkg.Outer.Inner",
+            resolver.resolveQualifiedName("test.pkg.Outer<String>.@NonNull Inner"),
+        )
+        assertEquals(
+            "java.lang.Thread.State",
+            resolver.resolveQualifiedName("Thread.State"),
+        )
+
+        fun formatSource(
+            type: String,
+            isVarargs: Boolean = false,
+            spaceBetweenTypeArguments: Boolean = false,
+        ): String = buildString {
+            resolver.appendSourceType(
+                this,
+                type,
+                scope = scope,
+                isVarargs = isVarargs,
+                spaceBetweenTypeArguments = spaceBetweenTypeArguments,
+            )
+        }
+
+        assertEquals("int", formatSource("int"))
+        assertEquals("java.lang.String", formatSource("String?"))
+        assertEquals("T", formatSource("@Nullable T?"))
+        assertEquals("java.lang.String...", formatSource("String?", isVarargs = true))
+        assertEquals("java.lang.String[][]", formatSource("String? @NonNull [] @Nullable []"))
+        assertEquals(
+            "java.util.Map<java.lang.String,? extends T>",
+            formatSource("java.util.Map<String?, ? extends T>"),
+        )
+        assertEquals(
+            "java.util.Map<java.lang.String, ? extends T>",
+            formatSource("java.util.Map<String?, ? extends T>", spaceBetweenTypeArguments = true),
+        )
+        assertEquals(
+            "java.util.List<?>",
+            formatSource("java.util.List<? extends Object>"),
+        )
+        assertEquals(
+            "java.util.List<? super java.lang.String>",
+            formatSource("java.util.List<? super String>"),
+        )
+    }
 }

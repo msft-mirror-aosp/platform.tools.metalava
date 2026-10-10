@@ -42,6 +42,25 @@ internal class ErasedTypeDescriptorResolver {
     }
 
     /**
+     * Resolves a class or interface [type] string (such as from an `extends` or `implements`
+     * clause) to its erased dot-separated qualified name (e.g. `java.lang.Object` or
+     * `test.pkg.Outer.Inner`).
+     *
+     * @param type the raw type string from the signature file.
+     * @param scope the [ErasedTypeScope] of in-scope type parameters.
+     * @return the erased dot-separated qualified class name.
+     */
+    fun resolveQualifiedName(
+        type: String,
+        scope: ErasedTypeScope = ErasedTypeScope.Empty,
+    ): String {
+        val sb = StringBuilder(type.length + 10)
+        val scanner = TypeScanner(type)
+        scanner.appendClassQualifiedName(sb, scope)
+        return sb.toString()
+    }
+
+    /**
      * Resolves a parameter, return, or bound [type] string to its erased JVM descriptor (e.g. `I`,
      * `Ljava/lang/String;`, `[[Ltest/pkg/Outer$Inner;`).
      *
@@ -79,6 +98,30 @@ internal class ErasedTypeDescriptorResolver {
     ) {
         val scanner = TypeScanner(type)
         scanner.appendDescriptor(out, scope, isVarargs)
+    }
+
+    /**
+     * Appends the source-style representation of [type] (matching
+     * [com.android.tools.metalava.model.TypeItem.toTypeString] with qualified `java.lang.` names,
+     * preserved generic type arguments, and stripped annotations/nullability suffixes) directly to
+     * [out].
+     *
+     * @param out the [StringBuilder] to append the formatted type string to.
+     * @param type the raw type string from the signature file.
+     * @param scope the [ErasedTypeScope] of in-scope type parameters.
+     * @param isVarargs whether the outermost array dimension should be formatted as `...`.
+     * @param spaceBetweenTypeArguments whether `, ` (with a space) should be used between generic
+     *   type arguments instead of `,`.
+     */
+    fun appendSourceType(
+        out: StringBuilder,
+        type: String,
+        scope: ErasedTypeScope = ErasedTypeScope.Empty,
+        isVarargs: Boolean = false,
+        spaceBetweenTypeArguments: Boolean = false,
+    ) {
+        val scanner = TypeScanner(type)
+        scanner.appendSourceType(out, scope, isVarargs, spaceBetweenTypeArguments)
     }
 
     /**
@@ -120,6 +163,51 @@ internal class ErasedTypeDescriptorResolver {
             }
 
             appendMultiSegmentInternalName(out, firstStart, firstEnd)
+        }
+
+        /**
+         * Parses a class or interface type and appends its dot-separated qualified name
+         * (`pkg.Outer.Inner`) to [out].
+         */
+        fun appendClassQualifiedName(out: StringBuilder, scope: ErasedTypeScope) {
+            skipWhitespaceAndAnnotations()
+            val firstStart = pos
+            val firstEnd = scanIdentifier()
+            skipPostSegmentTokens()
+
+            if (!isPackageOrNestedClassDot()) {
+                val simpleName = type.substring(firstStart, firstEnd)
+                val typeParamDesc = scope.findDescriptor(simpleName)
+                if (typeParamDesc != null) {
+                    val start = if (typeParamDesc.startsWith('L')) 1 else 0
+                    val end =
+                        if (typeParamDesc.endsWith(';')) typeParamDesc.length - 1
+                        else typeParamDesc.length
+                    for (i in start until end) {
+                        val c = typeParamDesc[i]
+                        out.append(if (c == '/' || c == '$') '.' else c)
+                    }
+                } else if (simpleName == "dynamic") {
+                    out.append("dynamic")
+                } else {
+                    out.append("java.lang.").append(simpleName)
+                }
+                return
+            }
+
+            if (containsUpperCase(firstStart, firstEnd)) {
+                out.append("java.lang.")
+            }
+            out.append(type, firstStart, firstEnd)
+
+            while (isPackageOrNestedClassDot()) {
+                pos++ // consume '.'
+                skipWhitespaceAndAnnotations()
+                val nextStart = pos
+                val nextEnd = scanIdentifier()
+                skipPostSegmentTokens()
+                out.append('.').append(type, nextStart, nextEnd)
+            }
         }
 
         /**
@@ -170,6 +258,221 @@ internal class ErasedTypeDescriptorResolver {
             val dimensions = countArrayDimensions(isVarargs)
             for (i in 0 until dimensions) {
                 out.insert(descriptorStart, '[')
+            }
+        }
+
+        /**
+         * Parses any type (wildcard, type parameter, primitive, class, or array/varargs) and
+         * appends its source-style representation to [out].
+         */
+        fun appendSourceType(
+            out: StringBuilder,
+            scope: ErasedTypeScope,
+            isVarargs: Boolean,
+            spaceBetweenTypeArguments: Boolean,
+        ) {
+            skipWhitespaceAndAnnotations()
+            if (pos < length && type[pos] == '?') {
+                appendWildcardSourceType(out, scope, spaceBetweenTypeArguments)
+                return
+            }
+
+            val firstStart = pos
+            val firstEnd = scanIdentifier()
+            skipWhitespace()
+
+            val hasTypeArgs = pos < length && type[pos] == '<'
+            if (!hasTypeArgs) {
+                skipNullabilitySuffixes()
+            }
+            val hasDot = !hasTypeArgs && isPackageOrNestedClassDot()
+
+            if (!hasTypeArgs && !hasDot) {
+                val simpleName = type.substring(firstStart, firstEnd)
+                if (
+                    scope.findDescriptor(simpleName) != null ||
+                        primitiveDescriptor(simpleName) != null ||
+                        simpleName == "dynamic"
+                ) {
+                    out.append(simpleName)
+                } else {
+                    out.append("java.lang.").append(simpleName)
+                }
+            } else {
+                if (hasTypeArgs || containsUpperCase(firstStart, firstEnd)) {
+                    out.append("java.lang.")
+                }
+                out.append(type, firstStart, firstEnd)
+                if (hasTypeArgs) {
+                    appendSourceTypeArguments(out, scope, spaceBetweenTypeArguments)
+                    skipNullabilitySuffixes()
+                }
+                while (isPackageOrNestedClassDot()) {
+                    pos++ // consume '.'
+                    skipWhitespaceAndAnnotations()
+                    val nextStart = pos
+                    val nextEnd = scanIdentifier()
+                    out.append('.').append(type, nextStart, nextEnd)
+                    skipWhitespace()
+                    if (pos < length && type[pos] == '<') {
+                        appendSourceTypeArguments(out, scope, spaceBetweenTypeArguments)
+                    }
+                    skipNullabilitySuffixes()
+                }
+            }
+
+            appendSourceArrayDimensions(out, isVarargs)
+        }
+
+        /**
+         * Appends a wildcard type (`?`, `? extends Bound`, or `? super Bound`) to [out], omitting `
+         * extends java.lang.Object` to match
+         * [com.android.tools.metalava.model.TypeItem.toTypeString].
+         */
+        private fun appendWildcardSourceType(
+            out: StringBuilder,
+            scope: ErasedTypeScope,
+            spaceBetweenTypeArguments: Boolean,
+        ) {
+            pos++ // consume '?'
+            skipWhitespace()
+            if (pos < length && isIdentifierChar(type[pos])) {
+                val kwStart = pos
+                val kwEnd = scanIdentifier()
+                val kwLength = kwEnd - kwStart
+                if (kwLength == 5 && type.regionMatches(kwStart, "super", 0, 5)) {
+                    out.append("? super ")
+                    appendSourceType(
+                        out,
+                        scope,
+                        isVarargs = false,
+                        spaceBetweenTypeArguments = spaceBetweenTypeArguments,
+                    )
+                    return
+                }
+                if (kwLength == 7 && type.regionMatches(kwStart, "extends", 0, 7)) {
+                    val wildcardStart = out.length
+                    out.append("? extends ")
+                    val boundStart = out.length
+                    appendSourceType(
+                        out,
+                        scope,
+                        isVarargs = false,
+                        spaceBetweenTypeArguments = spaceBetweenTypeArguments,
+                    )
+                    if (
+                        out.length - boundStart == JAVA_LANG_OBJECT_QUALIFIED_NAME.length &&
+                            out.regionMatches(
+                                boundStart,
+                                JAVA_LANG_OBJECT_QUALIFIED_NAME,
+                                0,
+                                JAVA_LANG_OBJECT_QUALIFIED_NAME.length,
+                            )
+                    ) {
+                        out.setLength(wildcardStart)
+                        out.append('?')
+                    }
+                    return
+                }
+            }
+            out.append('?')
+        }
+
+        /**
+         * Appends a `<...>` generic type argument list to [out], formatting each type argument with
+         * [appendSourceType].
+         */
+        private fun appendSourceTypeArguments(
+            out: StringBuilder,
+            scope: ErasedTypeScope,
+            spaceBetweenTypeArguments: Boolean,
+        ) {
+            pos++ // consume '<'
+            out.append('<')
+            var first = true
+            while (pos < length) {
+                skipWhitespace()
+                if (pos < length && type[pos] == '>') {
+                    pos++
+                    break
+                }
+                if (!first) {
+                    out.append(',')
+                    if (spaceBetweenTypeArguments) {
+                        out.append(' ')
+                    }
+                }
+                first = false
+                appendSourceType(
+                    out,
+                    scope,
+                    isVarargs = false,
+                    spaceBetweenTypeArguments = spaceBetweenTypeArguments,
+                )
+                skipWhitespace()
+                if (pos < length && type[pos] == ',') {
+                    pos++
+                }
+            }
+            out.append('>')
+        }
+
+        /**
+         * Appends trailing `[]` array brackets and `...` varargs suffixes to [out], stripping any
+         * interspersed annotations and nullability suffixes.
+         */
+        private fun appendSourceArrayDimensions(out: StringBuilder, isVarargs: Boolean) {
+            var dimensions = 0
+            var sawEllipsis = false
+            while (pos < length) {
+                skipWhitespaceAndAnnotations()
+                if (pos >= length) break
+                val c = type[pos]
+                when {
+                    c == '[' -> {
+                        pos++
+                        skipWhitespace()
+                        if (pos < length && type[pos] == ']') {
+                            pos++
+                        }
+                        dimensions++
+                    }
+                    c == '.' &&
+                        pos + 2 < length &&
+                        type[pos + 1] == '.' &&
+                        type[pos + 2] == '.' -> {
+                        pos += 3
+                        dimensions++
+                        sawEllipsis = true
+                    }
+                    c == '?' || c == '!' -> {
+                        pos++
+                    }
+                    else -> break
+                }
+            }
+            val effectiveVarargs = isVarargs || sawEllipsis
+            if (isVarargs && !sawEllipsis) {
+                dimensions++
+            }
+            for (i in 0 until dimensions) {
+                if (i == dimensions - 1 && effectiveVarargs) {
+                    out.append("...")
+                } else {
+                    out.append("[]")
+                }
+            }
+        }
+
+        /** Skips whitespace and any `?` or `!` nullability suffixes at [pos]. */
+        private fun skipNullabilitySuffixes() {
+            while (pos < length) {
+                skipWhitespace()
+                if (pos < length && (type[pos] == '?' || type[pos] == '!')) {
+                    pos++
+                } else {
+                    break
+                }
             }
         }
 
@@ -388,6 +691,8 @@ internal class ErasedTypeDescriptorResolver {
     }
 
     companion object {
+        private const val JAVA_LANG_OBJECT_QUALIFIED_NAME = "java.lang.Object"
+
         /**
          * Returns the single-character JVM descriptor for a primitive type name, or `null` if
          * [name] is not a primitive keyword.
