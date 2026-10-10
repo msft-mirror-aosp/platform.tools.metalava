@@ -1636,11 +1636,13 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="getChars(II[CI)V"/>
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="getChars(II[CI)V"/>
                         </class>
@@ -1982,6 +1984,7 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="append(C)Ltest/pkg/StringBuffer;"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
@@ -1992,6 +1995,7 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="append(C)Ltest/pkg/StringBuilder;"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>

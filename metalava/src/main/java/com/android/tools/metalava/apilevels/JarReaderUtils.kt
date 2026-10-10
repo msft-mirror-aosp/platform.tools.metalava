@@ -78,11 +78,6 @@ fun Api.readJar(
             theClass.updateSuperClass(classNode.superName, updater)
         }
 
-        // interfaces
-        for (interfaceName in classNode.interfaces) {
-            theClass.updateInterface(interfaceName, updater)
-        }
-
         if (theClass.alwaysHidden) {
             continue
         }
@@ -99,6 +94,23 @@ fun Api.readJar(
             } else {
                 break
             }
+        }
+
+        // interfaces
+        fun addPublicInterfaces(node: ClassNode, visited: MutableSet<String> = mutableSetOf()) {
+            for (interfaceName in node.interfaces) {
+                if (!visited.add(interfaceName)) continue
+                val interfaceNode = classNodes[interfaceName]
+                if (interfaceNode == null || (interfaceNode.access and Opcodes.ACC_PUBLIC) != 0) {
+                    theClass.updateInterface(interfaceName, updater)
+                } else {
+                    addPublicInterfaces(interfaceNode, visited)
+                }
+            }
+        }
+        addPublicInterfaces(classNode)
+        for (hiddenSuper in hiddenSuperClasses) {
+            addPublicInterfaces(hiddenSuper)
         }
 
         // fields
