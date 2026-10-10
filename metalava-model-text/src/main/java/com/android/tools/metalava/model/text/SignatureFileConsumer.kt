@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.text
+
+import com.android.tools.metalava.model.parser.LineMap
+import java.nio.file.Path
+
+/**
+ * Consumer of events emitted by [ApiFile] and [SingleSignatureFileParser] while parsing one or more
+ * signature files.
+ *
+ * Allows callers to either construct a full [com.android.tools.metalava.model.Codebase] (via
+ * [SignatureFileCodebaseBuilder]) or process declarations directly from parsed syntactic data
+ * without constructing model items.
+ */
+interface SignatureFileConsumer {
+    /**
+     * Called before parsing each [signatureFile] at [path] with [lineMap] and [format].
+     *
+     * @param signatureFile the [SignatureFile] being parsed.
+     * @param path the [Path] to [signatureFile].
+     * @param lineMap the [LineMap] for mapping character offsets in [signatureFile] to line
+     *   numbers.
+     * @param format the [FileFormat] parsed from the header of [signatureFile].
+     */
+    fun startFile(
+        signatureFile: SignatureFile,
+        path: Path,
+        lineMap: LineMap,
+        format: FileFormat,
+    )
+
+    /** Called after finishing parsing the current signature file. */
+    fun endFile() {}
+
+    /** Called after all signature files have been parsed. */
+    fun finish() {}
+}
