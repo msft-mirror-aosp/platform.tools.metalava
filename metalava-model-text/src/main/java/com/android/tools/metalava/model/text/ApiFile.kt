@@ -44,7 +44,6 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
-import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -793,8 +792,13 @@ internal class SingleSignatureFileParser(
     ) {
         // Parse the typealias name and optional `<...>` type parameter list.
         val name = parseQualifiedName()
+        val parsedTypeParameters = parseTypeParameterList()
         val (typeParameterList, typeItemFactory) =
-            parseTypeParameterList(globalTypeItemFactory, "typealias $name")
+            createTypeParameterListAndFactory(
+                globalTypeItemFactory,
+                "typealias $name",
+                parsedTypeParameters,
+            )
         val qualifiedClassName = pkg.qualifiedName() + "." + name
 
         // Consume `=`, scan the aliased type, and consume the terminating `;`.
@@ -1263,10 +1267,12 @@ internal class SingleSignatureFileParser(
         val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
 
         // Parse the optional `<...>` type parameter list from [tokenStream].
+        val parsedTypeParameters = parseTypeParameterList()
         val (typeParameterList, typeItemFactory) =
-            parseTypeParameterList(
+            createTypeParameterListAndFactory(
                 outerClassTypeItemFactory,
                 "class $qualifiedName",
+                parsedTypeParameters,
             )
 
         // Decide which type parameter list and factory to actually use.
@@ -1381,11 +1387,19 @@ internal class SingleSignatureFileParser(
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
-        // Get a TypeParameterList and accompanying TypeItemFactory
-        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
+        val parsedTypeParameters = parseTypeParameterList()
 
         // For nested classes, strip outer classes from name
         val name: String = parseQualifiedName().extractSimpleName()
+
+        // Get a TypeParameterList and accompanying TypeItemFactory
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                classTypeItemFactory,
+                "constructor $name",
+                parsedTypeParameters,
+            )
+
         val parameters = parseParameterList()
         // Parse the optional `throws` clause and terminating `;`.
         var throwsList = emptyList<ExceptionTypeItem>()
@@ -1430,7 +1444,13 @@ internal class SingleSignatureFileParser(
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
+        val parsedTypeParameters = parseTypeParameterList()
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                classTypeItemFactory,
+                "method",
+                parsedTypeParameters,
+            )
 
         val returnTypeString: TypeString
         val parameters: List<ParsedParameter>
@@ -1789,7 +1809,13 @@ internal class SingleSignatureFileParser(
         val modifiers = parseModifiers()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
-        val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
+        val parsedTypeParameters = parseTypeParameterList()
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                classTypeItemFactory,
+                "property",
+                parsedTypeParameters,
+            )
 
         val typeString: TypeString
         val receiverNamePair: Pair<TypeItem?, String>
@@ -1986,38 +2012,28 @@ internal class SingleSignatureFileParser(
 
     /**
      * Parses a `<...>` type parameter list from [tokenStream] if the next token is `<`, returning
-     * the [TypeParameterListAndFactory].
+     * the list of [ParsedTypeParameter]s.
      *
-     * If the next token in [tokenStream] is not `<`, returns an empty type parameter list without
-     * consuming any tokens.
+     * If the next token in [tokenStream] is not `<`, returns an empty list without consuming any
+     * tokens.
      */
-    private fun parseTypeParameterList(
-        enclosingTypeItemFactory: TextTypeItemFactory,
-        scopeDescription: String? = null,
-    ): TypeParameterListAndFactory<TextTypeItemFactory> {
-        if (peekType() != SharedTokenType.ANGLE_OPEN) {
-            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+    private fun parseTypeParameterList(): List<ParsedTypeParameter> {
+        if (!match(SharedTokenType.ANGLE_OPEN)) {
+            return emptyList()
         }
-
-        val openAngle = consume() // consume '<'
-        val actualScopeDescription = scopeDescription ?: "${fileLocation(openAngle)}"
 
         if (match(SharedTokenType.ANGLE_CLOSE)) {
-            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+            return emptyList()
         }
 
-        data class ParsedTypeParameter(
-            val item: SkeletonTypeParameterItem,
-            val bounds: List<TypeString>,
-        )
-
-        val parsedTypeParameters = buildList {
+        return buildList {
             while (true) {
                 val isReified = match(SharedTokenType.REIFIED)
                 val nameToken = requireNonEofToken()
                 assertIdent(nameToken)
                 val name = text(nameToken)
 
+                // Parse any `&`-separated bound types following `extends`.
                 val bounds =
                     if (match(SharedTokenType.EXTENDS)) {
                         buildList {
@@ -2029,17 +2045,9 @@ internal class SingleSignatureFileParser(
                         emptyList()
                     }
 
-                // TODO: Type use annotations support will need to handle annotations on the
-                //  parameter.
-                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
-                val item =
-                    itemFactory.createTypeParameterItem(
-                        modifiers = modifiers,
-                        name = name,
-                        isReified = isReified,
-                    )
-                add(ParsedTypeParameter(item, bounds))
+                add(ParsedTypeParameter(name, isReified, bounds))
 
+                // Consume `,` (with optional trailing `>`) or the closing `>` of the list.
                 val delimiter = requireNonEofToken()
                 when (delimiter.type) {
                     SharedTokenType.COMMA -> {
@@ -2057,14 +2065,40 @@ internal class SingleSignatureFileParser(
                 }
             }
         }
+    }
+
+    /**
+     * Creates a [TypeParameterListAndFactory] from [parsedTypeParameters] in the context of
+     * [enclosingTypeItemFactory].
+     *
+     * If [parsedTypeParameters] is empty, returns [TypeParameterList.NONE] paired with
+     * [enclosingTypeItemFactory] without allocating a nested factory.
+     */
+    private fun createTypeParameterListAndFactory(
+        enclosingTypeItemFactory: TextTypeItemFactory,
+        scopeDescription: String,
+        parsedTypeParameters: List<ParsedTypeParameter>,
+    ): TypeParameterListAndFactory<TextTypeItemFactory> {
+        if (parsedTypeParameters.isEmpty()) {
+            return TypeParameterListAndFactory(TypeParameterList.NONE, enclosingTypeItemFactory)
+        }
 
         // Create the List<TypeParameterItem> and the corresponding TypeItemFactory that can be
         // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
         return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
-            actualScopeDescription,
+            scopeDescription,
             parsedTypeParameters,
-            { it.item },
+            { parsed ->
+                // TODO: Type use annotations support will need to handle annotations on the
+                //  parameter.
+                val modifiers = createImmutableModifiers(VisibilityLevel.PUBLIC)
+                itemFactory.createTypeParameterItem(
+                    modifiers = modifiers,
+                    name = parsed.name,
+                    isReified = parsed.isReified,
+                )
+            },
             { typeItemFactory, parsed ->
                 if (parsed.bounds.isEmpty()) {
                     WellKnownTypes.defaultTypeParameterBounds(forKotlin = false)
