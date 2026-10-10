@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PropertyItem
-import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.TargetLanguage
@@ -767,7 +766,9 @@ internal class SingleSignatureFileParser(
                     else
                         { classItem ->
                             recordComponents.map {
-                                it.createRecordComponent(classItem, typeItemFactory)
+                                with(context) {
+                                    it.createRecordComponent(classItem, typeItemFactory)
+                                }
                             }
                         }
             )
@@ -1760,23 +1761,6 @@ internal class SingleSignatureFileParser(
             add(recordComponent)
         }
     }
-
-    /**
-     * Create a [RecordComponentItem] on [classItem] from this [ParsedRecordComponent] using
-     * [typeItemFactory] to resolve its [ParsedRecordComponent.typeString].
-     */
-    private fun ParsedRecordComponent.createRecordComponent(
-        classItem: ClassItem,
-        typeItemFactory: TextTypeItemFactory,
-    ) =
-        itemFactory.createRecordComponentItem(
-            fileLocation = location,
-            modifiers = modifiers,
-            name = name,
-            containingClass = classItem,
-            type = typeItemFactory.getGeneralType(typeString),
-            recordComponentIndex = recordComponentIndex,
-        )
 
     /** Parse a record component class member into a [ParsedRecordComponent]. */
     private fun parseRecordComponent(): ParsedRecordComponent {

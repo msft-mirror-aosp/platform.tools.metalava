@@ -17,6 +17,7 @@
 package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.AnnotationItem
+import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
@@ -395,4 +397,21 @@ internal class SignatureFileCodebaseBuilder(
             },
         )
     }
+
+    /**
+     * Create a [RecordComponentItem] on [classItem] from this [ParsedRecordComponent] using
+     * [typeItemFactory] to resolve its [ParsedRecordComponent.typeString].
+     */
+    fun ParsedRecordComponent.createRecordComponent(
+        classItem: ClassItem,
+        typeItemFactory: TextTypeItemFactory,
+    ): RecordComponentItem =
+        itemFactory.createRecordComponentItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            name = name,
+            containingClass = classItem,
+            type = typeItemFactory.getGeneralType(typeString),
+            recordComponentIndex = recordComponentIndex,
+        )
 }
