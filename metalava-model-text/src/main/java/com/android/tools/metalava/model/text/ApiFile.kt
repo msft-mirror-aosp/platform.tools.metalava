@@ -31,7 +31,6 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
-import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.MetalavaApi
 import com.android.tools.metalava.model.MethodItem
@@ -55,7 +54,6 @@ import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
-import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
@@ -597,13 +595,14 @@ internal class SingleSignatureFileParser(
     /**
      * Find an existing package called [name] or create a new one.
      *
-     * If an existing package exists then this makes sure that its annotations match [annotations].
+     * If an existing package exists then this makes sure that its annotations match [modifiers].
      */
     private fun findOrCreatePackage(
         packageToken: Token,
         name: String,
-        annotations: List<AnnotationItem>,
+        modifiers: MutableModifierList,
     ): PackageItem {
+        val annotations = modifiers.annotations()
         // Check to see if the package already exists, if it does then return it.
         codebase.findPackage(name)?.let { existing ->
             // If the same package showed up multiple times, make sure they have the same modifiers.
@@ -644,10 +643,10 @@ internal class SingleSignatureFileParser(
 
     private fun parsePackage(packageToken: Token) {
         // Metalava: including annotations in file now
-        val annotations = getAnnotations()
+        val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE)
         val name: String = parseQualifiedName()
 
-        val pkg = findOrCreatePackage(packageToken, name, annotations)
+        val pkg = findOrCreatePackage(packageToken, name, modifiers)
 
         // Note: pkg.markSelectedApiVariant() is not called here because packages do not belong to
         // an API surface in their own right; their API variants are populated via propagation from
@@ -1277,21 +1276,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Collects all the sequential annotations from [tokenStream], returning them as a (possibly
-     * empty) list.
-     */
-    private fun getAnnotations(): List<AnnotationItem> = buildList {
-        while (peekType() == SharedTokenType.AT) {
-            // Parse the annotation from the tokenStream, unshortening the class name if necessary,
-            // and add it to the list if it is recognized.
-            valueParser.parseAnnotationItem(tokenStream, apiText, unshorten = true)?.let {
-                annotationItem ->
-                add(annotationItem)
-            }
-        }
-    }
-
-    /**
      * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.
      *
@@ -1726,15 +1710,7 @@ internal class SingleSignatureFileParser(
      */
     private fun parseModifierAnnotations(
         visibilityLevel: VisibilityLevel,
-    ): MutableModifierList {
-        val annotations = getAnnotations()
-        val modifiers = createMutableModifiers(visibilityLevel, annotations)
-        // @Deprecated is also treated as a "modifier"
-        if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
-            modifiers.setDeprecated(true)
-        }
-        return modifiers
-    }
+    ): MutableModifierList = context.parseModifierAnnotations(tokenStream, apiText, visibilityLevel)
 
     private fun parseProperty(
         containingClass: SkeletonClassItem,

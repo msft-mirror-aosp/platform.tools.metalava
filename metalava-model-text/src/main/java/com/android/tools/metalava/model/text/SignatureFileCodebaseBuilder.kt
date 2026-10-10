@@ -16,16 +16,23 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
+import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
+import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.model.item.SealedClassImplicitPermitTypesUpdater
 import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.model.parser.SharedTokenType
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.KOTLIN_STYLE_NULLS
 import com.android.tools.metalava.model.type.TypeItemParser
 import com.android.tools.metalava.model.type.TypeItemParserErrorReporter
@@ -44,7 +51,7 @@ internal class SignatureFileCodebaseBuilder(
     val assembler: TextCodebaseAssembler,
 
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
-    val defaultTargetLanguageSet: Set<TargetLanguage>,
+    override val defaultTargetLanguageSet: Set<TargetLanguage>,
 
     /** Merges class re-definitions across signature files. */
     val classMerger: ClassMerger,
@@ -186,5 +193,37 @@ internal class SignatureFileCodebaseBuilder(
 
         // Update implicit permit types in any sealed class that does not have one provided.
         SealedClassImplicitPermitTypesUpdater.updateImplicitPermitTypes(codebase)
+    }
+
+    override fun parseModifierAnnotations(
+        tokenStream: TokenStream,
+        apiText: String,
+        visibilityLevel: VisibilityLevel,
+    ): MutableModifierList {
+        val annotations = getAnnotations(tokenStream, apiText)
+        val modifiers = createMutableModifiers(visibilityLevel, annotations)
+        // @Deprecated is also treated as a "modifier"
+        if (annotations.any { it.qualifiedName == JAVA_LANG_DEPRECATED }) {
+            modifiers.setDeprecated(true)
+        }
+        return modifiers
+    }
+
+    /**
+     * Collects all the sequential annotations from [tokenStream], returning them as a (possibly
+     * empty) list.
+     */
+    private fun getAnnotations(
+        tokenStream: TokenStream,
+        apiText: String,
+    ): List<AnnotationItem> = buildList {
+        while (tokenStream.peekType() == SharedTokenType.AT) {
+            // Parse the annotation from the tokenStream, unshortening the class name if necessary,
+            // and add it to the list if it is recognized.
+            valueParser.parseAnnotationItem(tokenStream, apiText, unshorten = true)?.let {
+                annotationItem ->
+                add(annotationItem)
+            }
+        }
     }
 }

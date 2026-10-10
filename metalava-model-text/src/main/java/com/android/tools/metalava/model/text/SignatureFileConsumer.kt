@@ -16,7 +16,12 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.MutableModifierList
+import com.android.tools.metalava.model.TargetLanguage
+import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.parser.LineMap
+import com.android.tools.metalava.model.parser.TokenStream
 import java.nio.file.Path
 
 /**
@@ -28,6 +33,10 @@ import java.nio.file.Path
  * without constructing model items.
  */
 interface SignatureFileConsumer {
+    /** The [TargetLanguageSet] to use if an item does not have one specified. */
+    val defaultTargetLanguageSet: Set<TargetLanguage>
+        get() = TargetLanguageSet.ALL
+
     /**
      * Called before parsing each [signatureFile] at [path] with [lineMap] and [format].
      *
@@ -49,4 +58,17 @@ interface SignatureFileConsumer {
 
     /** Called after all signature files have been parsed. */
     fun finish() {}
+
+    /**
+     * Parses sequential annotations from [tokenStream] (in [apiText]) and creates a
+     * [MutableModifierList] with [visibilityLevel].
+     *
+     * When the method returns, the next token in [tokenStream] will be the first token after the
+     * annotations.
+     */
+    fun parseModifierAnnotations(
+        tokenStream: TokenStream,
+        apiText: String,
+        visibilityLevel: VisibilityLevel,
+    ): MutableModifierList
 }
