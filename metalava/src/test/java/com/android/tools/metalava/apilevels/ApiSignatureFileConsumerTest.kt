@@ -259,4 +259,33 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Constructors`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 4.0
+                package test.pkg {
+                  public class Foo {
+                    ctor public Foo();
+                    ctor protected Foo(int, String...);
+                    ctor Foo(boolean);
+                    ctor public deprecated Foo(String?[]);
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/Foo" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="&lt;init>(I[Ljava/lang/String;)V"/>
+                            <method name="&lt;init>([Ljava/lang/String;)V" deprecated="1"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }

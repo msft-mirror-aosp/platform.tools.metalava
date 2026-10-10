@@ -245,7 +245,27 @@ internal class ApiSignatureFileConsumer(
         typeParameters: List<ParsedTypeParameter>,
         parameters: List<ParsedParameter>,
         throwsTypeStrings: List<TypeString>,
-    ) {}
+    ) {
+        // Private and package-private constructors are not included in the API history.
+        if (modifiers.isPrivate() || modifiers.isPackagePrivate()) {
+            return
+        }
+
+        val descriptor = buildString {
+            append("<init>(")
+            for (parameter in parameters) {
+                typeDescriptorResolver.appendDescriptor(
+                    this,
+                    parameter.typeString.type,
+                    isVarargs = parameter.modifiers.isVarArg(),
+                )
+            }
+            append(")V")
+        }
+
+        val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
+        currentClass.apiClass.updateMethod(descriptor, updater, effectivelyDeprecated)
+    }
 
     override fun consumeMethod(
         location: FileLocation,
