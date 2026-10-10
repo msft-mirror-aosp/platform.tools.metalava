@@ -1865,18 +1865,20 @@ internal class SingleSignatureFileParser(
             )
 
         val typeString: TypeString
-        val receiverNamePair: Pair<TypeItem?, String>
-        if (kotlinNameTypeOrder) {
-            // Kotlin style: parse the name, then the type.
-            receiverNamePair = parsePropertyReceiverAndName(typeItemFactory)
-            typeString = scanForTypeString()
-        } else {
-            // Java style: parse the type, then the name.
-            typeString = scanForTypeString()
-            receiverNamePair = parsePropertyReceiverAndName(typeItemFactory)
-        }
+        val (receiverTypeString, name) =
+            if (kotlinNameTypeOrder) {
+                // Kotlin style: parse the name, then the type.
+                val receiverAndName = parsePropertyReceiverAndName()
+                typeString = scanForTypeString()
+                receiverAndName
+            } else {
+                // Java style: parse the type, then the name.
+                typeString = scanForTypeString()
+                parsePropertyReceiverAndName()
+            }
         val type = typeItemFactory.getGeneralType(typeString)
         synchronizeNullability(type, modifiers)
+        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
 
         // If an opening `(` follows the property declaration, parse its context parameter list.
         val contextParameters =
@@ -1897,10 +1899,10 @@ internal class SingleSignatureFileParser(
             itemFactory.createPropertyItem(
                 fileLocation = fileLocation(token),
                 modifiers = modifiers,
-                name = receiverNamePair.second,
+                name = name,
                 containingClass = containingClass,
                 type = type,
-                receiver = receiverNamePair.first,
+                receiver = receiverType,
                 typeParameterList = typeParameterList,
                 // There isn't any information about whether a setter exists or its visibility if it
                 // does in API files currently.
@@ -1919,9 +1921,7 @@ internal class SingleSignatureFileParser(
      * After the method returns, the caller should continue processing at the next token in
      * [tokenStream].
      */
-    private fun parsePropertyReceiverAndName(
-        typeItemFactory: TextTypeItemFactory
-    ): Pair<TypeItem?, String> {
+    private fun parsePropertyReceiverAndName(): Pair<TypeString?, String> {
         // If there's no receiver, scanning for the type string should just return the name.
         // If there is a receiver, it will return "receiver.name", which can then be split on the
         // last "." to the receiver and name.
@@ -1946,9 +1946,8 @@ internal class SingleSignatureFileParser(
             } else {
                 namePossiblyWithColon
             }
-        val receiverType = receiverTypeString?.let { typeItemFactory.getGeneralType(it) }
 
-        return receiverType to name
+        return receiverTypeString to name
     }
 
     /** Parse `#<record-component-index>` from [tokenStream]. */
