@@ -288,4 +288,33 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Methods and enum synthetic methods`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    method public void doSomething();
+                    method public String compute(int, boolean, String...);
+                    method protected deprecated int[] legacyCompute(test.pkg.Foo);
+                    method void packagePrivateMethod();
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/Foo" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="compute(IZ[Ljava/lang/String;)Ljava/lang/String;"/>
+                            <method name="doSomething()V"/>
+                            <method name="legacyCompute(Ltest/pkg/Foo;)[I" deprecated="1"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
