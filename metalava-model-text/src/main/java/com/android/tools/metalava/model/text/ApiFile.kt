@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
-import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
@@ -65,7 +64,6 @@ import com.android.tools.metalava.model.text.parser.SignatureTokenType
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.type.TypeString
-import com.android.tools.metalava.model.utils.extractOptionalQualifierName
 import com.android.tools.metalava.model.utils.extractSimpleName
 import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
@@ -688,15 +686,17 @@ internal class SingleSignatureFileParser(
             outerClass,
             typeParameterList,
             typeItemFactory,
-        ) = resolveDeclaredClassType(pkg, fullName, parsedTypeParameters, classPosition)
+        ) = context.resolveDeclaredClassType(pkg, fullName, parsedTypeParameters, classPosition)
 
         val superClassTypeString = parseSuperClassTypeString(classKind)
         val interfaceTypeStrings = parseInterfaceTypeStrings()
         val permitTypeStrings = parsePermitTypeStrings()
 
-        var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
-        val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
-        val permitTypes = createPermitTypes(permitTypeStrings, typeItemFactory)
+        var superClassType =
+            context.createSuperClassType(classKind, superClassTypeString, typeItemFactory)
+        val interfaceTypes =
+            context.createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
+        val permitTypes = context.createPermitTypes(permitTypeStrings, typeItemFactory)
 
         val openBrace = requireNonEofToken()
         if (openBrace.type != SharedTokenType.BRACE_OPEN) {
@@ -799,7 +799,7 @@ internal class SingleSignatureFileParser(
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
             parseClassBody(
                 existingClass,
-                typeItemFactoryForClass(existingClass),
+                context.typeItemFactoryForClass(existingClass),
                 existingClass = true,
             )
         }
@@ -810,10 +810,6 @@ internal class SingleSignatureFileParser(
 
         return true
     }
-
-    /** Get the [TextTypeItemFactory] for a previously created [ClassItem]. */
-    private fun typeItemFactoryForClass(classItem: ClassItem?): TextTypeItemFactory =
-        globalTypeItemFactory.from(classItem)
 
     /**
      * Parse the class body, adding members to [containingClass].
@@ -900,21 +896,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Resolves [superClassTypeString] using [typeItemFactory], falling back to
-     * [ClassKind.implicitSuperClassType] if [superClassTypeString] is `null`.
-     */
-    private fun createSuperClassType(
-        classKind: ClassKind,
-        superClassTypeString: TypeString?,
-        typeItemFactory: TextTypeItemFactory,
-    ): ClassTypeItem? {
-        if (superClassTypeString != null) {
-            return typeItemFactory.getSuperClassType(superClassTypeString)
-        }
-        return classKind.implicitSuperClassType
-    }
-
-    /**
      * Parses the optional `implements` (or `extends` for interfaces) clause from [tokenStream],
      * returning the list of raw super-interface [TypeString]s.
      */
@@ -942,26 +923,6 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Resolves [interfaceTypeStrings] using [typeItemFactory] and combines them with any
-     * [ClassKind.implicitInterfaceType].
-     */
-    private fun createInterfaceTypes(
-        classKind: ClassKind,
-        interfaceTypeStrings: List<TypeString>,
-        typeItemFactory: TextTypeItemFactory,
-    ): Set<ClassTypeItem> {
-        val interfaceTypes = mutableSetOf<ClassTypeItem>()
-
-        // Add any ClassKind specific implicit interface types.
-        classKind.implicitInterfaceType?.let { interfaceType -> interfaceTypes.add(interfaceType) }
-
-        for (interfaceTypeString in interfaceTypeStrings) {
-            interfaceTypes.add(typeItemFactory.getInterfaceType(interfaceTypeString))
-        }
-        return interfaceTypes
-    }
-
-    /**
      * Parses the optional `permits` clause for a sealed class or interface from [tokenStream],
      * returning the list of raw permitted subclass [TypeString]s.
      */
@@ -975,25 +936,6 @@ internal class SingleSignatureFileParser(
                 add(parseSuperTypeString())
             }
         }
-    }
-
-    /**
-     * Resolves [permitTypeStrings] using [typeItemFactory], returning the permitted subclass types
-     * sorted by qualified name.
-     */
-    private fun createPermitTypes(
-        permitTypeStrings: List<TypeString>,
-        typeItemFactory: TextTypeItemFactory,
-    ): List<ClassTypeItem> {
-        if (permitTypeStrings.isEmpty()) {
-            return emptyList()
-        }
-        val permitTypes =
-            permitTypeStrings.mapTo(mutableListOf()) {
-                typeItemFactory.getHierarchicalClassType(it)
-            }
-        permitTypes.sortWith(TypeItem.qualifiedComparator)
-        return permitTypes
     }
 
     /**
@@ -1058,95 +1000,6 @@ internal class SingleSignatureFileParser(
         }
 
         return TypeString(fileSubstring(startOffset, endOffset), startOffset)
-    }
-
-    /** Encapsulates multiple return values from [resolveDeclaredClassType]. */
-    private data class DeclaredClassTypeComponents(
-        /** The fully qualified name, including package and full name. */
-        val qualifiedName: String,
-        /** The optional, resolved outer [ClassItem]. */
-        val outerClass: SkeletonClassItem?,
-        /** The set of type parameters. */
-        val typeParameterList: TypeParameterList,
-        /**
-         * The [TextTypeItemFactory] including any type parameters in the [typeParameterList] in its
-         * [TextTypeItemFactory.typeParameterScope].
-         */
-        val typeItemFactory: TextTypeItemFactory,
-    )
-
-    /**
-     * Resolves the declared class name [fullName] and [parsedTypeParameters] in [pkg] into
-     * [DeclaredClassTypeComponents].
-     *
-     * If the qualified name matches an existing class then return its information.
-     */
-    private fun resolveDeclaredClassType(
-        pkg: PackageItem,
-        fullName: String,
-        parsedTypeParameters: List<ParsedTypeParameter>,
-        classFileLocation: FileLocation,
-    ): DeclaredClassTypeComponents {
-        val pkgName = pkg.qualifiedName()
-        val qualifiedName = qualifiedName(pkgName, fullName)
-
-        // Split the full name into an optional outer class and a simple name.
-        val outerClassFullName = fullName.extractOptionalQualifierName()
-        val outerClass =
-            if (outerClassFullName == null) {
-                null
-            } else {
-                val qualifiedOuterClassName = qualifiedName(pkgName, outerClassFullName)
-
-                // Search for the outer class in the codebase. This is safe as the outer class
-                // always precedes its nested classes.
-                assembler.getOrCreateClass(
-                    qualifiedOuterClassName,
-                    isOuterClassOfClassInThisCodebase = true
-                ) as SkeletonClassItem
-            }
-
-        // Get the [TextTypeItemFactory] for the outer class, if any.
-        val outerClassTypeItemFactory = typeItemFactoryForClass(outerClass)
-
-        val (typeParameterList, typeItemFactory) =
-            createTypeParameterListAndFactory(
-                outerClassTypeItemFactory,
-                "class $qualifiedName",
-                parsedTypeParameters,
-            )
-
-        // Decide which type parameter list and factory to actually use.
-        //
-        // If the class already exists then reuse its type parameter list and factory, otherwise use
-        // the newly created one.
-        //
-        // The reason for this is that otherwise any types parsed with the newly created factory
-        // would reference type parameters in the newly created list which are different to the ones
-        // belonging to the existing class.
-        val (actualTypeParameterList, actualTypeItemFactory) =
-            codebase.findClassInCodebase(qualifiedName)?.let { existingClass ->
-                // Check to make sure that the type parameter lists are the same.
-                val existingTypeParameterList = existingClass.typeParameterList
-                val existingTypeParameterListString = existingTypeParameterList.toString()
-                val normalizedTypeParameterListString = typeParameterList.toString()
-                if (normalizedTypeParameterListString != existingTypeParameterListString) {
-                    val location = existingClass.fileLocation
-                    throw ApiParseException(
-                        "Inconsistent type parameter list for $qualifiedName, this has $normalizedTypeParameterListString but it was previously defined as $existingTypeParameterListString at $location",
-                        classFileLocation
-                    )
-                }
-
-                Pair(existingTypeParameterList, typeItemFactoryForClass(existingClass))
-            } ?: Pair(typeParameterList, typeItemFactory)
-
-        return DeclaredClassTypeComponents(
-            qualifiedName = qualifiedName,
-            outerClass = outerClass,
-            typeParameterList = actualTypeParameterList,
-            typeItemFactory = actualTypeItemFactory,
-        )
     }
 
     /**
@@ -2280,9 +2133,5 @@ internal class SingleSignatureFileParser(
             )
         }
         return token
-    }
-
-    private fun qualifiedName(pkg: String, className: String): String {
-        return "$pkg.$className"
     }
 }
