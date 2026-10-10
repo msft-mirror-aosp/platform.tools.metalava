@@ -29,12 +29,31 @@ import org.junit.Test
 class ApiSignatureFileConsumerTest {
 
     /**
-     * Populates an [Api] across [versions] using [ApiSignatureFileConsumer], verifies that its XML
-     * output matches the XML produced by [ApiFile.parseApi] + [addApisFromCodebase], and optionally
-     * asserts that the XML matches [expectedXml].
+     * Populates an [Api] across [versions] (where each version is a single signature file) using
+     * [ApiSignatureFileConsumer], verifies that its XML output matches the XML produced by
+     * [ApiFile.parseApi] + [addApisFromCodebase], and optionally asserts that the XML matches
+     * [expectedXml].
      */
     private fun checkSignatureFiles(
         vararg versions: String,
+        expectedXml: String? = null,
+        checkCodebaseParity: Boolean = true,
+    ) {
+        checkSignatureFiles(
+            versions = versions.map { listOf(it) }.toTypedArray(),
+            expectedXml = expectedXml,
+            checkCodebaseParity = checkCodebaseParity,
+        )
+    }
+
+    /**
+     * Populates an [Api] across [versions] (where each version may consist of multiple delta
+     * signature files) using [ApiSignatureFileConsumer], verifies that its XML output matches the
+     * XML produced by [ApiFile.parseApi] + [addApisFromCodebase], and optionally asserts that the
+     * XML matches [expectedXml].
+     */
+    private fun checkSignatureFiles(
+        vararg versions: List<String>,
         expectedXml: String? = null,
         checkCodebaseParity: Boolean = true,
     ) {
@@ -42,10 +61,13 @@ class ApiSignatureFileConsumerTest {
         val codebaseApi = Api(useInternalNames = true)
 
         val versionedApis =
-            versions.mapIndexed { index, contents ->
+            versions.mapIndexed { index, versionFiles ->
                 val apiVersion = ApiVersion.fromLevel(index + 1)
                 val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-                val signatureFiles = listOf(SignatureFile.fromText("$apiVersion.txt", contents))
+                val signatureFiles =
+                    versionFiles.mapIndexed { fileIndex, contents ->
+                        SignatureFile.fromText("$apiVersion-$fileIndex.txt", contents)
+                    }
 
                 ApiFile.consumeApi(
                     signatureFiles,
@@ -483,6 +505,78 @@ class ApiSignatureFileConsumerTest {
                         </class>
                     </api>
                 """,
+        )
+    }
+
+    @Test
+    fun `Multi-file delta class merging`() {
+        // TODO(b/572064985): Re-declaring a class in a delta signature file without repeating its
+        //  extends/implements clauses currently overwrites its superclass with java/lang/Object and
+        //  clears its interfaces instead of preserving the base declaration's supertypes.
+        checkSignatureFiles(
+            listOf(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class PublicSuper {
+                      }
+                      public class SystemSuper extends test.pkg.PublicSuper {
+                      }
+                      public interface PublicInterface {
+                      }
+                      public interface SystemInterface {
+                      }
+                      public class MergedKeepSuper extends test.pkg.PublicSuper implements test.pkg.PublicInterface {
+                        method public void publicMethod();
+                      }
+                      public class MergedOverrideSuper extends test.pkg.PublicSuper implements test.pkg.PublicInterface {
+                        method public void publicMethod();
+                      }
+                    }
+                """,
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class MergedKeepSuper {
+                        method public void systemMethod();
+                      }
+                      public class MergedOverrideSuper extends test.pkg.SystemSuper implements test.pkg.PublicInterface, test.pkg.SystemInterface {
+                        method public void systemMethod();
+                      }
+                    }
+                """,
+            ),
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/MergedKeepSuper" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="publicMethod()V"/>
+                            <method name="systemMethod()V"/>
+                        </class>
+                        <class name="test/pkg/MergedOverrideSuper" since="1">
+                            <extends name="test/pkg/SystemSuper"/>
+                            <implements name="test/pkg/PublicInterface"/>
+                            <implements name="test/pkg/SystemInterface"/>
+                            <method name="publicMethod()V"/>
+                            <method name="systemMethod()V"/>
+                        </class>
+                        <class name="test/pkg/PublicInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/PublicSuper" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/SystemInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                        <class name="test/pkg/SystemSuper" since="1">
+                            <extends name="test/pkg/PublicSuper"/>
+                        </class>
+                    </api>
+                """,
+            checkCodebaseParity = false,
         )
     }
 }
