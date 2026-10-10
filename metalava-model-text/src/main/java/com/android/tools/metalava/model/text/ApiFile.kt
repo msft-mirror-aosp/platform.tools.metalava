@@ -28,6 +28,7 @@ import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
+import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
@@ -1021,36 +1022,46 @@ internal class SingleSignatureFileParser(
         while (!match(SharedTokenType.BRACE_CLOSE)) {
             val memberToken = requireNonEofToken()
             when (memberToken.type) {
-                SignatureTokenType.CTOR ->
-                    parseConstructor(
-                        containingClass,
-                        classTypeItemFactory,
-                        replaceExisting = hasExistingConstructors,
-                    )
-                SignatureTokenType.ENUM_CONSTANT ->
-                    parseEnumConstant(
-                        containingClass,
-                        classTypeItemFactory,
-                        replaceExisting = hasExistingFields,
-                    )
-                SignatureTokenType.FIELD ->
-                    parseField(
-                        containingClass,
-                        classTypeItemFactory,
-                        replaceExisting = hasExistingFields,
-                    )
-                SignatureTokenType.METHOD ->
-                    parseMethod(
-                        containingClass,
-                        classTypeItemFactory,
-                        replaceExisting = hasExistingMethods,
-                    )
-                SignatureTokenType.PROPERTY ->
-                    parseProperty(
-                        containingClass,
-                        classTypeItemFactory,
-                        replaceExisting = hasExistingProperties,
-                    )
+                SignatureTokenType.CTOR -> {
+                    val constructor = parseConstructor(containingClass, classTypeItemFactory)
+                    if (hasExistingConstructors) {
+                        containingClass.replaceOrAddConstructor(constructor)
+                    } else {
+                        containingClass.addConstructor(constructor)
+                    }
+                }
+                SignatureTokenType.ENUM_CONSTANT -> {
+                    val field = parseEnumConstant(containingClass, classTypeItemFactory)
+                    if (hasExistingFields) {
+                        containingClass.replaceOrAddField(field)
+                    } else {
+                        containingClass.addField(field)
+                    }
+                }
+                SignatureTokenType.FIELD -> {
+                    val field = parseField(containingClass, classTypeItemFactory)
+                    if (hasExistingFields) {
+                        containingClass.replaceOrAddField(field)
+                    } else {
+                        containingClass.addField(field)
+                    }
+                }
+                SignatureTokenType.METHOD -> {
+                    val method = parseMethod(containingClass, classTypeItemFactory) ?: continue
+                    if (hasExistingMethods) {
+                        containingClass.replaceOrAddMethod(method)
+                    } else {
+                        containingClass.addMethod(method)
+                    }
+                }
+                SignatureTokenType.PROPERTY -> {
+                    val property = parseProperty(containingClass, classTypeItemFactory)
+                    if (hasExistingProperties) {
+                        containingClass.replaceOrAddProperty(property)
+                    } else {
+                        containingClass.addProperty(property)
+                    }
+                }
                 else ->
                     throw parseException(
                         "expected one of ctor, enum_constant, field, method, property",
@@ -1364,8 +1375,7 @@ internal class SingleSignatureFileParser(
     private fun parseConstructor(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        replaceExisting: Boolean,
-    ) {
+    ): ConstructorItem {
         val method: ConstructorItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
@@ -1406,23 +1416,14 @@ internal class SingleSignatureFileParser(
                 targetLanguages = targetLanguages,
             )
         method.markSelectedApiVariant()
-
-        if (replaceExisting) {
-            // If there is already a constructor with the same signature from a previous file,
-            // replaces the old version with this one, otherwise just adds the constructor.
-            containingClass.replaceOrAddConstructor(method)
-        } else {
-            // Just add the constructor to the class.
-            containingClass.addConstructor(method)
-        }
+        return method
     }
 
     /** Parse a method member of [containingClass]. */
     private fun parseMethod(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        replaceExisting: Boolean,
-    ) {
+    ): MethodItem? {
         val method: MethodItem
 
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
@@ -1514,44 +1515,32 @@ internal class SingleSignatureFileParser(
         // Ignore enum synthetic methods. They are no longer included in signature files as they add
         // no information. However, they did use to be included and so this filters them out to
         // ensure that the resulting Codebase is consistent with the original source Codebase.
-        if (method.isEnumSyntheticMethod()) return
+        if (method.isEnumSyntheticMethod()) return null
 
         method.markSelectedApiVariant()
-
-        if (replaceExisting) {
-            // If the method already exists in the class item because it was defined in a previous
-            // signature file then replace it with this one, otherwise just add this method.
-            containingClass.replaceOrAddMethod(method)
-        } else {
-            // Just add the method to the class.
-            containingClass.addMethod(method)
-        }
+        return method
     }
 
     /** Parse a field member of [containingClass]. */
     private fun parseField(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        replaceExisting: Boolean,
     ) =
         parseFieldOrEnumConstant(
             containingClass,
             classTypeItemFactory,
             isEnumConstant = false,
-            replaceExisting = replaceExisting,
         )
 
     /** Parse an enum constant member of [containingClass]. */
     private fun parseEnumConstant(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        replaceExisting: Boolean,
     ) =
         parseFieldOrEnumConstant(
             containingClass,
             classTypeItemFactory,
             isEnumConstant = true,
-            replaceExisting = replaceExisting,
         )
 
     /** Parse a field or enum constant of [containingClass]. */
@@ -1559,8 +1548,7 @@ internal class SingleSignatureFileParser(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
         isEnumConstant: Boolean,
-        replaceExisting: Boolean,
-    ) {
+    ): FieldItem {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         val typeString: TypeString
@@ -1629,14 +1617,7 @@ internal class SingleSignatureFileParser(
                 targetLanguages = targetLanguages,
             )
         field.markSelectedApiVariant()
-        if (replaceExisting) {
-            // If the field already exists in the class item because it was defined in a previous
-            // signature file then replace it with this one, otherwise just add this field.
-            containingClass.replaceOrAddField(field)
-        } else {
-            // Just add the field to the class.
-            containingClass.addField(field)
-        }
+        return field
     }
 
     /**
@@ -1803,8 +1784,7 @@ internal class SingleSignatureFileParser(
     private fun parseProperty(
         containingClass: SkeletonClassItem,
         classTypeItemFactory: TextTypeItemFactory,
-        replaceExisting: Boolean,
-    ) {
+    ): PropertyItem {
         val modifiers = parseModifiers()
 
         // Get a TypeParameterList and accompanying TypeParameterScope
@@ -1856,15 +1836,7 @@ internal class SingleSignatureFileParser(
                 },
             )
         property.markSelectedApiVariant()
-
-        if (replaceExisting) {
-            // If there is already a property with the same signature from a previous file, replaces
-            // the old version with this one, otherwise just adds the property.
-            containingClass.replaceOrAddProperty(property)
-        } else {
-            // Just add the property to the class.
-            containingClass.addProperty(property)
-        }
+        return property
     }
 
     /**
