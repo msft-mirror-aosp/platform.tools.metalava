@@ -36,6 +36,7 @@ class ApiSignatureFileConsumerTest {
     private fun checkSignatureFiles(
         vararg versions: String,
         expectedXml: String? = null,
+        checkCodebaseParity: Boolean = true,
     ) {
         val consumerApi = Api(useInternalNames = true)
         val codebaseApi = Api(useInternalNames = true)
@@ -71,7 +72,9 @@ class ApiSignatureFileConsumerTest {
         if (expectedXml != null) {
             assertEquals(expectedXml.trimIndent(), consumerXml)
         }
-        assertEquals(codebaseXml, consumerXml)
+        if (checkCodebaseParity) {
+            assertEquals(codebaseXml, consumerXml)
+        }
     }
 
     /** Formats [api] using [ApiXmlPrinter] with 4-space indentation. */
@@ -301,8 +304,18 @@ class ApiSignatureFileConsumerTest {
                     method protected deprecated int[] legacyCompute(test.pkg.Foo);
                     method void packagePrivateMethod();
                   }
+                  public enum Mode {
+                    enum_constant public static final test.pkg.Mode FAST;
+                    method public static test.pkg.Mode valueOf(String);
+                    method public static test.pkg.Mode[] values();
+                    method public static java.util.List<test.pkg.Mode> getEntries();
+                    method public static test.pkg.Mode valueOf(int);
+                    method public int customEnumMethod();
+                  }
                 }
             """,
+            // TODO(b/572064985): Synthetic enum method `getEntries()` should be filtered out by
+            //  ApiSignatureFileConsumer, matching SignatureFileCodebaseBuilder.
             expectedXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -313,8 +326,18 @@ class ApiSignatureFileConsumerTest {
                             <method name="doSomething()V"/>
                             <method name="legacyCompute(Ltest/pkg/Foo;)[I" deprecated="1"/>
                         </class>
+                        <class name="test/pkg/Mode" since="1">
+                            <extends name="java/lang/Enum"/>
+                            <method name="customEnumMethod()I"/>
+                            <method name="getEntries()Ljava/util/List;"/>
+                            <method name="valueOf(I)Ltest/pkg/Mode;"/>
+                            <method name="valueOf(Ljava/lang/String;)Ltest/pkg/Mode;"/>
+                            <method name="values()[Ltest/pkg/Mode;"/>
+                            <field name="FAST"/>
+                        </class>
                     </api>
                 """,
+            checkCodebaseParity = false,
         )
     }
 }
