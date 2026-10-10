@@ -1,0 +1,376 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.apilevels
+
+/**
+ * Resolves raw signature file type strings into erased JVM internal names (`pkg/Outer$Inner`) and
+ * JVM type descriptors (`I`, `[Ljava/lang/String;`, etc.) without constructing
+ * [com.android.tools.metalava.model.TypeItem] instances.
+ */
+internal class ErasedTypeDescriptorResolver {
+
+    /**
+     * Resolves a class or interface [type] string (such as from an `extends` or `implements`
+     * clause) to its erased JVM internal name (e.g. `java/lang/Object` or `test/pkg/Outer$Inner`).
+     *
+     * @param type the raw type string from the signature file.
+     * @return the erased JVM internal name without `L` or `;` delimiters.
+     */
+    fun resolveInternalName(type: String): String {
+        val sb = StringBuilder(type.length)
+        val scanner = TypeScanner(type)
+        scanner.appendClassInternalName(sb)
+        return sb.toString()
+    }
+
+    /**
+     * Resolves a parameter, return, or bound [type] string to its erased JVM descriptor (e.g. `I`,
+     * `Ljava/lang/String;`, `[[Ltest/pkg/Outer$Inner;`).
+     *
+     * @param type the raw type string from the signature file.
+     * @param isVarargs whether the parameter is a varargs parameter (or has a `...` suffix in its
+     *   [type] string). If `true` and [type] does not already end with `...`, an extra `[` array
+     *   dimension is prepended.
+     * @return the erased JVM type descriptor.
+     */
+    fun resolveDescriptor(type: String, isVarargs: Boolean = false): String {
+        val sb = StringBuilder(type.length + 16)
+        appendDescriptor(sb, type, isVarargs)
+        return sb.toString()
+    }
+
+    /**
+     * Appends the erased JVM descriptor for [type] directly to [out].
+     *
+     * @param out the [StringBuilder] to append the descriptor to.
+     * @param type the raw type string from the signature file.
+     * @param isVarargs whether an extra array dimension should be added if [type] does not already
+     *   include a trailing `...` varargs suffix.
+     */
+    fun appendDescriptor(out: StringBuilder, type: String, isVarargs: Boolean = false) {
+        val scanner = TypeScanner(type)
+        scanner.appendDescriptor(out, isVarargs)
+    }
+
+    /**
+     * Lightweight character scanner over a single [type] string that skips annotations, generic
+     * type arguments, and nullability markers while extracting the erased base type and array
+     * dimensions.
+     */
+    private class TypeScanner(private val type: String) {
+        private val length = type.length
+        private var pos = 0
+
+        /**
+         * Parses a class or interface type and appends its JVM internal name (`pkg/Outer$Inner`) to
+         * [out].
+         */
+        fun appendClassInternalName(out: StringBuilder) {
+            skipWhitespaceAndAnnotations()
+            val firstStart = pos
+            val firstEnd = scanIdentifier()
+            skipPostSegmentTokens()
+
+            // Single-identifier class name (e.g. `Object`, `String`, `Comparable<T>`).
+            if (!isPackageOrNestedClassDot()) {
+                val simpleName = type.substring(firstStart, firstEnd)
+                if (simpleName == "dynamic") {
+                    out.append("dynamic")
+                } else {
+                    out.append("java/lang/").append(simpleName)
+                }
+                return
+            }
+
+            appendMultiSegmentInternalName(out, firstStart, firstEnd)
+        }
+
+        /**
+         * Parses any type (primitive, class, or array/varargs) and appends its JVM type descriptor
+         * to [out].
+         */
+        fun appendDescriptor(out: StringBuilder, isVarargs: Boolean) {
+            // Remember the insertion point in `out` so array `[` prefixes can be inserted once all
+            // trailing `[]` and `...` dimensions have been counted.
+            val descriptorStart = out.length
+
+            skipWhitespaceAndAnnotations()
+            val firstStart = pos
+            val firstEnd = scanIdentifier()
+            skipPostSegmentTokens()
+
+            if (!isPackageOrNestedClassDot()) {
+                // Single-identifier base type: primitive (`int`), unqualified `java.lang.*` class
+                // (`String`), or `dynamic`.
+                val simpleName = type.substring(firstStart, firstEnd)
+                val primitiveDescriptor = primitiveDescriptor(simpleName)
+                if (primitiveDescriptor != null) {
+                    out.append(primitiveDescriptor)
+                } else if (simpleName == "dynamic") {
+                    out.append("Ldynamic;")
+                } else {
+                    out.append("Ljava/lang/").append(simpleName).append(';')
+                }
+            } else {
+                // Multi-segment qualified class or nested class (`java.lang.String`,
+                // `Thread.State`, `android.Manifest.permission`, etc.).
+                out.append('L')
+                appendMultiSegmentInternalName(out, firstStart, firstEnd)
+                out.append(';')
+            }
+
+            // Count any trailing `[]` and `...` dimensions after the base type.
+            val dimensions = countArrayDimensions(isVarargs)
+            for (i in 0 until dimensions) {
+                out.insert(descriptorStart, '[')
+            }
+        }
+
+        /**
+         * Appends a multi-segment qualified class name starting from the already-scanned first
+         * identifier `[firstStart, firstEnd)`, converting package `.` separators to `/` and nested
+         * class `.` separators (after the first class segment) to `$`.
+         */
+        private fun appendMultiSegmentInternalName(
+            out: StringBuilder,
+            firstStart: Int,
+            firstEnd: Int,
+        ) {
+            var seenClassSegment = containsUpperCase(firstStart, firstEnd)
+            if (seenClassSegment) {
+                // If the first segment starts with an uppercase letter (e.g. `Thread.State`), it
+                // is an unqualified `java.lang` outer class followed by nested class segments.
+                out.append("java/lang/")
+            }
+            out.append(type, firstStart, firstEnd)
+
+            while (isPackageOrNestedClassDot()) {
+                pos++ // consume '.'
+                val hadAnnotation = skipWhitespaceAndAnnotations()
+                val nextStart = pos
+                val nextEnd = scanIdentifier()
+                skipPostSegmentTokens()
+
+                if (seenClassSegment) {
+                    // Every segment after the outer class segment is a nested class.
+                    out.append('$')
+                } else {
+                    // Still in package segments; the separator before this segment is `/`.
+                    out.append('/')
+                    // A segment is the outer class segment if it contains an uppercase character or
+                    // was preceded by a type-use annotation (e.g. `pkg.@Anno lowerCaseClass`).
+                    if (hadAnnotation || containsUpperCase(nextStart, nextEnd)) {
+                        seenClassSegment = true
+                    }
+                }
+                out.append(type, nextStart, nextEnd)
+            }
+        }
+
+        /**
+         * Counts trailing `[]` array brackets and `...` varargs ellipses, skipping any interspersed
+         * whitespace, type-use annotations, and `?`/`!` nullability suffixes.
+         */
+        private fun countArrayDimensions(isVarargs: Boolean): Int {
+            var dimensions = 0
+            var sawEllipsis = false
+            while (pos < length) {
+                skipWhitespaceAndAnnotations()
+                if (pos >= length) break
+                val c = type[pos]
+                when {
+                    c == '[' -> {
+                        pos++
+                        skipWhitespace()
+                        if (pos < length && type[pos] == ']') {
+                            pos++
+                        }
+                        dimensions++
+                    }
+                    c == '.' &&
+                        pos + 2 < length &&
+                        type[pos + 1] == '.' &&
+                        type[pos + 2] == '.' -> {
+                        pos += 3
+                        dimensions++
+                        sawEllipsis = true
+                    }
+                    c == '?' || c == '!' -> {
+                        pos++
+                    }
+                    else -> break
+                }
+            }
+            if (isVarargs && !sawEllipsis) {
+                dimensions++
+            }
+            return dimensions
+        }
+
+        /**
+         * Returns `true` if [pos] is at a `.` separator between package or class segments (and not
+         * a `...` varargs ellipsis).
+         */
+        private fun isPackageOrNestedClassDot(): Boolean {
+            if (pos >= length || type[pos] != '.') return false
+            return !(pos + 2 < length && type[pos + 1] == '.' && type[pos + 2] == '.')
+        }
+
+        /**
+         * Skips whitespace, generic `<...>` type argument lists, and `?`/`!` nullability suffixes
+         * immediately following an identifier segment.
+         */
+        private fun skipPostSegmentTokens() {
+            while (pos < length) {
+                skipWhitespace()
+                if (pos >= length) break
+                when (type[pos]) {
+                    '<' -> skipBalancedAngles()
+                    '?',
+                    '!' -> pos++
+                    else -> break
+                }
+            }
+        }
+
+        /**
+         * Skips whitespace and any `@...` type-use annotations at [pos].
+         *
+         * @return `true` if at least one annotation was skipped.
+         */
+        private fun skipWhitespaceAndAnnotations(): Boolean {
+            var skippedAnnotation = false
+            while (pos < length) {
+                skipWhitespace()
+                if (pos < length && type[pos] == '@') {
+                    skipAnnotation()
+                    skippedAnnotation = true
+                } else {
+                    break
+                }
+            }
+            return skippedAnnotation
+        }
+
+        /** Skips a single `@QualifiedName(...)` annotation starting at [pos]. */
+        private fun skipAnnotation() {
+            pos++ // consume '@'
+            skipWhitespace()
+            scanIdentifier()
+            skipWhitespace()
+            while (isPackageOrNestedClassDot()) {
+                pos++ // consume '.'
+                skipWhitespace()
+                scanIdentifier()
+                skipWhitespace()
+            }
+            if (pos < length && type[pos] == '(') {
+                skipBalancedParens()
+            }
+        }
+
+        /** Skips balanced `(...)` starting at `(` at [pos], respecting string and char literals. */
+        private fun skipBalancedParens() {
+            pos++ // consume '('
+            var depth = 1
+            while (pos < length && depth > 0) {
+                when (val c = type[pos++]) {
+                    '(' -> depth++
+                    ')' -> depth--
+                    '"',
+                    '\'' -> skipQuotedLiteral(c)
+                }
+            }
+        }
+
+        /** Skips balanced `<...>` starting at `<` at [pos], respecting string and char literals. */
+        private fun skipBalancedAngles() {
+            pos++ // consume '<'
+            var depth = 1
+            while (pos < length && depth > 0) {
+                when (val c = type[pos++]) {
+                    '<' -> depth++
+                    '>' -> depth--
+                    '"',
+                    '\'' -> skipQuotedLiteral(c)
+                }
+            }
+        }
+
+        /** Skips a string or character literal after its opening [quote] character. */
+        private fun skipQuotedLiteral(quote: Char) {
+            while (pos < length) {
+                val c = type[pos++]
+                if (c == '\\' && pos < length) {
+                    pos++
+                } else if (c == quote) {
+                    break
+                }
+            }
+        }
+
+        /** Advances [pos] past any whitespace characters. */
+        private fun skipWhitespace() {
+            while (pos < length && type[pos].isWhitespace()) {
+                pos++
+            }
+        }
+
+        /**
+         * Scans a Java/Kotlin identifier starting at [pos] and returns the exclusive end offset.
+         */
+        private fun scanIdentifier(): Int {
+            while (pos < length && isIdentifierChar(type[pos])) {
+                pos++
+            }
+            return pos
+        }
+
+        /** Returns `true` if any character in `[start, end)` is an uppercase character. */
+        private fun containsUpperCase(start: Int, end: Int): Boolean {
+            for (i in start until end) {
+                if (type[i].isUpperCase()) return true
+            }
+            return false
+        }
+
+        /** Returns `true` if [c] can be part of a Java identifier in a signature file. */
+        private fun isIdentifierChar(c: Char): Boolean {
+            return c.isLetterOrDigit() || c == '_' || c == '$'
+        }
+    }
+
+    companion object {
+        /**
+         * Returns the single-character JVM descriptor for a primitive type name, or `null` if
+         * [name] is not a primitive keyword.
+         */
+        private fun primitiveDescriptor(name: String): String? =
+            when (name) {
+                "boolean" -> "Z"
+                "byte" -> "B"
+                "char" -> "C"
+                "double" -> "D"
+                "float" -> "F"
+                "int" -> "I"
+                "long" -> "J"
+                "short" -> "S"
+                "void" -> "V"
+                else -> null
+            }
+    }
+}
