@@ -888,7 +888,8 @@ internal class SingleSignatureFileParser(
             typeItemFactory,
         ) = parseDeclaredClassType(pkg, classPosition)
 
-        var superClassType = parseSuperClassType(classKind, typeItemFactory)
+        val superClassTypeString = parseSuperClassTypeString(classKind)
+        var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
         val interfaceTypes = parseInterfaceTypes(classKind, typeItemFactory)
         val permitTypes = parsePermitTypes(typeItemFactory)
 
@@ -1077,21 +1078,32 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Parses the optional `extends <superclass>` clause for a non-interface class, falling back to
-     * [ClassKind.implicitSuperClassType] if none is present.
+     * Parses the optional `extends <superclass>` clause for a non-interface class from
+     * [tokenStream], returning the raw [TypeString] if present or `null` otherwise.
      */
-    private fun parseSuperClassType(
-        classKind: ClassKind,
-        typeItemFactory: TextTypeItemFactory,
-    ): ClassTypeItem? {
+    private fun parseSuperClassTypeString(classKind: ClassKind): TypeString? {
         // Interfaces use `extends` for super-interfaces rather than a superclass.
         if (peekType() == SharedTokenType.EXTENDS && classKind != ClassKind.INTERFACE) {
             consume()
-            val superClassTypeString = parseSuperTypeString()
-            return typeItemFactory.getSuperClassType(superClassTypeString)
+            return parseSuperTypeString()
         }
-        return classKind.implicitSuperClassType
+        return null
     }
+
+    /**
+     * Resolves [superClassTypeString] using [typeItemFactory], falling back to
+     * [ClassKind.implicitSuperClassType] if [superClassTypeString] is `null`.
+     */
+    private fun createSuperClassType(
+        classKind: ClassKind,
+        superClassTypeString: TypeString?,
+        typeItemFactory: TextTypeItemFactory,
+    ): ClassTypeItem? =
+        if (superClassTypeString != null) {
+            typeItemFactory.getSuperClassType(superClassTypeString)
+        } else {
+            classKind.implicitSuperClassType
+        }
 
     /**
      * Parses the optional `implements` (or `extends` for interfaces) clause and combines it with
