@@ -55,7 +55,6 @@ import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
-import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.SharedTokenType
@@ -592,65 +591,12 @@ internal class SingleSignatureFileParser(
         }
     }
 
-    /**
-     * Find an existing package called [name] or create a new one.
-     *
-     * If an existing package exists then this makes sure that its annotations match [modifiers].
-     */
-    private fun findOrCreatePackage(
-        packageToken: Token,
-        name: String,
-        modifiers: MutableModifierList,
-    ): PackageItem {
-        val annotations = modifiers.annotations()
-        // Check to see if the package already exists, if it does then return it.
-        codebase.findPackage(name)?.let { existing ->
-            // If the same package showed up multiple times, make sure they have the same modifiers.
-            // (Packages can't have public/private/etc., but they can have annotations, which are
-            // part of ModifierList.)
-            val existingAnnotations = existing.modifiers.annotations()
-            if (annotations != existingAnnotations) {
-                throw parseException(
-                    String.format(
-                        "Contradicting declaration of package %s." +
-                            " Previously seen with annotations \"%s\", but now with \"%s\"",
-                        name,
-                        existingAnnotations,
-                        annotations
-                    ),
-                    packageToken,
-                )
-            }
-
-            return existing
-        }
-
-        // Wrap the file location and annotations in a PackageInfo.
-        val packageInfo =
-            PackageInfo(
-                fileLocation = fileLocation(packageToken),
-                annotations = annotations,
-                // Packages loaded from signature files have [SelectableItem.documentation] set to
-                // `null`. That is not a problem as it is only needed when creating stubs containing
-                // enhanced documentation which cannot be created from signature files.
-                commentFactory = ItemDocumentation.NONE_FACTORY,
-            )
-
-        // Create the package. This relies on containing packages always being processed before any
-        // contained package which is guaranteed by the signature file order.
-        return codebase.packageTracker.createPackage(name, packageInfo)
-    }
-
     private fun parsePackage(packageToken: Token) {
         // Metalava: including annotations in file now
         val modifiers = parseModifierAnnotations(VisibilityLevel.PACKAGE_PRIVATE)
         val name: String = parseQualifiedName()
 
-        val pkg = findOrCreatePackage(packageToken, name, modifiers)
-
-        // Note: pkg.markSelectedApiVariant() is not called here because packages do not belong to
-        // an API surface in their own right; their API variants are populated via propagation from
-        // their contained classes and members.
+        context.startPackage(fileLocation(packageToken), modifiers, name)
 
         // Consume the `{` opening the package body, then parse each class/typealias until `}`.
         val openBrace = requireNonEofToken()
@@ -658,8 +604,10 @@ internal class SingleSignatureFileParser(
             throw parseException("expected '{' got ${text(openBrace)}", openBrace)
         }
         while (!match(SharedTokenType.BRACE_CLOSE)) {
-            parseClass(pkg)
+            parseClass(context.currentPackage)
         }
+
+        context.endPackage()
     }
 
     /**

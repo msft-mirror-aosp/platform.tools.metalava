@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.reporter.FileLocation
 import java.nio.file.Path
 
 /**
@@ -71,4 +72,16 @@ interface SignatureFileConsumer {
         apiText: String,
         visibilityLevel: VisibilityLevel,
     ): MutableModifierList
+
+    /**
+     * Called at the start of a `package` block at [location] with [modifiers] and qualified [name].
+     */
+    fun startPackage(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        name: String,
+    )
+
+    /** Called at the end of the current `package` block. */
+    fun endPackage() {}
 }
