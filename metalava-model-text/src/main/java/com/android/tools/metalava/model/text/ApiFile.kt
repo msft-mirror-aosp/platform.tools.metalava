@@ -2193,7 +2193,7 @@ internal class SingleSignatureFileParser(
      * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
      * number of method parameters.
      */
-    private inner class ParameterInfo(
+    private class ParameterInfo(
         val name: String,
         val publicName: String?,
         val hasDefaultValue: Boolean,
@@ -2202,76 +2202,76 @@ internal class SingleSignatureFileParser(
         val location: FileLocation,
         val index: Int,
         val optionalKind: ParameterKind?,
-    ) {
-        /**
-         * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing
-         * the [typeString].
-         */
-        fun create(
-            containingCallable: CallableItem,
-            typeItemFactory: TextTypeItemFactory,
-            methodFingerprint: MethodFingerprint
-        ): ParameterItem {
-            val type =
-                typeItemFactory.getMethodParameterType(
-                    typeString,
-                    modifiers.annotations(),
-                    methodFingerprint,
-                    index,
-                    modifiers.isVarArg()
-                )
-            synchronizeNullability(type, modifiers)
+    )
 
-            // The last parameter of a suspend function is the continuation parameter. If there was
-            // a parameter kind listed in the file, use that, otherwise this is a value parameter.
-            val kind =
-                if (
-                    containingCallable.modifiers.isSuspend() &&
-                        index == methodFingerprint.parameterCount - 1
-                ) {
-                    ParameterKind.CONTINUATION
-                } else {
-                    optionalKind ?: ParameterKind.VALUE
-                }
+    /**
+     * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing the
+     * [ParameterInfo.typeString].
+     */
+    private fun ParameterInfo.create(
+        containingCallable: CallableItem,
+        typeItemFactory: TextTypeItemFactory,
+        methodFingerprint: MethodFingerprint,
+    ): ParameterItem {
+        val type =
+            typeItemFactory.getMethodParameterType(
+                typeString,
+                modifiers.annotations(),
+                methodFingerprint,
+                index,
+                modifiers.isVarArg()
+            )
+        synchronizeNullability(type, modifiers)
 
-            val parameter =
-                itemFactory.createParameterItem(
-                    fileLocation = location,
-                    modifiers = modifiers,
-                    name = name,
-                    publicName = publicName,
-                    containingItem = containingCallable,
-                    parameterIndex = index,
-                    type = type,
-                    hasDefaultValue = hasDefaultValue,
-                    kind = kind,
-                )
+        // The last parameter of a suspend function is the continuation parameter. If there was
+        // a parameter kind listed in the file, use that, otherwise this is a value parameter.
+        val kind =
+            if (
+                containingCallable.modifiers.isSuspend() &&
+                    index == methodFingerprint.parameterCount - 1
+            ) {
+                ParameterKind.CONTINUATION
+            } else {
+                optionalKind ?: ParameterKind.VALUE
+            }
 
-            return parameter
-        }
-
-        /**
-         * Turn this [ParameterInfo] into a context [ParameterItem] of the [containingProperty] by
-         * parsing the [typeString].
-         */
-        fun create(
-            containingProperty: PropertyItem,
-            typeItemFactory: TextTypeItemFactory
-        ): ParameterItem {
-            val type = typeItemFactory.getGeneralType(typeString)
-            synchronizeNullability(type, modifiers)
-            return itemFactory.createParameterItem(
+        val parameter =
+            itemFactory.createParameterItem(
                 fileLocation = location,
                 modifiers = modifiers,
                 name = name,
                 publicName = publicName,
-                containingItem = containingProperty,
+                containingItem = containingCallable,
                 parameterIndex = index,
                 type = type,
                 hasDefaultValue = hasDefaultValue,
-                kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
+                kind = kind,
             )
-        }
+
+        return parameter
+    }
+
+    /**
+     * Turn this [ParameterInfo] into a context [ParameterItem] of the [containingProperty] by
+     * parsing the [ParameterInfo.typeString].
+     */
+    private fun ParameterInfo.create(
+        containingProperty: PropertyItem,
+        typeItemFactory: TextTypeItemFactory,
+    ): ParameterItem {
+        val type = typeItemFactory.getGeneralType(typeString)
+        synchronizeNullability(type, modifiers)
+        return itemFactory.createParameterItem(
+            fileLocation = location,
+            modifiers = modifiers,
+            name = name,
+            publicName = publicName,
+            containingItem = containingProperty,
+            parameterIndex = index,
+            type = type,
+            hasDefaultValue = hasDefaultValue,
+            kind = ParameterKind.CONTEXT, // All ParameterItems for a property are context
+        )
     }
 
     /**
