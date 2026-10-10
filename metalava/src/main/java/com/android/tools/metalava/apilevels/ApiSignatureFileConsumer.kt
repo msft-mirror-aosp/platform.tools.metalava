@@ -55,6 +55,8 @@ internal class ApiSignatureFileConsumer(
      * @property outerInternalName the JVM internal name of the enclosing class if this is a nested
      *   class, or `null` for a top-level class.
      * @property effectivelyDeprecated whether the class or any enclosing class is deprecated.
+     * @property typeScope the [ErasedTypeScope] including any type parameters declared on this
+     *   class and its enclosing classes.
      * @property superClassName the internal name of the class's superclass, or `null` for
      *   `java/lang/Object`.
      * @property interfaceNames the internal names of the interfaces implemented by the class.
@@ -65,6 +67,7 @@ internal class ApiSignatureFileConsumer(
         val isStatic: Boolean,
         val outerInternalName: String?,
         val effectivelyDeprecated: Boolean,
+        val typeScope: ErasedTypeScope,
         var superClassName: String?,
         var interfaceNames: List<String>,
     )
@@ -226,6 +229,9 @@ internal class ApiSignatureFileConsumer(
                 }
         }
 
+        val parentScope = outerClass?.typeScope ?: ErasedTypeScope.Empty
+        val classTypeScope = parentScope.extend(typeParameters, typeDescriptorResolver)
+
         val effectivelyDeprecated =
             modifiers.isDeprecated() || (outerClass?.effectivelyDeprecated == true)
         val apiClass =
@@ -241,7 +247,10 @@ internal class ApiSignatureFileConsumer(
         // binary superclass (java/lang/Object, java/lang/Enum, or java/lang/Record).
         val superClassName =
             if (superClassTypeString != null) {
-                typeDescriptorResolver.resolveInternalName(superClassTypeString.type)
+                typeDescriptorResolver.resolveInternalName(
+                    superClassTypeString.type,
+                    classTypeScope,
+                )
             } else {
                 when (classKind) {
                     ClassKind.ENUM -> JAVA_LANG_ENUM_INTERNAL_NAME
@@ -270,7 +279,12 @@ internal class ApiSignatureFileConsumer(
                         add(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
                     }
                     for (interfaceTypeString in interfaceTypeStrings) {
-                        add(typeDescriptorResolver.resolveInternalName(interfaceTypeString.type))
+                        add(
+                            typeDescriptorResolver.resolveInternalName(
+                                interfaceTypeString.type,
+                                classTypeScope,
+                            )
+                        )
                     }
                 }
             }
@@ -282,6 +296,7 @@ internal class ApiSignatureFileConsumer(
                 isStatic = modifiers.isStatic(),
                 outerInternalName = outerInternalName,
                 effectivelyDeprecated = effectivelyDeprecated,
+                typeScope = classTypeScope,
                 superClassName = superClassName,
                 interfaceNames = interfaceNames,
             )
@@ -303,6 +318,8 @@ internal class ApiSignatureFileConsumer(
             return
         }
 
+        val constructorScope = currentClass.typeScope.extend(typeParameters, typeDescriptorResolver)
+
         val descriptor = buildString {
             append("<init>(")
             // Non-static inner classes have an implicit leading parameter for their enclosing
@@ -316,6 +333,7 @@ internal class ApiSignatureFileConsumer(
                 typeDescriptorResolver.appendDescriptor(
                     this,
                     parameter.typeString.type,
+                    scope = constructorScope,
                     isVarargs = parameter.modifiers.isVarArg(),
                 )
             }
@@ -342,6 +360,8 @@ internal class ApiSignatureFileConsumer(
             return
         }
 
+        val methodScope = currentClass.typeScope.extend(typeParameters, typeDescriptorResolver)
+
         // Ignore synthetic enum methods (`values()`, `getEntries()`, and `valueOf(String)`),
         // matching SignatureFileCodebaseBuilder. Api.updateClass already adds `values()` and
         // `valueOf(String)` automatically for enums.
@@ -353,8 +373,10 @@ internal class ApiSignatureFileConsumer(
                 parameters.size == 1 &&
                     name == "valueOf" &&
                     !parameters[0].modifiers.isVarArg() &&
-                    typeDescriptorResolver.resolveDescriptor(parameters[0].typeString.type) ==
-                        JAVA_LANG_STRING_DESCRIPTOR
+                    typeDescriptorResolver.resolveDescriptor(
+                        parameters[0].typeString.type,
+                        scope = methodScope,
+                    ) == JAVA_LANG_STRING_DESCRIPTOR
             ) {
                 return
             }
@@ -367,11 +389,16 @@ internal class ApiSignatureFileConsumer(
                 typeDescriptorResolver.appendDescriptor(
                     this,
                     parameter.typeString.type,
+                    scope = methodScope,
                     isVarargs = parameter.modifiers.isVarArg(),
                 )
             }
             append(')')
-            typeDescriptorResolver.appendDescriptor(this, returnTypeString.type)
+            typeDescriptorResolver.appendDescriptor(
+                this,
+                returnTypeString.type,
+                scope = methodScope,
+            )
         }
 
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated

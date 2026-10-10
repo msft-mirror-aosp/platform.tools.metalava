@@ -411,4 +411,45 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Class constructor and method type parameters`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Box<T, S extends CharSequence & java.io.Serializable> {
+                    ctor public <U extends Number> Box(T, S, U);
+                    method public T get();
+                    method public void set(T...);
+                    method public <U extends V, V extends S> U[] transform(T[], V);
+                    method public <T extends Comparable<T>> T shadowed(T);
+                  }
+                  public class Box.Inner<W extends T> {
+                    ctor public Box.Inner(W);
+                    method public W getInner();
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/Box" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>(Ljava/lang/Object;Ljava/lang/CharSequence;Ljava/lang/Number;)V"/>
+                            <method name="get()Ljava/lang/Object;"/>
+                            <method name="set([Ljava/lang/Object;)V"/>
+                            <method name="shadowed(Ljava/lang/Comparable;)Ljava/lang/Comparable;"/>
+                            <method name="transform([Ljava/lang/Object;Ljava/lang/CharSequence;)[Ljava/lang/CharSequence;"/>
+                        </class>
+                        <class name="test/pkg/Box${'$'}Inner" since="1">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>(Ltest/pkg/Box;Ljava/lang/Object;)V"/>
+                            <method name="getInner()Ljava/lang/Object;"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }
