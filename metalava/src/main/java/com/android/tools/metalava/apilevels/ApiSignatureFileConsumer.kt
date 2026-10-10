@@ -50,6 +50,7 @@ internal class ApiSignatureFileConsumer(
      * Tracks per-class state accumulated while parsing one or more signature files for a version.
      *
      * @property apiClass the [ApiClass] created or updated in [api].
+     * @property classKind the [ClassKind] of the class.
      * @property effectivelyDeprecated whether the class is deprecated.
      * @property superClassName the internal name of the class's superclass, or `null` for
      *   `java/lang/Object`.
@@ -57,6 +58,7 @@ internal class ApiSignatureFileConsumer(
      */
     private class ClassContext(
         val apiClass: ApiClass,
+        val classKind: ClassKind,
         val effectivelyDeprecated: Boolean,
         var superClassName: String?,
         var interfaceNames: List<String>,
@@ -229,6 +231,7 @@ internal class ApiSignatureFileConsumer(
         val classContext =
             ClassContext(
                 apiClass = apiClass,
+                classKind = classKind,
                 effectivelyDeprecated = effectivelyDeprecated,
                 superClassName = superClassName,
                 interfaceNames = interfaceNames,
@@ -281,6 +284,24 @@ internal class ApiSignatureFileConsumer(
         // Private and package-private methods are not included in the API history.
         if (modifiers.isPrivate() || modifiers.isPackagePrivate()) {
             return
+        }
+
+        // Ignore synthetic enum methods (`values()`, `getEntries()`, and `valueOf(String)`),
+        // matching SignatureFileCodebaseBuilder. Api.updateClass already adds `values()` and
+        // `valueOf(String)` automatically for enums.
+        if (currentClass.classKind == ClassKind.ENUM) {
+            if (parameters.isEmpty() && (name == "values" || name == "getEntries")) {
+                return
+            }
+            if (
+                parameters.size == 1 &&
+                    name == "valueOf" &&
+                    !parameters[0].modifiers.isVarArg() &&
+                    typeDescriptorResolver.resolveDescriptor(parameters[0].typeString.type) ==
+                        JAVA_LANG_STRING_DESCRIPTOR
+            ) {
+                return
+            }
         }
 
         val descriptor = buildString {
@@ -339,5 +360,6 @@ internal class ApiSignatureFileConsumer(
         private const val JAVA_LANG_ENUM_INTERNAL_NAME = "java/lang/Enum"
         private const val JAVA_LANG_RECORD_INTERNAL_NAME = "java/lang/Record"
         private const val JAVA_LANG_ANNOTATION_INTERNAL_NAME = "java/lang/annotation/Annotation"
+        private const val JAVA_LANG_STRING_DESCRIPTOR = "Ljava/lang/String;"
     }
 }

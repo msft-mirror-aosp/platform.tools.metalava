@@ -314,8 +314,6 @@ class ApiSignatureFileConsumerTest {
                   }
                 }
             """,
-            // TODO(b/572064985): Synthetic enum method `getEntries()` should be filtered out by
-            //  ApiSignatureFileConsumer, matching SignatureFileCodebaseBuilder.
             expectedXml =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
@@ -329,7 +327,6 @@ class ApiSignatureFileConsumerTest {
                         <class name="test/pkg/Mode" since="1">
                             <extends name="java/lang/Enum"/>
                             <method name="customEnumMethod()I"/>
-                            <method name="getEntries()Ljava/util/List;"/>
                             <method name="valueOf(I)Ltest/pkg/Mode;"/>
                             <method name="valueOf(Ljava/lang/String;)Ltest/pkg/Mode;"/>
                             <method name="values()[Ltest/pkg/Mode;"/>
@@ -337,7 +334,6 @@ class ApiSignatureFileConsumerTest {
                         </class>
                     </api>
                 """,
-            checkCodebaseParity = false,
         )
     }
 }
