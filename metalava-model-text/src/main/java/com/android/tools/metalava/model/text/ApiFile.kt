@@ -349,6 +349,61 @@ private constructor(
             val signatureFile = SignatureFile.fromStream(filename, inputStream)
             return parseApi(listOf(signatureFile))
         }
+
+        /**
+         * Parses [signatureFiles] and notifies [consumer] of all parsed packages, classes, type
+         * aliases, and members without requiring a [Codebase] to be constructed.
+         *
+         * @param signatureFiles the signature files to parse; must not be empty.
+         * @param consumer the [SignatureFileConsumer] notified of parsed declarations.
+         * @param formatForLegacyFiles optional [FileFormat] to use when parsing legacy signature
+         *   files without a format header.
+         */
+        @MetalavaApi
+        fun consumeApi(
+            signatureFiles: List<SignatureFile>,
+            consumer: SignatureFileConsumer,
+            formatForLegacyFiles: FileFormat? = null,
+        ) {
+            require(signatureFiles.isNotEmpty()) { "files must not be empty" }
+            var appending = false
+            for (signatureFile in signatureFiles) {
+                // When we're appending, and the content is empty, there is nothing to do.
+                val apiText = signatureFile.readContents()
+                if (appending && apiText.isBlank()) {
+                    continue
+                }
+
+                val path = signatureFile.file.toPath()
+
+                // Parse the header of the signature file to determine the format. If the signature
+                // file is empty then `parseHeader` will return null, so it will default to
+                // `FileFormat.V2`.
+                val format =
+                    FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
+                        ?: FileFormat.V2
+
+                val lineMap = LineMap.create(apiText)
+                consumer.startFile(signatureFile, path, lineMap, format)
+
+                val parser =
+                    SingleSignatureFileParser(
+                        consumer = consumer,
+                        path = path,
+                        apiText = apiText,
+                        lineMap = lineMap,
+                        kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
+                    )
+
+                parser.parse()
+
+                consumer.endFile()
+
+                appending = true
+            }
+
+            consumer.finish()
+        }
     }
 
     /**
@@ -360,43 +415,7 @@ private constructor(
         apiStatsConsumer: (TextTypeParser.Stats) -> Unit = {},
     ): Codebase {
         val builder = createCodebaseBuilder(apiStatsConsumer)
-        var appending = false
-        for (signatureFile in signatureFiles) {
-            // When we're appending, and the content is empty, there is nothing to do.
-            val apiText = signatureFile.readContents()
-            if (appending && apiText.isBlank()) {
-                continue
-            }
-
-            val path = signatureFile.file.toPath()
-
-            // Parse the header of the signature file to determine the format. If the signature file
-            // is empty then `parseHeader` will return null, so it will default to `FileFormat.V2`.
-            val format =
-                FileFormat.parseHeader(path, StringReader(apiText), formatForLegacyFiles)
-                    ?: FileFormat.V2
-
-            val lineMap = LineMap.create(apiText)
-            builder.startFile(signatureFile, path, lineMap, format)
-
-            val parser =
-                SingleSignatureFileParser(
-                    consumer = builder,
-                    path = path,
-                    apiText = apiText,
-                    lineMap = lineMap,
-                    kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
-                )
-
-            parser.parse()
-
-            builder.endFile()
-
-            appending = true
-        }
-
-        builder.finish()
-
+        consumeApi(signatureFiles, builder, formatForLegacyFiles)
         return codebase
     }
 
