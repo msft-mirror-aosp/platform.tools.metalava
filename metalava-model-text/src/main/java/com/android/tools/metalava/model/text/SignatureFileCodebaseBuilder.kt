@@ -706,6 +706,52 @@ internal class SignatureFileCodebaseBuilder(
         )
     }
 
+    override fun consumeConstructor(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        typeParameters: List<ParsedTypeParameter>,
+        parameters: List<ParsedParameter>,
+        throwsTypeStrings: List<TypeString>,
+    ) {
+        val containingClass = currentClass
+        // Get a TypeParameterList and accompanying TypeItemFactory
+        val (typeParameterList, typeItemFactory) =
+            createTypeParameterListAndFactory(
+                currentClassTypeItemFactory,
+                "constructor $name",
+                typeParameters,
+            )
+
+        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
+        val constructor =
+            itemFactory.createConstructorItem(
+                fileLocation = location,
+                modifiers = modifiers,
+                documentationFactory = ItemDocumentation.NONE_FACTORY,
+                name = name,
+                containingClass = containingClass,
+                typeParameterList = typeParameterList,
+                returnType = containingClass.type(),
+                parameterItemsFactory = { methodItem ->
+                    createParameterItems(methodItem, parameters, typeItemFactory)
+                },
+                throwsTypes = throwsList,
+                // Signature files do not track implicit constructors, all constructors are treated
+                // the same as whether it was created by the compiler or in the source has no effect
+                // on the API surface.
+                implicitConstructor = false,
+                targetLanguages = targetLanguages,
+            )
+        markSelectedApiVariant(constructor)
+        if (hasExistingConstructors) {
+            containingClass.replaceOrAddConstructor(constructor)
+        } else {
+            containingClass.addConstructor(constructor)
+        }
+    }
+
     /**
      * Create [ParameterItem]s for the [containingCallable] from the [parameters] using the
      * [typeItemFactory] to create types.

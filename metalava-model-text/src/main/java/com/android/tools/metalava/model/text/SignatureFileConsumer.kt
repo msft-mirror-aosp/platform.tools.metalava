@@ -139,4 +139,25 @@ interface SignatureFileConsumer {
 
     /** Called at the end of the current class declaration. */
     fun endClass() {}
+
+    /**
+     * Called when a `ctor` declaration is parsed in the current class.
+     *
+     * @param location the [FileLocation] of the constructor declaration.
+     * @param modifiers the modifiers and annotations on the constructor.
+     * @param targetLanguages the [TargetLanguage]s to which the constructor applies.
+     * @param name the simple name of the constructor.
+     * @param typeParameters the parsed type parameters of the constructor.
+     * @param parameters the parsed parameters of the constructor.
+     * @param throwsTypeStrings the [TypeString]s from the `throws` clause.
+     */
+    fun consumeConstructor(
+        location: FileLocation,
+        modifiers: MutableModifierList,
+        targetLanguages: Set<TargetLanguage>,
+        name: String,
+        typeParameters: List<ParsedTypeParameter>,
+        parameters: List<ParsedParameter>,
+        throwsTypeStrings: List<TypeString>,
+    )
 }

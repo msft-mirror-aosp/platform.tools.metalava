@@ -20,7 +20,6 @@ import com.android.tools.metalava.model.ClassKind
 import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
@@ -713,7 +712,6 @@ internal class SingleSignatureFileParser(
     private fun parseClassBody() {
         val containingClass = context.currentClass
         val classTypeItemFactory = context.currentClassTypeItemFactory
-        val hasExistingConstructors = context.hasExistingConstructors
         val hasExistingFields = context.hasExistingFields
         val hasExistingMethods = context.hasExistingMethods
         val hasExistingProperties = context.hasExistingProperties
@@ -724,12 +722,7 @@ internal class SingleSignatureFileParser(
             val memberToken = requireNonEofToken()
             when (memberToken.type) {
                 SignatureTokenType.CTOR -> {
-                    val constructor = parseConstructor(containingClass, classTypeItemFactory)
-                    if (hasExistingConstructors) {
-                        containingClass.replaceOrAddConstructor(constructor)
-                    } else {
-                        containingClass.addConstructor(constructor)
-                    }
+                    parseConstructor()
                 }
                 SignatureTokenType.ENUM_CONSTANT -> {
                     val field = parseEnumConstant(containingClass, classTypeItemFactory)
@@ -942,27 +935,14 @@ internal class SingleSignatureFileParser(
     ): List<ParameterItem> =
         context.createParameterItems(containingCallable, parameters, typeItemFactory)
 
-    /** Parse a constructor member of [containingClass]. */
-    private fun parseConstructor(
-        containingClass: SkeletonClassItem,
-        classTypeItemFactory: TextTypeItemFactory,
-    ): ConstructorItem {
-        val method: ConstructorItem
-
+    /** Parse a constructor member of the current class. */
+    private fun parseConstructor() {
         val (modifiers, targetLanguages) = parseModifiersAndTargetLanguages()
 
         val parsedTypeParameters = parseTypeParameterList()
 
         // For nested classes, strip outer classes from name
         val name: String = parseQualifiedName().extractSimpleName()
-
-        // Get a TypeParameterList and accompanying TypeItemFactory
-        val (typeParameterList, typeItemFactory) =
-            createTypeParameterListAndFactory(
-                classTypeItemFactory,
-                "constructor $name",
-                parsedTypeParameters,
-            )
 
         val parameters = parseParameterList()
         // Parse the optional `throws` clause and terminating `;`.
@@ -977,28 +957,15 @@ internal class SingleSignatureFileParser(
             throw parseException("expected ; found ${text(semicolon)}", semicolon)
         }
 
-        val throwsList = createThrowsTypes(throwsTypeStrings, typeItemFactory)
-        method =
-            itemFactory.createConstructorItem(
-                fileLocation = fileLocation(semicolon),
-                modifiers = modifiers,
-                documentationFactory = ItemDocumentation.NONE_FACTORY,
-                name = name,
-                containingClass = containingClass,
-                typeParameterList = typeParameterList,
-                returnType = containingClass.type(),
-                parameterItemsFactory = { methodItem ->
-                    createParameterItems(methodItem, parameters, typeItemFactory)
-                },
-                throwsTypes = throwsList,
-                // Signature files do not track implicit constructors, all constructors are treated
-                // the same as whether it was created by the compiler or in the source has no effect
-                // on the API surface.
-                implicitConstructor = false,
-                targetLanguages = targetLanguages,
-            )
-        method.markSelectedApiVariant()
-        return method
+        context.consumeConstructor(
+            location = fileLocation(semicolon),
+            modifiers = modifiers,
+            targetLanguages = targetLanguages,
+            name = name,
+            typeParameters = parsedTypeParameters,
+            parameters = parameters,
+            throwsTypeStrings = throwsTypeStrings,
+        )
     }
 
     /** Parse a method member of [containingClass]. */
