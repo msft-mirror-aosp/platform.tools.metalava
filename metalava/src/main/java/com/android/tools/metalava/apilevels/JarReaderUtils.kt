@@ -60,6 +60,11 @@ fun Api.readJar(
 
     for (classNode in classNodes.values) {
         val classAccess = classNode.access
+        // Ignore package-private classes; their public members and interfaces will be inlined into
+        // any public subclasses below.
+        if ((classAccess and Opcodes.ACC_PUBLIC) == 0) {
+            continue
+        }
         val isEnum = (classAccess and Opcodes.ACC_ENUM) != 0
 
         val classDeprecated = isEffectivelyDeprecated(classNode, classNodes)
@@ -70,17 +75,6 @@ fun Api.readJar(
                 classDeprecated,
                 isEnum,
             )
-
-        theClass.updateHidden((classAccess and Opcodes.ACC_PUBLIC) == 0)
-
-        // super class
-        if (classNode.superName != null) {
-            theClass.updateSuperClass(classNode.superName, updater)
-        }
-
-        if (theClass.alwaysHidden) {
-            continue
-        }
 
         // Walk up the superclass chain, collecting any package-private superclasses in this jar
         // until the nearest public superclass is reached.
@@ -94,6 +88,11 @@ fun Api.readJar(
             } else {
                 break
             }
+        }
+
+        // super class
+        if (superName != null) {
+            theClass.updateSuperClass(superName, updater)
         }
 
         // interfaces

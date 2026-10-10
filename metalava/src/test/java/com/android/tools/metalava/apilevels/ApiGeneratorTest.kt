@@ -2365,10 +2365,6 @@ class ApiGeneratorTest : DriverTest() {
      */
     @Test
     fun `Package private super class becomes public in a later version`() {
-        // TODO(b/569883236): BaseObj is package-private in 1.0 (jar) and becomes public in 2.0
-        //  (source), so BaseObj should be present in api-versions.xml with since="2.0" (@apiSince
-        //  2), and Program should record <extends name="java/lang/Object" removed="2.0"/> and
-        //  <extends name="test/pkg/BaseObj" since="2.0"/>.
         checkConsistencyBetweenHistoricalAndLatestCode(
             java(
                 """
@@ -2411,9 +2407,12 @@ class ApiGeneratorTest : DriverTest() {
                     java(
                         """
                             package test.pkg;
+                            /** @apiSince 2 */
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class BaseObj {
+                            /** @apiSince 2 */
                             public BaseObj() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
                             public void destroy() { throw new RuntimeException("Stub!"); }
                             }
                         """
@@ -2437,7 +2436,14 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="java/lang/Object" since="2.0">
                             <method name="&lt;init>()V"/>
                         </class>
+                        <class name="test/pkg/BaseObj" since="2.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="destroy()V"/>
+                        </class>
                         <class name="test/pkg/Program" since="1.0">
+                            <extends name="java/lang/Object" removed="2.0"/>
+                            <extends name="test/pkg/BaseObj" since="2.0"/>
                             <method name="&lt;init>()V"/>
                             <method name="destroy()V"/>
                         </class>
