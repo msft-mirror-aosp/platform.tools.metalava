@@ -38,13 +38,11 @@ class ApiSignatureFileConsumerTest {
         vararg versions: String,
         expectedXml: String? = null,
         useInternalNames: Boolean = true,
-        checkCodebaseParity: Boolean = true,
     ) {
         checkSignatureFiles(
             versions = versions.map { listOf(it) }.toTypedArray(),
             expectedXml = expectedXml,
             useInternalNames = useInternalNames,
-            checkCodebaseParity = checkCodebaseParity,
         )
     }
 
@@ -58,7 +56,6 @@ class ApiSignatureFileConsumerTest {
         vararg versions: List<String>,
         expectedXml: String? = null,
         useInternalNames: Boolean = true,
-        checkCodebaseParity: Boolean = true,
     ) {
         val consumerApi = Api(useInternalNames = useInternalNames)
         val codebaseApi = Api(useInternalNames = useInternalNames)
@@ -97,9 +94,7 @@ class ApiSignatureFileConsumerTest {
         if (expectedXml != null) {
             assertEquals(expectedXml.trimIndent(), consumerXml)
         }
-        if (checkCodebaseParity) {
-            assertEquals(codebaseXml, consumerXml)
-        }
+        assertEquals(codebaseXml, consumerXml)
     }
 
     /** Formats [api] using [ApiXmlPrinter] with 4-space indentation. */
@@ -582,9 +577,6 @@ class ApiSignatureFileConsumerTest {
 
     @Test
     fun `Source-style names when useInternalNames is false`() {
-        // TODO(b/572064985): ApiSignatureFileConsumer currently formats class, supertype,
-        //  constructor, and method names using JVM internal names and descriptors even when
-        //  api.useInternalNames is false.
         checkSignatureFiles(
             """
                 // Signature format: 4.0
@@ -607,26 +599,25 @@ class ApiSignatureFileConsumerTest {
                 """
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="3">
-                        <class name="test/pkg/Foo" since="1">
-                            <extends name="java/util/AbstractList"/>
-                            <implements name="java/io/Serializable"/>
-                            <method name="&lt;init>(Ljava/lang/String;[I)V"/>
-                            <method name="process(Ljava/lang/Object;Ljava/util/Map;[Ljava/lang/String;)V"/>
+                        <class name="test.pkg.Foo" since="1">
+                            <extends name="java.util.AbstractList"/>
+                            <implements name="java.io.Serializable"/>
+                            <method name="Foo(java.lang.String,int...)"/>
+                            <method name="process&lt;U extends java.lang.Comparable&lt;U> &amp; java.io.Serializable>(T,java.util.Map&lt;java.lang.String,? extends U>,java.lang.String[])"/>
                             <field name="count"/>
                         </class>
-                        <class name="test/pkg/Foo${'$'}Bar" since="1">
-                            <extends name="java/lang/Object"/>
-                            <method name="&lt;init>(Ltest/pkg/Foo;)V"/>
+                        <class name="test.pkg.Foo.Bar" since="1">
+                            <extends name="java.lang.Object"/>
+                            <method name="Bar()"/>
                         </class>
-                        <class name="test/pkg/Status" since="1">
-                            <extends name="java/lang/Enum"/>
-                            <method name="valueOf(Ljava/lang/String;)Ltest/pkg/Status;"/>
-                            <method name="values()[Ltest/pkg/Status;"/>
+                        <class name="test.pkg.Status" since="1">
+                            <extends name="java.lang.Enum"/>
+                            <method name="valueOf(java.lang.String)"/>
+                            <method name="values()"/>
                             <field name="OK"/>
                         </class>
                     </api>
                 """,
-            checkCodebaseParity = false,
         )
     }
 }

@@ -232,7 +232,7 @@ internal class ApiSignatureFileConsumer(
             }
             if (superClassTypeString != null) {
                 existingClass.superClassName =
-                    typeDescriptorResolver.resolveInternalName(
+                    resolveClassTypeName(
                         superClassTypeString.type,
                         existingClass.typeScope,
                     )
@@ -288,9 +288,10 @@ internal class ApiSignatureFileConsumer(
 
         val effectivelyDeprecated =
             modifiers.isDeprecated() || (outerClass?.effectivelyDeprecated == true)
+        val classNameInApi = if (api.useInternalNames) internalName else qualifiedName
         val apiClass =
             api.updateClass(
-                internalName,
+                classNameInApi,
                 updater,
                 effectivelyDeprecated,
                 classKind == ClassKind.ENUM,
@@ -301,19 +302,27 @@ internal class ApiSignatureFileConsumer(
         // binary superclass (java/lang/Object, java/lang/Enum, or java/lang/Record).
         val superClassName =
             if (superClassTypeString != null) {
-                typeDescriptorResolver.resolveInternalName(
+                resolveClassTypeName(
                     superClassTypeString.type,
                     classTypeScope,
                 )
             } else {
+                val useInternal = api.useInternalNames
                 when (classKind) {
-                    ClassKind.ENUM -> JAVA_LANG_ENUM_INTERNAL_NAME
-                    ClassKind.RECORD -> JAVA_LANG_RECORD_INTERNAL_NAME
+                    ClassKind.ENUM ->
+                        if (useInternal) JAVA_LANG_ENUM_INTERNAL_NAME
+                        else JAVA_LANG_ENUM_QUALIFIED_NAME
+                    ClassKind.RECORD ->
+                        if (useInternal) JAVA_LANG_RECORD_INTERNAL_NAME
+                        else JAVA_LANG_RECORD_QUALIFIED_NAME
                     ClassKind.CLASS ->
-                        if (internalName == JAVA_LANG_OBJECT_INTERNAL_NAME) null
-                        else JAVA_LANG_OBJECT_INTERNAL_NAME
+                        if (qualifiedName == JAVA_LANG_OBJECT_QUALIFIED_NAME) null
+                        else if (useInternal) JAVA_LANG_OBJECT_INTERNAL_NAME
+                        else JAVA_LANG_OBJECT_QUALIFIED_NAME
                     ClassKind.INTERFACE,
-                    ClassKind.ANNOTATION_TYPE -> JAVA_LANG_OBJECT_INTERNAL_NAME
+                    ClassKind.ANNOTATION_TYPE ->
+                        if (useInternal) JAVA_LANG_OBJECT_INTERNAL_NAME
+                        else JAVA_LANG_OBJECT_QUALIFIED_NAME
                     ClassKind.TYPEALIAS -> null
                 }
             }
@@ -341,28 +350,49 @@ internal class ApiSignatureFileConsumer(
     }
 
     /**
+     * Resolves a class or interface [rawType] string in [scope] into either an erased JVM internal
+     * name (`pkg/Outer$Inner`) or a dot-separated qualified name (`pkg.Outer.Inner`), depending on
+     * [Api.useInternalNames].
+     */
+    private fun resolveClassTypeName(
+        rawType: String,
+        scope: ErasedTypeScope,
+    ): String =
+        if (api.useInternalNames) {
+            typeDescriptorResolver.resolveInternalName(rawType, scope)
+        } else {
+            typeDescriptorResolver.resolveQualifiedName(rawType, scope)
+        }
+
+    /**
      * Resolves any explicit [interfaceTypeStrings] in [classTypeScope], combining them with
-     * `java/lang/annotation/Annotation` for annotation types.
+     * `java.lang.annotation.Annotation` for annotation types.
      */
     private fun resolveInterfaceNames(
         classKind: ClassKind,
         interfaceTypeStrings: List<TypeString>,
         classTypeScope: ErasedTypeScope,
-    ): List<String> =
-        if (interfaceTypeStrings.isEmpty()) {
+    ): List<String> {
+        val implicitAnnotationInterface =
+            if (api.useInternalNames) {
+                JAVA_LANG_ANNOTATION_INTERNAL_NAME
+            } else {
+                JAVA_LANG_ANNOTATION_QUALIFIED_NAME
+            }
+        return if (interfaceTypeStrings.isEmpty()) {
             if (classKind == ClassKind.ANNOTATION_TYPE) {
-                listOf(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+                listOf(implicitAnnotationInterface)
             } else {
                 emptyList()
             }
         } else {
             buildList(interfaceTypeStrings.size + 1) {
                 if (classKind == ClassKind.ANNOTATION_TYPE) {
-                    add(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+                    add(implicitAnnotationInterface)
                 }
                 for (interfaceTypeString in interfaceTypeStrings) {
                     add(
-                        typeDescriptorResolver.resolveInternalName(
+                        resolveClassTypeName(
                             interfaceTypeString.type,
                             classTypeScope,
                         )
@@ -370,6 +400,7 @@ internal class ApiSignatureFileConsumer(
                 }
             }
         }
+    }
 
     override fun consumeConstructor(
         location: FileLocation,
@@ -387,28 +418,33 @@ internal class ApiSignatureFileConsumer(
 
         val constructorScope = currentClass.typeScope.extend(typeParameters, typeDescriptorResolver)
 
-        val descriptor = buildString {
-            append("<init>(")
-            // Non-static inner classes have an implicit leading parameter for their enclosing
-            // class instance in bytecode.
-            if (!currentClass.isStatic) {
-                currentClass.outerInternalName?.let { outerInternalName ->
-                    append('L').append(outerInternalName).append(';')
+        val signature =
+            if (api.useInternalNames) {
+                buildString {
+                    append("<init>(")
+                    // Non-static inner classes have an implicit leading parameter for their
+                    // enclosing class instance in bytecode.
+                    if (!currentClass.isStatic) {
+                        currentClass.outerInternalName?.let { outerInternalName ->
+                            append('L').append(outerInternalName).append(';')
+                        }
+                    }
+                    for (parameter in parameters) {
+                        typeDescriptorResolver.appendDescriptor(
+                            this,
+                            parameter.typeString.type,
+                            scope = constructorScope,
+                            isVarargs = parameter.modifiers.isVarArg(),
+                        )
+                    }
+                    append(")V")
                 }
+            } else {
+                formatSourceCallableSignature(name, typeParameters, parameters, constructorScope)
             }
-            for (parameter in parameters) {
-                typeDescriptorResolver.appendDescriptor(
-                    this,
-                    parameter.typeString.type,
-                    scope = constructorScope,
-                    isVarargs = parameter.modifiers.isVarArg(),
-                )
-            }
-            append(")V")
-        }
 
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
-        currentClass.apiClass.updateMethod(descriptor, updater, effectivelyDeprecated)
+        currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
     }
 
     override fun consumeMethod(
@@ -449,27 +485,111 @@ internal class ApiSignatureFileConsumer(
             }
         }
 
-        val descriptor = buildString {
-            append(name)
-            append('(')
-            for (parameter in parameters) {
-                typeDescriptorResolver.appendDescriptor(
-                    this,
-                    parameter.typeString.type,
-                    scope = methodScope,
-                    isVarargs = parameter.modifiers.isVarArg(),
-                )
+        val signature =
+            if (api.useInternalNames) {
+                buildString {
+                    append(name)
+                    append('(')
+                    for (parameter in parameters) {
+                        typeDescriptorResolver.appendDescriptor(
+                            this,
+                            parameter.typeString.type,
+                            scope = methodScope,
+                            isVarargs = parameter.modifiers.isVarArg(),
+                        )
+                    }
+                    append(')')
+                    typeDescriptorResolver.appendDescriptor(
+                        this,
+                        returnTypeString.type,
+                        scope = methodScope,
+                    )
+                }
+            } else {
+                formatSourceCallableSignature(name, typeParameters, parameters, methodScope)
             }
-            append(')')
-            typeDescriptorResolver.appendDescriptor(
-                this,
-                returnTypeString.type,
-                scope = methodScope,
-            )
-        }
 
         val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
-        currentClass.apiClass.updateMethod(descriptor, updater, effectivelyDeprecated)
+        currentClass.apiClass.updateMethod(signature, updater, effectivelyDeprecated)
+    }
+
+    /**
+     * Formats a constructor or method signature in source style (`name<TypeParams>(param1,param2)`)
+     * for [Api] instances where [Api.useInternalNames] is `false`.
+     */
+    private fun formatSourceCallableSignature(
+        name: String,
+        typeParameters: List<ParsedTypeParameter>,
+        parameters: List<ParsedParameter>,
+        scope: ErasedTypeScope,
+    ): String = buildString {
+        append(name)
+        appendSourceTypeParameterList(this, typeParameters, scope)
+        append('(')
+        for ((index, parameter) in parameters.withIndex()) {
+            if (index > 0) {
+                append(',')
+            }
+            typeDescriptorResolver.appendSourceType(
+                this,
+                parameter.typeString.type,
+                scope = scope,
+                isVarargs = parameter.modifiers.isVarArg(),
+                spaceBetweenTypeArguments = false,
+            )
+        }
+        append(')')
+    }
+
+    /**
+     * Appends the source-style representation of [typeParameters] (matching
+     * [com.android.tools.metalava.model.TypeParameterList.toSource]) to [out].
+     */
+    private fun appendSourceTypeParameterList(
+        out: StringBuilder,
+        typeParameters: List<ParsedTypeParameter>,
+        scope: ErasedTypeScope,
+    ) {
+        if (typeParameters.isEmpty()) return
+        out.append('<')
+        for ((index, param) in typeParameters.withIndex()) {
+            if (index > 0) {
+                out.append(", ")
+            }
+            if (param.isReified) {
+                out.append("reified ")
+            }
+            out.append(param.name)
+            if (param.bounds.isNotEmpty()) {
+                val extendsStart = out.length
+                out.append(" extends ")
+                val firstBoundStart = out.length
+                for ((boundIndex, bound) in param.bounds.withIndex()) {
+                    if (boundIndex > 0) {
+                        out.append(" & ")
+                    }
+                    typeDescriptorResolver.appendSourceType(
+                        out,
+                        bound.type,
+                        scope = scope,
+                        spaceBetweenTypeArguments = true,
+                    )
+                }
+                if (
+                    param.bounds.size == 1 &&
+                        out.length - firstBoundStart == JAVA_LANG_OBJECT_QUALIFIED_NAME.length &&
+                        out.regionMatches(
+                            firstBoundStart,
+                            JAVA_LANG_OBJECT_QUALIFIED_NAME,
+                            0,
+                            JAVA_LANG_OBJECT_QUALIFIED_NAME.length,
+                        )
+                ) {
+                    out.setLength(extendsStart)
+                }
+            }
+        }
+        out.append('>')
     }
 
     override fun consumeField(
@@ -509,9 +629,13 @@ internal class ApiSignatureFileConsumer(
         private const val DEPRECATED_SIMPLE_NAME = "Deprecated"
         private const val DEPRECATED_QUALIFIED_NAME = "java.lang.Deprecated"
         private const val JAVA_LANG_OBJECT_INTERNAL_NAME = "java/lang/Object"
+        private const val JAVA_LANG_OBJECT_QUALIFIED_NAME = "java.lang.Object"
         private const val JAVA_LANG_ENUM_INTERNAL_NAME = "java/lang/Enum"
+        private const val JAVA_LANG_ENUM_QUALIFIED_NAME = "java.lang.Enum"
         private const val JAVA_LANG_RECORD_INTERNAL_NAME = "java/lang/Record"
+        private const val JAVA_LANG_RECORD_QUALIFIED_NAME = "java.lang.Record"
         private const val JAVA_LANG_ANNOTATION_INTERNAL_NAME = "java/lang/annotation/Annotation"
+        private const val JAVA_LANG_ANNOTATION_QUALIFIED_NAME = "java.lang.annotation.Annotation"
         private const val JAVA_LANG_STRING_DESCRIPTOR = "Ljava/lang/String;"
     }
 }
