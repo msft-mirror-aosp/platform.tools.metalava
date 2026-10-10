@@ -455,8 +455,6 @@ class ApiSignatureFileConsumerTest {
 
     @Test
     fun `Deprecated annotations without deprecated keyword`() {
-        // TODO(b/572064985): ApiSignatureFileConsumer currently skips all annotations in
-        //  parseModifierAnnotations without recognizing @Deprecated or @java.lang.Deprecated.
         checkSignatureFiles(
             """
                 // Signature format: 2.0
@@ -476,16 +474,15 @@ class ApiSignatureFileConsumerTest {
                     <api version="3">
                         <class name="test/pkg/Bar" since="1">
                             <extends name="java/lang/Object"/>
-                            <method name="&lt;init>()V"/>
-                            <method name="oldMethod()V"/>
-                            <field name="oldField"/>
+                            <method name="&lt;init>()V" deprecated="1"/>
+                            <method name="oldMethod()V" deprecated="1"/>
+                            <field name="oldField" deprecated="1"/>
                         </class>
-                        <class name="test/pkg/Foo" since="1">
+                        <class name="test/pkg/Foo" since="1" deprecated="1">
                             <extends name="java/lang/Object"/>
                         </class>
                     </api>
                 """,
-            checkCodebaseParity = false,
         )
     }
 }

@@ -124,24 +124,38 @@ internal class ApiSignatureFileConsumer(
         apiText: String,
         visibilityLevel: VisibilityLevel,
     ): MutableModifierList {
-        // Skip all modifier annotations without allocating AnnotationItem instances.
+        // Skip all modifier annotations without allocating AnnotationItem instances, while still
+        // recognizing @Deprecated and @java.lang.Deprecated.
+        var deprecated = false
         while (tokenStream.peekType() == SharedTokenType.AT) {
-            skipAnnotation(tokenStream)
+            if (skipAnnotationAndCheckDeprecated(tokenStream, apiText)) {
+                deprecated = true
+            }
         }
-        return createMutableModifiers(visibilityLevel)
+        val modifiers = createMutableModifiers(visibilityLevel)
+        if (deprecated) {
+            modifiers.setDeprecated(true)
+        }
+        return modifiers
     }
 
     /**
      * Skips a single `@QualifiedName(...)` annotation starting at the current `@` token in
-     * [tokenStream].
+     * [tokenStream], returning `true` if the annotation is `@Deprecated` or
+     * `@java.lang.Deprecated`.
      */
-    private fun skipAnnotation(tokenStream: TokenStream) {
+    private fun skipAnnotationAndCheckDeprecated(
+        tokenStream: TokenStream,
+        apiText: String,
+    ): Boolean {
         // Consume `@` and the first identifier of the annotation name.
         tokenStream.consume()
-        tokenStream.consume()
+        val firstNameToken = tokenStream.consume()
+        val nameStart = firstNameToken.startOffset
+        var nameEnd = firstNameToken.endOffset
         // Consume any `.Identifier` segments of a qualified annotation name.
         while (tokenStream.match(SharedTokenType.DOT)) {
-            tokenStream.consume()
+            nameEnd = tokenStream.consume().endOffset
         }
         // If the annotation has an argument list, consume balanced `(...)` tokens.
         if (tokenStream.match(SharedTokenType.PAREN_OPEN)) {
@@ -154,6 +168,14 @@ internal class ApiSignatureFileConsumer(
                 }
             }
         }
+
+        // Check whether the annotation name matches `Deprecated` or `java.lang.Deprecated` without
+        // allocating a substring.
+        val nameLength = nameEnd - nameStart
+        return (nameLength == DEPRECATED_SIMPLE_NAME.length &&
+            apiText.regionMatches(nameStart, DEPRECATED_SIMPLE_NAME, 0, nameLength)) ||
+            (nameLength == DEPRECATED_QUALIFIED_NAME.length &&
+                apiText.regionMatches(nameStart, DEPRECATED_QUALIFIED_NAME, 0, nameLength))
     }
 
     override fun startPackage(
@@ -439,6 +461,8 @@ internal class ApiSignatureFileConsumer(
     }
 
     companion object {
+        private const val DEPRECATED_SIMPLE_NAME = "Deprecated"
+        private const val DEPRECATED_QUALIFIED_NAME = "java.lang.Deprecated"
         private const val JAVA_LANG_OBJECT_INTERNAL_NAME = "java/lang/Object"
         private const val JAVA_LANG_ENUM_INTERNAL_NAME = "java/lang/Enum"
         private const val JAVA_LANG_RECORD_INTERNAL_NAME = "java/lang/Record"
