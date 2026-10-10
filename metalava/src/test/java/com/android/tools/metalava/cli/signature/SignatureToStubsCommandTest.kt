@@ -26,7 +26,9 @@ import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.cli.common.ISSUE_REPORTING_OPTIONS_HELP
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.xml
+import java.io.File
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import org.junit.Test
 
 /** Expected help text for the `signature-to-stubs` sub-command. */
@@ -37,6 +39,9 @@ Usage: metalava signature-to-stubs [options] <files>...
   Generate stub source files from API signature files.
 
 Options:
+  --api-path <paths>                         One or more signature files (separated by `${File.pathSeparator}`) defining APIs that may be
+                                             referenced by the <files> signature files but for which stubs should not be
+                                             generated.
   --api-surface <surface>                    The API surface currently being generated. Must correspond to an
                                              <api-surface> element in a --config-file.
   --force-convert-to-warning-nullability-annotations <package1:-package2:...>
@@ -388,6 +393,199 @@ class SignatureToStubsCommandTest :
                     """
                         .trimIndent(),
                     barStub.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test api-path resolves superclass constructor without emitting superclass stub`() {
+        commandTest {
+            args += "signature-to-stubs"
+
+            args +=
+                ARG_API_PATH to
+                    signature(
+                        "base-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package base.pkg {
+                              public class Base {
+                                ctor public Base(String);
+                              }
+                            }
+                        """,
+                    )
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "sub-api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Sub extends base.pkg.Base {
+                            ctor public Sub();
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                // Superclass from --api-path must not have a stub generated.
+                assertFalse(stubsDir.resolve("base/pkg/Base.java").exists())
+
+                // Subclass constructor stub must chain to the superclass's non-default constructor.
+                val subStub = stubsDir.resolve("test/pkg/Sub.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Sub extends base.pkg.Base {
+                        public Sub() { super(""); throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    subStub.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test api-path resolves custom annotation retention without emitting annotation stub`() {
+        commandTest {
+            args += "signature-to-stubs"
+
+            args +=
+                ARG_API_PATH to
+                    signature(
+                        "annotations-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package anno.pkg {
+                              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.CLASS) public @interface CustomClassAnno {
+                              }
+                              @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.SOURCE) public @interface CustomSourceAnno {
+                              }
+                            }
+                        """,
+                    )
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @anno.pkg.CustomClassAnno @anno.pkg.CustomSourceAnno public class Foo {
+                            ctor public Foo();
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                // Annotation classes from --api-path must not have stubs generated.
+                assertFalse(stubsDir.resolve("anno/pkg/CustomClassAnno.java").exists())
+                assertFalse(stubsDir.resolve("anno/pkg/CustomSourceAnno.java").exists())
+
+                // CLASS-retained annotation from --api-path is included in the stub, whereas
+                // SOURCE-retained annotation is omitted.
+                val fooStub = stubsDir.resolve("test/pkg/Foo.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @anno.pkg.CustomClassAnno
+                        public class Foo {
+                        public Foo() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    fooStub.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test api-path class re-declared in source files is emitted with merged members`() {
+        commandTest {
+            args += "signature-to-stubs"
+
+            val apiPathFile1 =
+                signature(
+                    "api-path-1.txt",
+                    """
+                        // Signature format: 2.0
+                        package base.pkg {
+                          public class OnlyOnApiPath {
+                            ctor public OnlyOnApiPath();
+                          }
+                        }
+                    """,
+                )
+            val apiPathFile2 =
+                signature(
+                    "api-path-2.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Shared {
+                            ctor public Shared();
+                            method public void baseMethod();
+                          }
+                        }
+                    """,
+                )
+
+            args +=
+                listOf(
+                    ARG_API_PATH,
+                    "${apiPathFile1.createFile(temporaryFolder.root).path}${File.pathSeparator}${apiPathFile2.createFile(temporaryFolder.root).path}",
+                )
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "api.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Shared {
+                            method public void extendedMethod();
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                // Class only on --api-path must not be emitted.
+                assertFalse(stubsDir.resolve("base/pkg/OnlyOnApiPath.java").exists())
+
+                // Class re-declared in <files> must be emitted with members from both --api-path
+                // and <files>.
+                val sharedStub = stubsDir.resolve("test/pkg/Shared.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        public class Shared {
+                        public Shared() { throw new RuntimeException("Stub!"); }
+                        public void baseMethod() { throw new RuntimeException("Stub!"); }
+                        public void extendedMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    sharedStub.readText().trim(),
                 )
             }
         }

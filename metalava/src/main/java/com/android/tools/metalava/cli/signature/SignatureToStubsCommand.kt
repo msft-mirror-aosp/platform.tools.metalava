@@ -34,9 +34,11 @@ import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.newDir
 import com.android.tools.metalava.cli.common.registerPostCommandAction
+import com.android.tools.metalava.cli.common.splitMultiple
 import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.config.ApiSurfacesConfig
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
@@ -53,6 +55,10 @@ import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
+import java.io.File
+
+/** Name of the `--api-path` option specifying signature files on the API path. */
+const val ARG_API_PATH = "--api-path"
 
 /**
  * Command that generates stub source files directly from API signature files without parsing Java
@@ -68,6 +74,28 @@ class SignatureToStubsCommand :
 
     /** Options for configuring issue reporting. */
     private val issueReportingOptions by IssueReportingOptions()
+
+    /**
+     * Signature files defining referenced APIs (analogous to `--classpath` for source files).
+     *
+     * Classes loaded from these files are created with [ClassOrigin.CLASS_PATH] so that they can be
+     * resolved (for example, to determine superclass constructors or annotation retention) without
+     * having stub `.java` files emitted for them unless they are also declared in [sourceFiles].
+     */
+    private val apiPath by
+        option(
+                ARG_API_PATH,
+                metavar = "<paths>",
+                help =
+                    """
+                        One or more signature files (separated by `${File.pathSeparator}`) defining
+                        APIs that may be referenced by the <files> signature files but for which
+                        stubs should not be generated.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .splitMultiple(File.pathSeparator)
 
     /**
      * Optional name of the target API surface being generated. Must correspond to an
@@ -176,8 +204,19 @@ class SignatureToStubsCommand :
 
             val signatureFileLoader = DefaultSignatureFileLoader(codebaseConfig, tracer = tracer)
 
-            // Parse the signature files into a single merged TextCodebase.
-            val codebase = signatureFileLoader.load(SignatureFile.fromFiles(sourceFiles))
+            // Parse the --api-path signature files with ClassOrigin.CLASS_PATH followed by the
+            // <files> signature files with ClassOrigin.COMMAND_LINE into a single merged
+            // TextCodebase.
+            val signatureFiles =
+                SignatureFile.fromFiles(
+                    apiPath,
+                    classOrigin = ClassOrigin.CLASS_PATH,
+                ) +
+                    SignatureFile.fromFiles(
+                        sourceFiles,
+                        classOrigin = ClassOrigin.COMMAND_LINE,
+                    )
+            val codebase = signatureFileLoader.load(signatureFiles)
 
             // Configure and run the stub generator on the parsed signature codebase.
             val generatorConfig =
