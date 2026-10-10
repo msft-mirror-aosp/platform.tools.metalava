@@ -26,8 +26,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     private val mSuperClasses = mutableMapOf<String, ApiElement>()
     private val mInterfaces = mutableMapOf<String, ApiElement>()
 
-    /** If `true`, never seen as public. */
-    var alwaysHidden = false // Package private class?
     private val mFields = mutableMapOf<String, ApiElement>()
     private val mMethods = mutableMapOf<String, ApiElement>()
 
@@ -127,10 +125,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
 
     val superClasses: Collection<ApiElement>
         get() = mSuperClasses.values
-
-    fun updateHidden(hidden: Boolean) {
-        alwaysHidden = hidden
-    }
 
     /**
      * Updates an element for [interfaceType], creating and adding one if necessary.
@@ -253,10 +247,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         val name = method.name
         val localMethod = mMethods[name]
         return if (
-            // A hidden class will not be emitted in the API, so do not treat its methods as
-            // existing API methods being overridden by subclasses.
-            !alwaysHidden &&
-                localMethod != null &&
+            localMethod != null &&
                 localMethod.introducedNotLaterThan(method) &&
                 localMethod.lastPresentIn >= method.lastPresentIn
         ) {
@@ -317,30 +308,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             }
         }
         return bestMatch
-    }
-
-    fun removeHiddenSuperClasses(api: Map<String, ApiClass>) {
-        // If we've included a package private class in the super class map (from the older
-        // android.jar files)
-        // remove these here and replace with the filtered super classes, updating API levels in the
-        // process
-        val iterator = mSuperClasses.values.iterator()
-        var min = ApiVersion.HIGHEST
-        while (iterator.hasNext()) {
-            val next = iterator.next()
-            min = minOf(min, next.since)
-            val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden) {
-                val since = extendsClass.since
-                iterator.remove()
-                for (other in superClasses) {
-                    if (other.since >= since) {
-                        other.update(min)
-                    }
-                }
-                break
-            }
-        }
     }
 
     // Ensure this class doesn't extend/implement any other classes/interfaces that are

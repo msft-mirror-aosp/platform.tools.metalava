@@ -86,7 +86,6 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     fun clean() {
         removeImplicitInterfaces()
         removeOverridingMethods()
-        prunePackagePrivateClasses()
 
         // Add any class dependent members. This is done here, after creating the API, as they need
         // to copy the containing class's state and that changes during creation.
@@ -166,12 +165,6 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     private fun removeOverridingMethods() {
         for (classElement in mClasses.values) {
             classElement.removeOverridingMethods(mClasses)
-        }
-    }
-
-    private fun prunePackagePrivateClasses() {
-        for (cls in mClasses.values) {
-            cls.removeHiddenSuperClasses(mClasses)
         }
     }
 
