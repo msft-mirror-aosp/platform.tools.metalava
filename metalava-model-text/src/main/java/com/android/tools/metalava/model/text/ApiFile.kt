@@ -253,21 +253,6 @@ private constructor(
 
     private val codebase = assembler.codebase
 
-    /**
-     * The [SingleSignatureFileParser] for the current file being parsed.
-     *
-     * Set by [parseMultipleFiles].
-     */
-    private lateinit var currentParser: SingleSignatureFileParser
-
-    /** Report recoverable errors encountered while parsing types. */
-    private val typeItemParserErrorReporter =
-        object : TypeItemParserErrorReporter {
-            override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
-                reportIssue(issue, message, charOffset)
-            }
-        }
-
     companion object {
         /**
          * Parse API signature files.
@@ -406,18 +391,6 @@ private constructor(
     }
 
     /**
-     * Report a recoverable issue encountered while parsing.
-     *
-     * Retrieves the location of the error at [charOffset] from [currentParser].
-     *
-     * Note: Non-recoverable issues result in an exception being thrown.
-     */
-    private fun reportIssue(issue: Issues.Issue, message: String, charOffset: Int) {
-        val location = currentParser.fileLocation(charOffset)
-        codebase.reporter.report(issue, null, message, location)
-    }
-
-    /**
      * Parses all the [signatureFiles], treating the first file as the base API and all other files
      * as extensions.
      */
@@ -454,9 +427,6 @@ private constructor(
                     kotlinNameTypeOrder = format[KOTLIN_NAME_TYPE_ORDER],
                 )
 
-            // Set the current parser to provide location information about the current file.
-            currentParser = parser
-
             parser.parse()
 
             parserContext.endFile()
@@ -480,7 +450,6 @@ private constructor(
     ): ParserContext {
         return ParserContext(
             assembler = assembler,
-            typeItemParserErrorReporter = typeItemParserErrorReporter,
             defaultTargetLanguageSet = defaultTargetLanguageSet,
             classMerger = ClassMerger(allowClassModifierChanges),
             apiStatsConsumer = apiStatsConsumer,
@@ -496,9 +465,6 @@ internal class ParserContext(
     /** Populates the [Codebase] from the parsed signature file. */
     val assembler: TextCodebaseAssembler,
 
-    /** Reports recoverable errors encountered while parsing types. */
-    private val typeItemParserErrorReporter: TypeItemParserErrorReporter,
-
     /** The [TargetLanguageSet] to use if an item does not have one specified. */
     val defaultTargetLanguageSet: Set<TargetLanguage>,
 
@@ -510,6 +476,14 @@ internal class ParserContext(
 ) {
     /** The [DefaultCodebase] being populated. */
     val codebase: DefaultCodebase = assembler.codebase
+
+    /** Report recoverable errors encountered while parsing types. */
+    private val typeItemParserErrorReporter =
+        object : TypeItemParserErrorReporter {
+            override fun report(issue: Issues.Issue, message: String, charOffset: Int) {
+                reportIssue(issue, message, fileLocation(charOffset))
+            }
+        }
 
     /** The [ValueParser] to use for creating [Value]s from a signature file. */
     val valueParser: ValueParser =
@@ -557,6 +531,29 @@ internal class ParserContext(
 
     /** The [kotlinStyleNulls] setting of the previously parsed signature file, if any. */
     private var previousKotlinStyleNulls: Boolean? = null
+
+    /** Get the [FileLocation] at the 0-based [charOffset] in the current file. */
+    fun fileLocation(charOffset: Int): FileLocation =
+        currentLineMap.fileLocation(currentPath, charOffset)
+
+    /**
+     * Report a recoverable issue encountered while parsing at [location].
+     *
+     * Note: Non-recoverable issues result in an exception being thrown.
+     */
+    fun reportIssue(issue: Issues.Issue, message: String, location: FileLocation) {
+        codebase.reporter.report(issue, null, message, location)
+    }
+
+    /**
+     * Record that [item] was loaded from a signature file that contains [currentApiVariant].
+     *
+     * If this item was already defined in a different API surface, this will not add the new
+     * surface.
+     */
+    fun markSelectedApiVariant(item: SelectableItem) {
+        item.selectedApi.addItemApiVariant(currentApiVariant)
+    }
 
     /**
      * Called before parsing each [signatureFile] at [path] with [lineMap] and [format].
@@ -619,7 +616,7 @@ internal class ParserContext(
 
 /** Parser for a single signature file. */
 internal class SingleSignatureFileParser(
-    context: ParserContext,
+    private val context: ParserContext,
 
     /** The [Path] to the signature file being parsed. */
     private val path: Path,
@@ -644,7 +641,6 @@ internal class SingleSignatureFileParser(
     private val defaultTargetLanguageSet = context.defaultTargetLanguageSet
     private val classMerger = context.classMerger
     private val kotlinStyleNulls = context.kotlinStyleNulls
-    private val apiVariant = context.currentApiVariant
     private val classOrigin = context.currentClassOrigin
 
     /** The [TokenStream] of tokens from [apiText]. */
@@ -732,19 +728,18 @@ internal class SingleSignatureFileParser(
      * Note: Non-recoverable issues result in an exception being thrown.
      */
     private fun reportIssue(issue: Issues.Issue, message: String, token: Token) {
-        val location = fileLocation(token)
-        codebase.reporter.report(issue, null, message, location)
+        context.reportIssue(issue, message, fileLocation(token))
     }
 
     /**
      * Record that this [SelectableItem] was loaded from a signature file that contains
-     * [apiVariant].
+     * [ParserContext.currentApiVariant].
      *
      * If this class was already defined in a different API surface, this will not add the new
      * surface.
      */
     private fun SelectableItem.markSelectedApiVariant() {
-        selectedApi.addItemApiVariant(apiVariant)
+        context.markSelectedApiVariant(this)
     }
 
     /** Parse the signature file from [tokenStream], populating [codebase]. */
