@@ -166,4 +166,56 @@ class ApiSignatureFileConsumerTest {
                 """,
         )
     }
+
+    @Test
+    fun `Fields and enum constants`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    field public static final String CONST = "hello";
+                    field protected int count;
+                    field int packagePrivateField;
+                  }
+                  public enum Status {
+                    enum_constant public static final test.pkg.Status ACTIVE;
+                    enum_constant public static final deprecated test.pkg.Status LEGACY;
+                  }
+                }
+            """,
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public deprecated class Foo {
+                    field public static final String CONST = "hello";
+                    field protected deprecated int count;
+                    field public String addedInDeprecatedClass;
+                  }
+                  public enum Status {
+                    enum_constant public static final test.pkg.Status ACTIVE;
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/Foo" since="1" deprecated="2">
+                            <extends name="java/lang/Object"/>
+                            <field name="CONST"/>
+                            <field name="addedInDeprecatedClass" since="2"/>
+                            <field name="count"/>
+                        </class>
+                        <class name="test/pkg/Status" since="1">
+                            <extends name="java/lang/Enum"/>
+                            <method name="valueOf(Ljava/lang/String;)Ltest/pkg/Status;"/>
+                            <method name="values()[Ltest/pkg/Status;"/>
+                            <field name="ACTIVE"/>
+                            <field name="LEGACY" deprecated="1" removed="2"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
 }

@@ -248,7 +248,17 @@ internal class ApiSignatureFileConsumer(
         typeString: TypeString,
         valueString: String?,
         isEnumConstant: Boolean,
-    ) {}
+    ) {
+        // Private and package-private fields are not included in the API history.
+        if (modifiers.isPrivate() || modifiers.isPackagePrivate()) {
+            return
+        }
+
+        // Field names in Api do not include their type descriptor or constant value, so updateField
+        // can be called directly without parsing typeString or valueString.
+        val effectivelyDeprecated = modifiers.isDeprecated() || currentClass.effectivelyDeprecated
+        currentClass.apiClass.updateField(name, updater, effectivelyDeprecated)
+    }
 
     override fun consumeProperty(
         location: FileLocation,
