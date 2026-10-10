@@ -1365,7 +1365,7 @@ internal class SingleSignatureFileParser(
      */
     private fun createParameterItems(
         containingCallable: CallableItem,
-        parameters: List<ParameterInfo>,
+        parameters: List<ParsedParameter>,
         typeItemFactory: TextTypeItemFactory
     ): List<ParameterItem> {
         val methodFingerprint = MethodFingerprint(containingCallable.name(), parameters.size)
@@ -1433,7 +1433,7 @@ internal class SingleSignatureFileParser(
         val (typeParameterList, typeItemFactory) = parseTypeParameterList(classTypeItemFactory)
 
         val returnTypeString: TypeString
-        val parameters: List<ParameterInfo>
+        val parameters: List<ParsedParameter>
         val name: String
         if (kotlinNameTypeOrder) {
             // Kotlin style: parse the name, the parameter list, the `:` separator, then the return
@@ -2088,8 +2088,8 @@ internal class SingleSignatureFileParser(
      */
     private fun parseParameterList(
         useUnderscoreAsDefaultName: Boolean = false,
-    ): List<ParameterInfo> {
-        val parameters = mutableListOf<ParameterInfo>()
+    ): List<ParsedParameter> {
+        val parameters = mutableListOf<ParsedParameter>()
         // Consume the opening `(` of the parameter list.
         val openParen = requireNonEofToken()
         if (openParen.type != SharedTokenType.PAREN_OPEN) {
@@ -2168,7 +2168,7 @@ internal class SingleSignatureFileParser(
 
             val name = publicName ?: (if (useUnderscoreAsDefaultName) "_" else "arg${index + 1}")
             parameters.add(
-                ParameterInfo(
+                ParsedParameter(
                     name,
                     publicName,
                     // The optional keyword indicates whether a parameter has a default value
@@ -2188,27 +2188,10 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Container for parsed information on a parameter. This is an intermediate step before a
-     * [ParameterItem] is created, which is needed because
-     * [TextTypeItemFactory.getMethodParameterType] requires a [MethodFingerprint] with the total
-     * number of method parameters.
+     * Turn this [ParsedParameter] into a [ParameterItem] of the [containingCallable] by parsing the
+     * [ParsedParameter.typeString].
      */
-    private class ParameterInfo(
-        val name: String,
-        val publicName: String?,
-        val hasDefaultValue: Boolean,
-        val typeString: TypeString,
-        val modifiers: MutableModifierList,
-        val location: FileLocation,
-        val index: Int,
-        val optionalKind: ParameterKind?,
-    )
-
-    /**
-     * Turn this [ParameterInfo] into a [ParameterItem] of the [containingCallable] by parsing the
-     * [ParameterInfo.typeString].
-     */
-    private fun ParameterInfo.create(
+    private fun ParsedParameter.create(
         containingCallable: CallableItem,
         typeItemFactory: TextTypeItemFactory,
         methodFingerprint: MethodFingerprint,
@@ -2252,10 +2235,10 @@ internal class SingleSignatureFileParser(
     }
 
     /**
-     * Turn this [ParameterInfo] into a context [ParameterItem] of the [containingProperty] by
-     * parsing the [ParameterInfo.typeString].
+     * Turn this [ParsedParameter] into a context [ParameterItem] of the [containingProperty] by
+     * parsing the [ParsedParameter.typeString].
      */
-    private fun ParameterInfo.create(
+    private fun ParsedParameter.create(
         containingProperty: PropertyItem,
         typeItemFactory: TextTypeItemFactory,
     ): ParameterItem {
