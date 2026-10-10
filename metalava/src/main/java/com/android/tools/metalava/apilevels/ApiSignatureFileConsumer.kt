@@ -66,7 +66,7 @@ internal class ApiSignatureFileConsumer(
         val classKind: ClassKind,
         val isStatic: Boolean,
         val outerInternalName: String?,
-        val effectivelyDeprecated: Boolean,
+        var effectivelyDeprecated: Boolean,
         val typeScope: ErasedTypeScope,
         var superClassName: String?,
         var interfaceNames: List<String>,
@@ -217,6 +217,38 @@ internal class ApiSignatureFileConsumer(
                 "$currentPackageName.$fullName"
             }
 
+        // If this class was already declared in an earlier signature file for the same version
+        // (e.g., `public.txt` followed by `system.txt`), merge the delta declaration into the
+        // existing ClassContext instead of replacing it.
+        classesByQualifiedName[qualifiedName]?.let { existingClass ->
+            if (modifiers.isDeprecated() && !existingClass.effectivelyDeprecated) {
+                existingClass.effectivelyDeprecated = true
+                api.updateClass(
+                    existingClass.apiClass.name,
+                    updater,
+                    true,
+                    classKind == ClassKind.ENUM,
+                )
+            }
+            if (superClassTypeString != null) {
+                existingClass.superClassName =
+                    typeDescriptorResolver.resolveInternalName(
+                        superClassTypeString.type,
+                        existingClass.typeScope,
+                    )
+            }
+            if (interfaceTypeStrings.isNotEmpty()) {
+                existingClass.interfaceNames =
+                    resolveInterfaceNames(
+                        classKind,
+                        interfaceTypeStrings,
+                        existingClass.typeScope,
+                    )
+            }
+            currentClass = existingClass
+            return
+        }
+
         val lastDot = fullName.lastIndexOf('.')
         val internalFullName = if (lastDot == -1) fullName else fullName.replace('.', '$')
         val internalName =
@@ -286,30 +318,12 @@ internal class ApiSignatureFileConsumer(
                 }
             }
 
-        // Resolve any explicit interfaces, combining them with java.lang.annotation.Annotation for
-        // annotation types.
         val interfaceNames =
-            if (interfaceTypeStrings.isEmpty()) {
-                if (classKind == ClassKind.ANNOTATION_TYPE) {
-                    listOf(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
-                } else {
-                    emptyList()
-                }
-            } else {
-                buildList(interfaceTypeStrings.size + 1) {
-                    if (classKind == ClassKind.ANNOTATION_TYPE) {
-                        add(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
-                    }
-                    for (interfaceTypeString in interfaceTypeStrings) {
-                        add(
-                            typeDescriptorResolver.resolveInternalName(
-                                interfaceTypeString.type,
-                                classTypeScope,
-                            )
-                        )
-                    }
-                }
-            }
+            resolveInterfaceNames(
+                classKind,
+                interfaceTypeStrings,
+                classTypeScope,
+            )
 
         val classContext =
             ClassContext(
@@ -325,6 +339,37 @@ internal class ApiSignatureFileConsumer(
         currentClass = classContext
         classesByQualifiedName[qualifiedName] = classContext
     }
+
+    /**
+     * Resolves any explicit [interfaceTypeStrings] in [classTypeScope], combining them with
+     * `java/lang/annotation/Annotation` for annotation types.
+     */
+    private fun resolveInterfaceNames(
+        classKind: ClassKind,
+        interfaceTypeStrings: List<TypeString>,
+        classTypeScope: ErasedTypeScope,
+    ): List<String> =
+        if (interfaceTypeStrings.isEmpty()) {
+            if (classKind == ClassKind.ANNOTATION_TYPE) {
+                listOf(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+            } else {
+                emptyList()
+            }
+        } else {
+            buildList(interfaceTypeStrings.size + 1) {
+                if (classKind == ClassKind.ANNOTATION_TYPE) {
+                    add(JAVA_LANG_ANNOTATION_INTERNAL_NAME)
+                }
+                for (interfaceTypeString in interfaceTypeStrings) {
+                    add(
+                        typeDescriptorResolver.resolveInternalName(
+                            interfaceTypeString.type,
+                            classTypeScope,
+                        )
+                    )
+                }
+            }
+        }
 
     override fun consumeConstructor(
         location: FileLocation,

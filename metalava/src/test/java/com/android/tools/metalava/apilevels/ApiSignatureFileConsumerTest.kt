@@ -510,9 +510,6 @@ class ApiSignatureFileConsumerTest {
 
     @Test
     fun `Multi-file delta class merging`() {
-        // TODO(b/572064985): Re-declaring a class in a delta signature file without repeating its
-        //  extends/implements clauses currently overwrites its superclass with java/lang/Object and
-        //  clears its interfaces instead of preserving the base declaration's supertypes.
         checkSignatureFiles(
             listOf(
                 """
@@ -551,7 +548,8 @@ class ApiSignatureFileConsumerTest {
                     <?xml version="1.0" encoding="utf-8"?>
                     <api version="3">
                         <class name="test/pkg/MergedKeepSuper" since="1">
-                            <extends name="java/lang/Object"/>
+                            <extends name="test/pkg/PublicSuper"/>
+                            <implements name="test/pkg/PublicInterface"/>
                             <method name="publicMethod()V"/>
                             <method name="systemMethod()V"/>
                         </class>
@@ -576,7 +574,6 @@ class ApiSignatureFileConsumerTest {
                         </class>
                     </api>
                 """,
-            checkCodebaseParity = false,
         )
     }
 }
