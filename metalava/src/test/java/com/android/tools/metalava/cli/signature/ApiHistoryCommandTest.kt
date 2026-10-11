@@ -17,11 +17,14 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
 import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.testing.signature
+import com.android.tools.metalava.testing.xml
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
 import java.io.File
@@ -61,6 +64,35 @@ Options:
                                              specified by --current-version.
   --api-surface <surface>                    The API surface currently being generated. Must correspond to an
                                              <api-surface> element in a --config-file.
+  --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is an XML
+                                             file and describes, per extension SDK, what APIs from that extension to
+                                             include in the file created via --output-file.
+
+                                             If specified then --pattern must include at least one pattern that uses
+                                             `{version:extension}` and `{module}` placeholders and that pattern must
+                                             match at least one file in --historical-files.
+  --sdk-extension-versions <api-version>:<api-version>
+                                             The optional range of historical SDK extension versions that can be
+                                             included in the API version history. The `from` and `to` parts of the range
+                                             are separated by a `:` and are both inclusive. See --current-version for
+                                             acceptable `<api-version>`s.
+
+                                             If unspecified then allow every historical version.
+  --api-version-for-sdk-extension <api-version>
+                                             SDK extension APIs can be added between SDK versions and they do not become
+                                             available in an SDK version until the next SDK version is released.
+                                             However, when generating an API history it is required that every API is in
+                                             an API version, even those added as part of an SDK extension.
+
+                                             If an SDK extension is being prepared for inclusion in an SDK version then
+                                             this should be the SDK version. If an SDK extension is being prepared
+                                             between SDK versions then this should be a magic version number that
+                                             indicates that the newly added SDK extension APIs are not yet present in
+                                             any SDK version.
+
+                                             In the latter case the --api-version-label should be used when generating
+                                             documentation from that `api-versions.xml` file to give the magic version a
+                                             meaningful name in the documentation.
   --missing-class-action [keep|remove|report]
                                              Determines what to do when generating an XML API versions file and a class
                                              extends or implements a class that is not defined within any of the API
@@ -791,6 +823,147 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                         		<method name="&lt;init>()V"/>
                         		<method name="publicMethod()V"/>
                         		<method name="systemMethod()V"/>
+                        	</class>
+                        </api>
+                    """
+                        .trimIndent(),
+                    outputXml.readText().trim(),
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test SDK extensions`() {
+        commandTest {
+            args += "api-history"
+
+            val outputXml = outputFile("api-versions.xml")
+            args += "--output-file" to outputXml
+
+            val sdkInfoXml =
+                xml(
+                        "sdk-extensions-info.xml",
+                        """
+                            <?xml version="1.0" encoding="utf-8"?>
+                            <sdk-extensions-info>
+                              <sdk
+                                id="30"
+                                shortname="R-ext"
+                                name="R Extensions"
+                                reference="android/os/Build${'$'}VERSION_CODES${'$'}R" />
+                              <symbol
+                                jar="framework-ext"
+                                pattern="*"
+                                sdks="R-ext" />
+                            </sdk-extensions-info>
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            val sdk30 =
+                signature(
+                        "sdk/30/public/api/android.txt",
+                        """
+                            // Signature format: 2.0
+                            package java.lang {
+                              public class Object {
+                                ctor public Object();
+                              }
+                            }
+                            package test.pkg {
+                              public class ExtClass {
+                                ctor public ExtClass();
+                                method public void methodIn30();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            val ext1 =
+                signature(
+                        "sdk/extensions/1/public/api/framework-ext.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class ExtClass {
+                                ctor public ExtClass();
+                                method public void methodIn30();
+                                method public void methodInExt1();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            val ext2 =
+                signature(
+                        "sdk/extensions/2/public/api/framework-ext.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class ExtClass {
+                                ctor public ExtClass();
+                                method public void methodIn30();
+                                method public void methodInExt1();
+                                method public void methodInExt2();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            // Extension 3 should be excluded by --sdk-extension-versions 1:2.
+            val ext3 =
+                signature(
+                        "sdk/extensions/3/public/api/framework-ext.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class ExtClass {
+                                ctor public ExtClass();
+                                method public void methodIn30();
+                                method public void methodInExt1();
+                                method public void methodInExt2();
+                                method public void methodInExt3();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            args +=
+                listOf(
+                    ARG_SDK_INFO_FILE,
+                    sdkInfoXml.path,
+                    "--sdk-extension-versions",
+                    "1:2",
+                    ARG_API_VERSION_FOR_SDK_EXTENSION,
+                    "10000",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/{version:level}/public/api/android.txt",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/extensions/{version:extension}/public/api/{module}.txt",
+                    "--historical-files",
+                    listOf(sdk30, ext1, ext2, ext3).joinToString(File.pathSeparator) { it.path },
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <api version="3" min="30">
+                        	<sdk id="30" shortname="R-ext" name="R Extensions" reference="android/os/Build${'$'}VERSION_CODES${'$'}R"/>
+                        	<class name="java/lang/Object" since="30">
+                        		<method name="&lt;init>()V"/>
+                        	</class>
+                        	<class name="test/pkg/ExtClass" module="framework-ext" since="30" sdks="30:1,0:30">
+                        		<extends name="java/lang/Object"/>
+                        		<method name="&lt;init>()V"/>
+                        		<method name="methodIn30()V"/>
+                        		<method name="methodInExt1()V" since="10000" sdks="30:1"/>
+                        		<method name="methodInExt2()V" since="10000" sdks="30:2"/>
                         	</class>
                         </api>
                     """

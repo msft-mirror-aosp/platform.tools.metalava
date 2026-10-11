@@ -17,7 +17,10 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.ARG_API_VERSION_LABEL
 import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.apiVersion
 import com.android.tools.metalava.apiVersionRange
@@ -52,6 +55,7 @@ private const val ARG_HISTORICAL_FILES = "--historical-files"
 private const val ARG_HISTORICAL_VERSIONS = "--historical-versions"
 private const val ARG_CURRENT_VERSION = "--current-version"
 private const val ARG_CURRENT_FILES = "--current-files"
+private const val ARG_SDK_EXTENSION_VERSIONS = "--sdk-extension-versions"
 private const val ARG_MISSING_CLASS_ACTION = "--missing-class-action"
 
 /**
@@ -178,6 +182,78 @@ class ApiHistoryCommand :
                     .trimIndent(),
         )
 
+    /**
+     * Rules to filter out some extension SDK APIs from the API, and assign extensions to the APIs
+     * that are kept.
+     */
+    private val sdkInfoFile by
+        option(
+                ARG_SDK_INFO_FILE,
+                metavar = "<sdk-info-file>",
+                help =
+                    """
+                        Points to map of extension SDK APIs to include, if any. The file is an XML
+                        file and describes, per extension SDK, what APIs from that extension to
+                        include in the file created via $ARG_OUTPUT_FILE.
+
+                        If specified then $ARG_PATTERN must include at least one pattern that uses
+                        `{version:extension}` and `{module}` placeholders and that pattern must
+                        match at least one file in $ARG_HISTORICAL_FILES.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+
+    /**
+     * The range of historical SDK Extension API versions that can be included in the API version
+     * history.
+     */
+    private val sdkExtensionVersions by
+        option(
+                ARG_SDK_EXTENSION_VERSIONS,
+                metavar = "<api-version>:<api-version>",
+                help =
+                    """
+                        The optional range of historical SDK extension versions that can be included
+                        in the API version history. The `from` and `to` parts of the range are
+                        separated by a `:` and are both inclusive. See $ARG_CURRENT_VERSION for
+                        acceptable `<api-version>`s.
+
+                        If unspecified then allow every historical version.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersionRange()
+
+    /**
+     * Fallback Android SDK version for APIs that only exist in an SDK extension and not in any
+     * finalized Android SDK version.
+     */
+    private val apiVersionForSdkExtension by
+        option(
+                ARG_API_VERSION_FOR_SDK_EXTENSION,
+                metavar = "<api-version>",
+                help =
+                    """
+                        SDK extension APIs can be added between SDK versions and they do not become
+                        available in an SDK version until the next SDK version is released. However,
+                        when generating an API history it is required that every API is in an API
+                        version, even those added as part of an SDK extension.
+
+                        If an SDK extension is being prepared for inclusion in an SDK version then
+                        this should be the SDK version. If an SDK extension is being prepared
+                        between SDK versions then this should be a magic version number that
+                        indicates that the newly added SDK extension APIs are not yet present in
+                        any SDK version.
+
+                        In the latter case the $ARG_API_VERSION_LABEL should be used when generating
+                        documentation from that `api-versions.xml` file to give the magic version a
+                        meaningful name in the documentation.
+                    """
+                        .trimIndent(),
+            )
+            .apiVersion()
+
     /** Action to take when an XML API versions file references a missing superclass/interface. */
     private val missingClassAction by
         enumOption(
@@ -241,9 +317,9 @@ class ApiHistoryCommand :
                 fileProvider = PatternNode.LimitedFileSystemProvider(historicalFiles),
                 apiFilePatterns = patterns,
                 apiVersionRange = historicalVersions,
-                sdkExtensionVersionRange = null,
-                sdkInfoFile = null,
-                apiVersionForSdkExtension = null,
+                sdkExtensionVersionRange = sdkExtensionVersions,
+                sdkInfoFile = sdkInfoFile,
+                apiVersionForSdkExtension = apiVersionForSdkExtension,
                 apiSurfaces = apiSurfaces,
                 currentVersion = currentVersion,
                 currentVersionedApiFactory =
