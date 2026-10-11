@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.ConfigFileOptions
 import com.android.tools.metalava.apiVersion
 import com.android.tools.metalava.apiVersionRange
 import com.android.tools.metalava.apilevels.ApiGenerator
@@ -37,6 +40,7 @@ import com.android.tools.metalava.cli.common.stderr
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.reporter.BasicReporter
+import com.github.ajalt.clikt.parameters.groups.provideDelegate
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
@@ -57,6 +61,9 @@ class ApiHistoryCommand :
     MetalavaSubCommand(
         help = "Generate an API versions XML or JSON file from API signature files.",
     ) {
+
+    /** Add options for loading configuration files (e.g. `<api-surfaces>`). */
+    private val configFileOptions by ConfigFileOptions()
 
     /** Output XML or JSON API versions file to generate. */
     private val outputFile by
@@ -155,6 +162,22 @@ class ApiHistoryCommand :
             .existingFile()
             .splitMultiple(File.pathSeparator)
 
+    /**
+     * Optional name of the target API surface being generated. Must correspond to an
+     * `<api-surface>` element in `--config-file` when specified.
+     */
+    private val apiSurfaceName by
+        option(
+            ARG_API_SURFACE,
+            metavar = "<surface>",
+            help =
+                """
+                    The API surface currently being generated. Must correspond to an <api-surface>
+                    element in a $ARG_CONFIG_FILE.
+                """
+                    .trimIndent(),
+        )
+
     /** Action to take when an XML API versions file references a missing superclass/interface. */
     private val missingClassAction by
         enumOption(
@@ -194,6 +217,8 @@ class ApiHistoryCommand :
             cliError("Must specify $ARG_CURRENT_VERSION with $ARG_CURRENT_FILES")
         }
 
+        val apiSurfaces = apiSurfaceName?.let { configFileOptions.apiSurfacesForTargetSurface(it) }
+
         val codebaseConfig =
             Codebase.Config(
                 reporter = BasicReporter(stderr),
@@ -219,7 +244,7 @@ class ApiHistoryCommand :
                 sdkExtensionVersionRange = null,
                 sdkInfoFile = null,
                 apiVersionForSdkExtension = null,
-                apiSurfaces = null,
+                apiSurfaces = apiSurfaces,
                 currentVersion = currentVersion,
                 currentVersionedApiFactory =
                     if (currentFiles.isEmpty()) {

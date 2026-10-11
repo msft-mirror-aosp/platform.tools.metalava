@@ -16,6 +16,10 @@
 
 package com.android.tools.metalava.cli.signature
 
+import com.android.tools.metalava.ARG_API_SURFACE
+import com.android.tools.metalava.ARG_CONFIG_FILE
+import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.cli.common.BaseCommandTest
 import com.android.tools.metalava.testing.signature
 import com.google.gson.GsonBuilder
@@ -55,6 +59,8 @@ Options:
                                              alphanumeric string.
   --current-files <files>                    Current API signature files (separated by `${File.pathSeparator}`) for the API version
                                              specified by --current-version.
+  --api-surface <surface>                    The API surface currently being generated. Must correspond to an
+                                             <api-surface> element in a --config-file.
   --missing-class-action [keep|remove|report]
                                              Determines what to do when generating an XML API versions file and a class
                                              extends or implements a class that is not defined within any of the API
@@ -66,6 +72,8 @@ Options:
 
                                              report (default) - Report references to missing classes as errors.
   -h, -?, --help                             Show this message and exit
+
+$CONFIG_FILE_OPTIONS_HELP
     """
         .trimIndent()
 
@@ -673,6 +681,123 @@ class ApiHistoryCommandTest : BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCom
                 )
 
             expectedStderr = "Aborting: Must specify --current-version with --current-files"
+        }
+
+        // --api-surface without --config-file
+        commandTest {
+            val outputXml = outputFile("api-versions.xml")
+            args +=
+                listOf(
+                    "api-history",
+                    "--output-file",
+                    outputXml.path,
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/{version:level}/{surface}/android.txt",
+                    "--historical-files",
+                    sig.path,
+                    ARG_API_SURFACE,
+                    "system",
+                )
+
+            expectedStderr =
+                "Aborting: --api-surface requires at least one <api-surface> to have been configured in a --config-file"
+        }
+    }
+
+    @Test
+    fun `Test --config-file and --api-surface`() {
+        commandTest {
+            args += "api-history"
+
+            val outputXml = outputFile("api-versions.xml")
+            args += "--output-file" to outputXml
+
+            val configFile =
+                KnownConfigFiles.configKnownTestSurfaces.createFile(temporaryFolder.root)
+
+            val v1Public =
+                signature(
+                        "sdk/1/public/api/android.txt",
+                        """
+                            // Signature format: 2.0
+                            package java.lang {
+                              public class Object {
+                                ctor public Object();
+                              }
+                            }
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void publicMethod();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            val v1System =
+                signature(
+                        "sdk/1/system/api/android.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void systemMethod();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            // module-lib should not be included when --api-surface is "system".
+            val v1ModuleLib =
+                signature(
+                        "sdk/1/module-lib/api/android.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void moduleLibMethod();
+                              }
+                            }
+                        """,
+                    )
+                    .createFile(temporaryFolder.root)
+
+            args +=
+                listOf(
+                    ARG_CONFIG_FILE,
+                    configFile.path,
+                    ARG_API_SURFACE,
+                    "system",
+                    "--pattern",
+                    "${temporaryFolder.root}/sdk/{version:level}/{surface}/api/android.txt",
+                    "--historical-files",
+                    listOf(v1Public, v1System, v1ModuleLib).joinToString(File.pathSeparator) {
+                        it.path
+                    },
+                )
+
+            verify {
+                assertEquals(
+                    """
+                        <?xml version="1.0" encoding="utf-8"?>
+                        <api version="3">
+                        	<class name="java/lang/Object" since="1">
+                        		<method name="&lt;init>()V"/>
+                        	</class>
+                        	<class name="test/pkg/Foo" since="1">
+                        		<extends name="java/lang/Object"/>
+                        		<method name="&lt;init>()V"/>
+                        		<method name="publicMethod()V"/>
+                        		<method name="systemMethod()V"/>
+                        	</class>
+                        </api>
+                    """
+                        .trimIndent(),
+                    outputXml.readText().trim(),
+                )
+            }
         }
     }
 }
