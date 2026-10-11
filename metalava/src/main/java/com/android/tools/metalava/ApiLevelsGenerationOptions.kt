@@ -649,7 +649,7 @@ class ApiLevelsGenerationOptions(
         val matchedFiles =
             patternNode.scan(
                 PatternNode.ScanConfig(
-                    dir = File(".").canonicalFile,
+                    dir = fileForPathInner("."),
                     fileProvider = PatternNode.LimitedFileSystemProvider(historicalSignatureFiles)
                 )
             )

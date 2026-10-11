@@ -376,32 +376,29 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             """
         )
 
-        // TODO(b/572064985): LimitedFileSystemProvider should deduplicate shared ancestor
-        //  directory entries instead of adding prebuilts/sdk once per input file.
         val prebuiltsContents =
             limitedFileProvider
                 .listFiles(androidDir.resolve("prebuilts"))
                 .orEmpty()
                 .joinToString("\n")
         assertEquals(
-            """
-                ANDROID_ROOT/prebuilts/sdk
-                ANDROID_ROOT/prebuilts/sdk
-                ANDROID_ROOT/prebuilts/sdk
-            """
-                .trimIndent(),
+            "ANDROID_ROOT/prebuilts/sdk",
             removeTestSpecificDirectories(prebuiltsContents),
         )
 
-        // TODO(b/572064985): LimitedFileSystemProvider should normalize File paths so that
-        //  scanning from `dir = androidDir.resolve(".")` matches the same files.
         val unnormalizedDirScanConfig =
             PatternNode.ScanConfig(
                 dir = androidDir.resolve("."),
                 fileProvider = limitedFileProvider,
             )
         val unnormalizedFiles = node.scan(unnormalizedDirScanConfig)
-        unnormalizedFiles.assertMatchedPatternFiles("")
+        unnormalizedFiles.assertMatchedPatternFiles(
+            """
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/19/public/android.jar, version=19)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/android.jar, version=22)
+                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/32/public/android.jar, version=32)
+            """
+        )
     }
 
     /** Create an API file, e.g. [name]`.txt` file in the [DirectoryBuilder]. */

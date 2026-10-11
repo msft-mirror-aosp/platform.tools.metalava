@@ -136,34 +136,36 @@ sealed class PatternNode {
      */
     internal class LimitedFileSystemProvider(files: List<File>) : WholeFileSystemProvider() {
         /**
-         * Map from [File] to the list of [File]s it contains (or an empty list for [File]s that
-         * have no contents).
+         * Map from [File] to the set of [File]s it contains (or an empty set for [File]s that have
+         * no contents).
          */
         private val fileToContents =
-            buildMap<File, MutableList<File>> {
+            buildMap<File, MutableSet<File>> {
                 for (file in files) {
+                    val normalized = file.normalize()
                     // Remember the file.
-                    computeIfAbsent(file) { mutableListOf() }
+                    computeIfAbsent(normalized) { mutableSetOf() }
 
                     // Add the file to its parent file's contents. Repeat for its parent file.
-                    var f: File = file
+                    var f: File = normalized
                     while (true) {
                         val parent = f.parentFile ?: break
-                        val contents = computeIfAbsent(parent) { mutableListOf() }
-                        contents.add(f)
+                        val contents = computeIfAbsent(parent) { mutableSetOf() }
+                        if (!contents.add(f)) break
                         f = parent
                     }
                 }
             }
 
         override fun resolve(base: File, name: String): File? {
-            val file = super.resolve(base, name)
+            val file = super.resolve(base, name)?.normalize()
             return if (file in fileToContents) file else null
         }
 
         override fun listFiles(dir: File): Sequence<File>? {
-            if (!dir.isDirectory) return null
-            return fileToContents[dir]?.asSequence()
+            val normalized = dir.normalize()
+            if (!normalized.isDirectory) return null
+            return fileToContents[normalized]?.asSequence()
         }
     }
 
