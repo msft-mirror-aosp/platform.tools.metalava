@@ -41,6 +41,7 @@ import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
+import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
@@ -173,6 +174,7 @@ class Driver(
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
                 AndroidJarsToSignaturesCommand(),
+                ApiHistoryCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
                 JarToJDiffCommand(),
