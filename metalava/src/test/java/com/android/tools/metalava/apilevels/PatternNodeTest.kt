@@ -375,6 +375,33 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                 MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/32/public/android.jar, version=32)
             """
         )
+
+        // TODO(b/572064985): LimitedFileSystemProvider should deduplicate shared ancestor
+        //  directory entries instead of adding prebuilts/sdk once per input file.
+        val prebuiltsContents =
+            limitedFileProvider
+                .listFiles(androidDir.resolve("prebuilts"))
+                .orEmpty()
+                .joinToString("\n")
+        assertEquals(
+            """
+                ANDROID_ROOT/prebuilts/sdk
+                ANDROID_ROOT/prebuilts/sdk
+                ANDROID_ROOT/prebuilts/sdk
+            """
+                .trimIndent(),
+            removeTestSpecificDirectories(prebuiltsContents),
+        )
+
+        // TODO(b/572064985): LimitedFileSystemProvider should normalize File paths so that
+        //  scanning from `dir = androidDir.resolve(".")` matches the same files.
+        val unnormalizedDirScanConfig =
+            PatternNode.ScanConfig(
+                dir = androidDir.resolve("."),
+                fileProvider = limitedFileProvider,
+            )
+        val unnormalizedFiles = node.scan(unnormalizedDirScanConfig)
+        unnormalizedFiles.assertMatchedPatternFiles("")
     }
 
     /** Create an API file, e.g. [name]`.txt` file in the [DirectoryBuilder]. */
