@@ -5561,9 +5561,19 @@ class ApiFileTest : DriverTest() {
                         """
                         package test.pkg
                         class MyList : List<String> {
-                          override operator fun get(index: Int): String {}
+                            override val size: Int = 0
+                            override fun isEmpty(): Boolean = true
+                            override fun contains(element: String): Boolean = false
+                            override fun iterator(): Iterator<String> = error("")
+                            override fun containsAll(elements: Collection<String>): Boolean = false
+                            override operator fun get(index: Int): String = error("")
+                            override fun indexOf(element: String): Int = -1
+                            override fun lastIndexOf(element: String): Int = -1
+                            override fun listIterator(): ListIterator<String> = error("")
+                            override fun listIterator(index: Int): ListIterator<String> = error("")
+                            override fun subList(fromIndex: Int, toIndex: Int): List<String> = emptyList()
                         }
-                    """
+                        """
                     )
                 ),
             expectedApiSignature =
@@ -5571,10 +5581,21 @@ class ApiFileTest : DriverTest() {
                 package test.pkg {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public MyList();
+                    method public boolean contains(String element);
+                    method public boolean containsAll(java.util.Collection<java.lang.String> elements);
                     method public operator String get(int index);
+                    method @InaccessibleFromKotlin public int getSize();
+                    method public int indexOf(String element);
+                    method public boolean isEmpty();
+                    method public java.util.Iterator<java.lang.String> iterator();
+                    method public int lastIndexOf(String element);
+                    method public java.util.ListIterator<java.lang.String> listIterator();
+                    method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    property public int size;
                   }
                 }
-            """
+                """
         )
     }
 
