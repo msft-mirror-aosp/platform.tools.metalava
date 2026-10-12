@@ -68,7 +68,6 @@ import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.ArrayValue
 import com.android.tools.metalava.model.value.ClassObjectValue
-import com.android.tools.metalava.reporter.FileLocation
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiFileSystemItem
@@ -549,7 +548,7 @@ private constructor(
 
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = PsiFileLocation.fromPsiElement(classifierSymbol.psi),
+                fileLocationSource = PsiFileLocation.fileLocationSource(classifierSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = kaModifierFactory.createForClass(classifierSymbol, containingClass),
                 source = null,
@@ -633,7 +632,6 @@ private constructor(
         }
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = FileLocation.UNKNOWN,
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = createMutableModifiers(VisibilityLevel.PUBLIC),
                 source = null,
@@ -666,7 +664,7 @@ private constructor(
             )
 
         return itemFactory.createTypeAliasItem(
-            fileLocation = PsiFileLocation.fromPsiElement(typeAlias.psi),
+            fileLocationSource = PsiFileLocation.fileLocationSource(typeAlias.psi),
             modifiers = kaModifierFactory.createForDeclaration(typeAlias),
             aliasedType =
                 typeParameterListAndFactory.factory.getGeneralType(typeAlias.expandedType),
@@ -730,7 +728,7 @@ private constructor(
 
         val constructorItem =
             itemFactory.createConstructorItem(
-                fileLocation = PsiFileLocation.fromPsiElement(constructorSymbol.psi),
+                fileLocationSource = PsiFileLocation.fileLocationSource(constructorSymbol.psi),
                 targetLanguages = TargetLanguageSet.KOTLIN_ONLY,
                 modifiers = modifiers,
                 documentationFactory = constructorSymbol.getDocumentation(),
@@ -887,7 +885,7 @@ private constructor(
         val modifiers = kaModifierFactory.createForFunction(functionSymbol, containingClass)
         val methodItem =
             itemFactory.createMethodItem(
-                fileLocation = PsiFileLocation.fromPsiElement(functionSymbol.psi),
+                fileLocationSource = PsiFileLocation.fileLocationSource(functionSymbol.psi),
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
                 documentationFactory = functionSymbol.getDocumentation(),
@@ -1102,7 +1100,7 @@ private constructor(
             propertySymbol.contextParameters.mapIndexed { index, parameterSymbol ->
                 val name = parameterSymbol.name.identifierOrNullIfSpecial
                 itemFactory.createParameterItem(
-                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    fileLocationSource = PsiFileLocation.fileLocationSource(parameterSymbol.psi),
                     modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
                     // If no name is available, "_" was used in source, which is not a public name.
                     name = name ?: "_",
@@ -1119,7 +1117,7 @@ private constructor(
 
         val propertyItem =
             itemFactory.createPropertyItem(
-                fileLocation = PsiFileLocation.fromPsiElement(propertySymbol.psi),
+                fileLocationSource = PsiFileLocation.fileLocationSource(propertySymbol.psi),
                 documentationFactory = propertySymbol.getDocumentation(),
                 modifiers = modifiers,
                 name = propertySymbol.name.identifier,
@@ -1168,7 +1166,7 @@ private constructor(
                     )
                 val sourceName = parameterSymbol.name.identifierOrNullIfSpecial
                 itemFactory.createParameterItem(
-                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    fileLocationSource = PsiFileLocation.fileLocationSource(parameterSymbol.psi),
                     modifiers = kaModifierFactory.createForContextParameter(parameterSymbol),
                     // If no name is available, "_" was used in source, which is not a public name.
                     name = sourceName ?: "_",
@@ -1195,7 +1193,7 @@ private constructor(
                     )
 
                 itemFactory.createParameterItem(
-                    fileLocation = PsiFileLocation.fromPsiElement(it.psi),
+                    fileLocationSource = PsiFileLocation.fileLocationSource(it.psi),
                     modifiers = kaModifierFactory.createForReceiverParameter(it),
                     name = "receiver",
                     publicName = null,
@@ -1223,7 +1221,7 @@ private constructor(
                     )
 
                 itemFactory.createParameterItem(
-                    fileLocation = PsiFileLocation.fromPsiElement(parameterSymbol.psi),
+                    fileLocationSource = PsiFileLocation.fileLocationSource(parameterSymbol.psi),
                     modifiers = kaModifierFactory.createForValueParameter(parameterSymbol),
                     name = parameterSymbol.name.identifier,
                     publicName = parameterSymbol.name.identifierOrNullIfSpecial,
@@ -1245,7 +1243,6 @@ private constructor(
             if (addingToPsiCodebase && isSuspend) {
                 val index = valueParameters.size + receiverParameterCount + contextParameters.size
                 itemFactory.createParameterItem(
-                    fileLocation = FileLocation.UNKNOWN,
                     modifiers =
                         createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE, emptyList()),
                     name = "\$completion",

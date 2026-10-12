@@ -208,7 +208,7 @@ internal class PsiClassBuilder(
 
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -292,7 +292,7 @@ internal class PsiClassBuilder(
             val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
 
             itemFactory.createRecordComponentItem(
-                fileLocation = PsiFileLocation.fromPsiElement(component),
+                fileLocationSource = PsiFileLocation.fileLocationSource(component),
                 modifiers = modifiers,
                 name = component.name,
                 containingClass = classItem,
@@ -639,7 +639,7 @@ internal class PsiClassBuilder(
             }
 
         return itemFactory.createFieldItem(
-            fileLocation = PsiFileLocation(psiField),
+            fileLocationSource = PsiFileLocation.fileLocationSource(psiField),
             sourceLanguage = psiField.sourceLanguage,
             targetLanguages = targetLanguages,
             modifiers = modifiers,
@@ -752,7 +752,7 @@ internal class PsiClassBuilder(
 
         val method =
             itemFactory.createMethodItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -820,7 +820,7 @@ internal class PsiClassBuilder(
             )
         val constructor =
             itemFactory.createConstructorItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -919,7 +919,7 @@ internal class PsiClassBuilder(
             computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiParameter),
                 sourceLanguage = psiParameter.sourceLanguage,
                 modifiers = modifiers,
                 name = name,
