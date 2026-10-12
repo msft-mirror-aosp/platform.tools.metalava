@@ -140,25 +140,24 @@ class Driver(
             val stdout = executionEnvironment.stdout
             val stderr = executionEnvironment.stderr
 
-            // Process the early options. This does not consume any arguments, they will be parsed
-            // again later. A little inefficient but produces cleaner code.
-            val earlyOptions = EarlyOptions.parse(args)
+            try {
+                // Process the early options. This does not consume any arguments, they will be
+                // parsed again later. A little inefficient but produces cleaner code.
+                val earlyOptions = EarlyOptions.parse(args)
 
-            val traceDriver = createTraceDriver(earlyOptions.traceFile)
-            // Actual work begins here.
-            val exitCode =
-                traceDriver.use {
+                val traceDriver = createTraceDriver(earlyOptions.traceFile)
+                // Actual work begins here.
+                return traceDriver.use {
                     val command =
                         it.tracer.trace("createMetalavaCommand") {
                             createMetalavaCommand(executionEnvironment, it.tracer)
                         }
                     it.tracer.trace("command.process") { command.process(args) }
                 }
-
-            stdout.flush()
-            stderr.flush()
-
-            return exitCode
+            } finally {
+                stdout.flush()
+                stderr.flush()
+            }
         }
 
         private fun createMetalavaCommand(
