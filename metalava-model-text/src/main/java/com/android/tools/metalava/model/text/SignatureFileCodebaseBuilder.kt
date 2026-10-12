@@ -369,7 +369,8 @@ internal class SignatureFileCodebaseBuilder(
         val (typeParameterList, typeItemFactory) =
             createTypeParameterListAndFactory(
                 globalTypeItemFactory,
-                "typealias $name",
+                "typealias",
+                name,
                 typeParameters,
             )
         val qualifiedClassName = qualifiedName(currentPackage.qualifiedName(), name)
@@ -642,7 +643,8 @@ internal class SignatureFileCodebaseBuilder(
         val (typeParameterList, typeItemFactory) =
             createTypeParameterListAndFactory(
                 outerClassTypeItemFactory,
-                "class $qualifiedName",
+                "class",
+                qualifiedName,
                 parsedTypeParameters,
             )
 
@@ -688,7 +690,8 @@ internal class SignatureFileCodebaseBuilder(
      */
     private fun createTypeParameterListAndFactory(
         enclosingTypeItemFactory: TextTypeItemFactory,
-        scopeDescription: String,
+        kind: String,
+        name: String,
         parsedTypeParameters: List<ParsedTypeParameter>,
     ): TypeParameterListAndFactory<TextTypeItemFactory> {
         if (parsedTypeParameters.isEmpty()) {
@@ -699,7 +702,7 @@ internal class SignatureFileCodebaseBuilder(
         // used to resolve TypeParameterItems from the list. This performs the construction in two
         // stages to handle cycles between the parameters.
         return enclosingTypeItemFactory.createTypeParameterItemsAndFactory(
-            scopeDescription,
+            "$kind $name",
             parsedTypeParameters,
             { parsed ->
                 // TODO: Type use annotations support will need to handle annotations on the
@@ -735,7 +738,8 @@ internal class SignatureFileCodebaseBuilder(
         val (typeParameterList, typeItemFactory) =
             createTypeParameterListAndFactory(
                 currentClassTypeItemFactory,
-                "constructor $name",
+                "constructor",
+                name,
                 typeParameters,
             )
 
@@ -785,6 +789,7 @@ internal class SignatureFileCodebaseBuilder(
             createTypeParameterListAndFactory(
                 currentClassTypeItemFactory,
                 "method",
+                name,
                 typeParameters,
             )
 
@@ -913,6 +918,7 @@ internal class SignatureFileCodebaseBuilder(
             createTypeParameterListAndFactory(
                 currentClassTypeItemFactory,
                 "property",
+                name,
                 typeParameters,
             )
 
