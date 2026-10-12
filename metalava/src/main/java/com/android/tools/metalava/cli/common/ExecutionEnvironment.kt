@@ -36,7 +36,11 @@ data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
     val stdin: InputStream = System.`in`,
-    val reporterEnvironment: ReporterEnvironment = DefaultReporterEnvironment(),
+    val reporterEnvironment: ReporterEnvironment =
+        DefaultReporterEnvironment(
+            stdout = stdout,
+            stderr = stderr,
+        ),
     val testEnvironment: TestEnvironment? = null,
 ) {
     /** Whether metalava is being invoked as part of an Android platform build */
@@ -62,11 +66,6 @@ data class ExecutionEnvironment(
                     stdout = stdout,
                     stderr = stderr,
                     stdin = stdin.byteInputStream(),
-                    reporterEnvironment =
-                        DefaultReporterEnvironment(
-                            stdout = stdout,
-                            stderr = stderr,
-                        ),
                 ),
                 stdoutString,
                 stderrString,
