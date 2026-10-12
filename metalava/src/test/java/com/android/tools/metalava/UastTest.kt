@@ -2891,6 +2891,42 @@ class UastTest : DriverTest() {
     }
 
     @Test
+    fun `Test mapped collections methods by delegate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class StringList(private val items: MutableList<String>): List<String> by items
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class StringList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
+                    ctor public StringList(java.util.List<java.lang.String> items);
+                    method public operator boolean contains(String element);
+                    method public boolean containsAll(java.util.Collection<java.lang.String> elements);
+                    method public operator String get(int index);
+                    method public int getSize();
+                    method public int indexOf(String element);
+                    method public boolean isEmpty();
+                    method public operator java.util.Iterator<java.lang.String> iterator();
+                    method public int lastIndexOf(String element);
+                    method public java.util.ListIterator<java.lang.String> listIterator();
+                    method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    property public int size;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
     fun `Inner class with different number of type parameters than outer class`() {
         check(
             sourceFiles =
