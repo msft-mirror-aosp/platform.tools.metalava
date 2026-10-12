@@ -28,9 +28,10 @@ import java.io.StringWriter
 /**
  * Encapsulates information provided by the execution environment.
  *
- * This supports two environments:
+ * This supports three environments:
  * 1. The standard command line application.
- * 2. Tests.
+ * 2. The [java.util.spi.ToolProvider] SPI.
+ * 3. Tests.
  */
 data class ExecutionEnvironment(
     val stdout: PrintWriter = PrintWriter(OutputStreamWriter(System.out)),
