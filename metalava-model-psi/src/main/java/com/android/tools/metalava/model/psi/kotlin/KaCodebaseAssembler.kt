@@ -919,17 +919,8 @@ private constructor(
         // check that there isn't already a method with a matching signature. If there is, make sure
         // it is marked as usable from Kotlin, and don't add the duplicate method.
         val jvmName = methodItem.findJvmNameFromAnnotation()
-        if (jvmName != null) {
-            val existingMethod =
-                methodItem.containingClass().methods().firstOrNull {
-                    it.name() == methodItem.name() &&
-                        it.name() == jvmName &&
-                        TypeComparator.ERASED.compare(it.returnType(), methodItem.returnType()) &&
-                        it.parameters().size == methodItem.parameters().size &&
-                        it.parameters().zip(methodItem.parameters()).all { (p1, p2) ->
-                            TypeComparator.ERASED.compare(p1.type(), p2.type())
-                        }
-                }
+        if (jvmName != null && jvmName == methodItem.name()) {
+            val existingMethod = methodItem.containingClass().findMatchingMethod(methodItem)
             if (existingMethod != null) {
                 existingMethod.targetLanguages += TargetLanguage.KOTLIN
                 return
@@ -937,6 +928,18 @@ private constructor(
         }
 
         containingClass.addMethod(methodItem)
+    }
+
+    /** Finds a method in the [ClassItem] with the same erased signature as [methodItem]. */
+    private fun ClassItem.findMatchingMethod(methodItem: MethodItem): MethodItem? {
+        return methods().firstOrNull {
+            it.name() == methodItem.name() &&
+                TypeComparator.ERASED.compare(it.returnType(), methodItem.returnType()) &&
+                it.parameters().size == methodItem.parameters().size &&
+                it.parameters().zip(methodItem.parameters()).all { (p1, p2) ->
+                    TypeComparator.ERASED.compare(p1.type(), p2.type())
+                }
+        }
     }
 
     /**
