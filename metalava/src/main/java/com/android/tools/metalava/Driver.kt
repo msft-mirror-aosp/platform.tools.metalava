@@ -37,7 +37,6 @@ import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOp
 import com.android.tools.metalava.cli.flag.FlagReportCommand
 import com.android.tools.metalava.cli.flag.ListFlagsCommand
 import com.android.tools.metalava.cli.help.HelpCommand
-import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
@@ -172,7 +171,6 @@ class Driver(
                 )
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
-                AndroidJarsToSignaturesCommand(),
                 ApiHistoryCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
