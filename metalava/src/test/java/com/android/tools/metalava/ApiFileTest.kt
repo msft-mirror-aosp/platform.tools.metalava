@@ -5578,20 +5578,37 @@ class ApiFileTest : DriverTest() {
                 ),
             expectedApiSignature =
                 """
+                // Signature format: 5.0
                 package test.pkg {
                   public final class MyList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public MyList();
+                    method @InaccessibleFromKotlin public void add(int p, String! p1);
+                    method @InaccessibleFromKotlin public boolean add(String! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.String!>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.String!>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method @InaccessibleFromKotlin public boolean contains(Object element);
                     method public boolean contains(String element);
-                    method public boolean containsAll(java.util.Collection<java.lang.String> elements);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
                     method public operator String get(int index);
                     method @InaccessibleFromKotlin public int getSize();
+                    method @InaccessibleFromKotlin public int indexOf(Object element);
                     method public int indexOf(String element);
                     method public boolean isEmpty();
                     method public java.util.Iterator<java.lang.String> iterator();
+                    method @InaccessibleFromKotlin public int lastIndexOf(Object element);
                     method public int lastIndexOf(String element);
                     method public java.util.ListIterator<java.lang.String> listIterator();
                     method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method @InaccessibleFromKotlin public String! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public String! set(int p, String! p1);
+                    method @InaccessibleFromKotlin public int size();
                     method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
                     property public int size;
                   }
                 }

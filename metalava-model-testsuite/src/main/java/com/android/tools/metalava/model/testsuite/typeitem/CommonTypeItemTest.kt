@@ -1285,24 +1285,31 @@ class CommonTypeItemTest : BaseModelTest() {
              * Make sure that the [ClassItem] has a method whose single parameter is of the type
              * `java.lang.Collection<? extends Z>`.
              */
-            fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
+            fun ClassItem.assertMethodTakesCollection(name: String, wildcard: Boolean) {
                 assertMethodTakesCollection(name) {
-                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
+                    if (wildcard) {
+                        assertWildcardItem {
+                            extendsBound!!.assertReferencesTypeParameter(typeParam)
+                        }
+                    } else {
+                        assertWildcardItem {
+                            assertThat(extendsBound!!.isJavaLangObject()).isTrue()
+                        }
+                    }
                 }
             }
 
             // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
             // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
             // references the type parameter in `Foo<Z>`.
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("addAll")
+            fooClass.assertMethodTakesCollection("addAll", true)
 
             // Defined in `java.util.Collection` as `...(Collection<?> c)` these methods should be
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
-            //
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
+            fooClass.assertMethodTakesCollection("containsAll", false)
+            fooClass.assertMethodTakesCollection("removeAll", false)
+            fooClass.assertMethodTakesCollection("retainAll", false)
         }
     }
 

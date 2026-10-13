@@ -2084,6 +2084,13 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         val itemType = item.type() ?: return
+        // Skips nullability checks for items generated from Kotlin source for use by Java clients
+        // because the nullability of these methods is compiler-generated and can't be changed.
+        if (
+            (item is MethodItem || item is ParameterItem) &&
+                item.targetLanguages == TargetLanguageSet.NOT_KOTLIN
+        )
+            return
         val inherited =
             when (item) {
                 is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
@@ -2932,6 +2939,14 @@ private constructor(
                 if (componentType.qualifiedName == JAVA_LANG_STRING) return
             }
         }
+
+        // Allow the Java collection `toArray` method.
+        if (
+            (item is MethodItem && item.name() == "toArray") ||
+                (item is ParameterItem && item.possibleContainingMethod()?.name() == "toArray") &&
+                    item.containingClass().isCollection()
+        )
+            return
 
         val action =
             when (item) {
