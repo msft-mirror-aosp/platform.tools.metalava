@@ -186,21 +186,27 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (localInterface in interfaces) {
-            if (localInterface.introducedNotLaterThan(interfaceElement)) {
-                if (interfaceElement.name == localInterface.name) {
-                    return true
-                }
-                // Check parent interface.
-                val cls = allClasses[localInterface.name]
-                if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                    return true
-                }
-            }
+        val localInterface = mInterfaces[interfaceElement.name]
+        return if (
+            localInterface != null && localInterface.introducedNotLaterThan(interfaceElement)
+        ) {
+            true
+        } else {
+            implementsImplicitInterface(interfaceElement, allClasses)
         }
-        for (superClass in superClasses) {
-            if (superClass.introducedNotLaterThan(interfaceElement)) {
-                val cls = allClasses[superClass.name]
+    }
+
+    /**
+     * Checks if the given [interfaceElement] is implemented by a superclass or extended by an
+     * interface this class implements.
+     */
+    private fun implementsImplicitInterface(
+        interfaceElement: ApiElement,
+        allClasses: Map<String, ApiClass>
+    ): Boolean {
+        for (parent in Iterables.concat(interfaces, superClasses)) {
+            if (parent.introducedNotLaterThan(interfaceElement)) {
+                val cls = allClasses[parent.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
                     return true
                 }
