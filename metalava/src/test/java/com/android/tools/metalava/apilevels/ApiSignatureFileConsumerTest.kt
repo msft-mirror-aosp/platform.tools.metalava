@@ -283,6 +283,63 @@ class ApiSignatureFileConsumerTest {
         )
     }
 
+    // TODO(b/569883236): SuperInterface should be removed from ImplementsBothFromStart because
+    //  SubInterface extends SuperInterface and is implemented from the same version.
+    @Test
+    fun `Implicit interfaces extended by other implemented interfaces`() {
+        checkSignatureFiles(
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface SuperInterface {
+                  }
+                  public interface SubInterface extends test.pkg.SuperInterface {
+                  }
+                  public class ImplementsBothFromStart implements test.pkg.SubInterface, test.pkg.SuperInterface {
+                  }
+                  public class ImplementsSubInterfaceLater implements test.pkg.SuperInterface {
+                  }
+                }
+            """,
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  public interface SuperInterface {
+                  }
+                  public interface SubInterface extends test.pkg.SuperInterface {
+                  }
+                  public class ImplementsBothFromStart implements test.pkg.SubInterface, test.pkg.SuperInterface {
+                  }
+                  public class ImplementsSubInterfaceLater implements test.pkg.SubInterface, test.pkg.SuperInterface {
+                  }
+                }
+            """,
+            expectedXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="test/pkg/ImplementsBothFromStart" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SubInterface"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                        </class>
+                        <class name="test/pkg/ImplementsSubInterfaceLater" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SubInterface" since="2"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                        </class>
+                        <class name="test/pkg/SubInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                        </class>
+                        <class name="test/pkg/SuperInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
     @Test
     fun `Constructors`() {
         checkSignatureFiles(

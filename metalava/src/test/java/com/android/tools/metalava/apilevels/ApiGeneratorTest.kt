@@ -1718,6 +1718,112 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
+    // TODO(b/569883236): SuperInterface should be removed from Foo in api-versions.xml because
+    //  SubInterface extends SuperInterface and is implemented from the same version.
+    @Test
+    fun `Inheriting redundant superinterface from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public interface SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public interface SubInterface extends SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper implements SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper implements SubInterface {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                    package test.pkg {
+                      public class Foo implements test.pkg.SubInterface test.pkg.SuperInterface {
+                        ctor public Foo();
+                      }
+                      public interface SubInterface extends test.pkg.SuperInterface {
+                      }
+                      public interface SuperInterface {
+                      }
+                    }
+                """,
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo implements test.pkg.SubInterface, test.pkg.SuperInterface {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface SubInterface extends test.pkg.SuperInterface {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface SuperInterface {
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SubInterface"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/SubInterface" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                        </class>
+                        <class name="test/pkg/SuperInterface" since="1.0">
+                            <extends name="java/lang/Object"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
     /** Verifies special handling of methods that return an AbstractStringBuilder. */
     @Test
     fun `Inheriting methods from AbstractStringBuilder hidden super class`() {
