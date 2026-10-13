@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
@@ -39,10 +39,10 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
                 arrayOf(
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidPublicJarsPattern,
-                    ARG_ANDROID_JAR_PATTERN,
-                    "${extensionSdkJars.path}/{version:extension}/public/{module}.jar",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    androidPublicSignaturePattern,
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "${extensionSdkJars.path}/{version:extension}/public/api/{module}.txt",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_API_VERSION_FOR_SOURCES,

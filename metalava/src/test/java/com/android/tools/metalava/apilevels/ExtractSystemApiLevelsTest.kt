@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_ANDROID_JAR_PATTERN
+import com.android.tools.metalava.ARG_API_SURFACE
 import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
+import com.android.tools.metalava.ARG_API_VERSION_RANGE
+import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
 import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.doc.getApiLookup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -28,18 +31,24 @@ import org.junit.Test
 class ExtractSystemApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract System API`() {
-        val androidJarPattern = "${platformJars.path}/{version:level}/system/android.jar"
+        val androidSignaturePattern =
+            "${platformJars.path}/{version:level}/{surface}/api/android.txt"
 
         check(
+            configFiles = arrayOf(KnownConfigFiles.configKnownTestSurfaces),
             extraArguments =
                 arrayOf(
+                    ARG_API_SURFACE,
+                    "system",
                     ARG_GENERATE_API_LEVELS,
                     outputPath,
-                    ARG_ANDROID_JAR_PATTERN,
-                    androidJarPattern,
-                    ARG_ANDROID_JAR_PATTERN,
-                    // Make sure to only use system extension jars.
-                    "${extensionSdkJars.path}/{version:extension}/system/{module}.jar",
+                    ARG_API_VERSION_RANGE,
+                    "21:36",
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    androidSignaturePattern,
+                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    // Make sure to only use system and public extension signature files.
+                    "${extensionSdkJars.path}/{version:extension}/{surface}/api/{module}.txt",
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
                     ARG_API_VERSION_FOR_SOURCES,
