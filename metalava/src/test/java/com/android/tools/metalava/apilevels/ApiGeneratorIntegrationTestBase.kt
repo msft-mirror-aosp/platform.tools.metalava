@@ -16,8 +16,6 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.sdklib.SdkVersionInfo
-import com.android.tools.lint.detector.api.ApiConstraint
 import com.android.tools.metalava.DriverTest
 import java.io.File
 import java.util.regex.Pattern
@@ -25,7 +23,6 @@ import org.junit.Assert
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
-import org.junit.BeforeClass
 
 abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
 
@@ -93,19 +90,6 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
     }
 
     companion object {
-        // A version higher than SdkVersionInfo.HIGHEST_KNOWN_API.
-        // 57 was chosen because previously ApiConstraint used a bit vector requiring that an API
-        // version had to be between 1..61.
-        internal const val MAGIC_VERSION_INT = 57
-        internal const val MAGIC_VERSION_STR = MAGIC_VERSION_INT.toString()
-        private val ABOVE_HIGHEST_API = ApiConstraint.above(SdkVersionInfo.HIGHEST_KNOWN_API)
-
-        @JvmStatic
-        @BeforeClass
-        fun beforeClass() {
-            assert(ABOVE_HIGHEST_API.includes(MAGIC_VERSION_INT))
-        }
-
         internal val platformJars by
             lazy(LazyThreadSafetyMode.NONE) {
                 File("../../../prebuilts/sdk").apply {
