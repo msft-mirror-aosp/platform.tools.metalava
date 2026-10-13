@@ -26,18 +26,13 @@ import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
-import com.android.tools.metalava.testing.TestFileCache
-import com.android.tools.metalava.testing.TestFileCacheRule
-import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
 import java.io.PrintWriter
 import java.io.StringWriter
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import org.junit.ClassRule
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TestRule
@@ -72,25 +67,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 }
             }
         }
-    }
-
-    companion object {
-        /** Create a [TestFileCache] whose lifespan encompasses all the tests in this class. */
-        @ClassRule @JvmField val testFileCacheRule = TestFileCacheRule()
-
-        private val deprecatedEnumClass =
-            java(
-                """
-                    package test.pkg;
-                    /** @deprecated */
-                    @Deprecated public enum DeprecatedEnum {
-                        CONSTANT
-                    }
-                """
-            )
-
-        private val deprecatedEnumJarCached =
-            jarFromSources("deprecated-enum.jar", deprecatedEnumClass).cacheIn(testFileCacheRule)
     }
 
     /**
@@ -161,15 +137,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
             listOf(getAndroidJar(30)),
             ApiHistoryUpdater.forApiVersion(version),
             filter = { it in classFiles },
-        )
-    }
-
-    private fun versionedJarApiFromTestFile(jar: TestFile): VersionedApiFactory = { version ->
-        // Create a new target dir every time just in case the same jar file is used multiple times.
-        val targetDir = temporaryFolder.newFolder()
-        VersionedJarApi(
-            listOf(jar.createFile(targetDir)),
-            ApiHistoryUpdater.forApiVersion(version),
         )
     }
 
@@ -404,21 +371,30 @@ class ApiUpdateConsistencyTest : DriverTest() {
 
     @Test
     fun `Test deprecated enum`() {
-        checkVersionedApiFactories(
-            versionedJarApiFromTestFile(deprecatedEnumJarCached),
-            versionedSignatureApi(
+        val deprecatedEnumClass =
+            java(
                 """
-                        // Signature format: 2.0
-                        package test.pkg {
-                          @Deprecated public enum DeprecatedEnum {
-                            enum_constant @Deprecated public test.pkg.DeprecatedEnum CONSTANT;
-                          }
-                        }
-                    """
-            ),
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated public enum DeprecatedEnum {
+                        CONSTANT
+                    }
+                """
+            )
+        val deprecatedEnumSignature =
+            """
+                // Signature format: 2.0
+                package test.pkg {
+                  @Deprecated public enum DeprecatedEnum {
+                    enum_constant @Deprecated public test.pkg.DeprecatedEnum CONSTANT;
+                  }
+                }
+            """
+        checkVersionedApiFactories(
+            versionedSignatureApi(deprecatedEnumSignature),
             versionedSourceApi(deprecatedEnumClass),
-            // Emulates an extension jar being applied after the main API.
-            versionedJarApiFromTestFile(deprecatedEnumJarCached),
+            // Emulates an extension signature file being applied after the main API.
+            versionedSignatureApi(deprecatedEnumSignature),
             expected =
                 """
                     <?xml version="1.0" encoding="utf-8"?>
