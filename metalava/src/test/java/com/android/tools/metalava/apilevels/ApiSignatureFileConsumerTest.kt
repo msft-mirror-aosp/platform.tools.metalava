@@ -283,8 +283,6 @@ class ApiSignatureFileConsumerTest {
         )
     }
 
-    // TODO(b/569883236): SuperInterface should be removed from ImplementsBothFromStart because
-    //  SubInterface extends SuperInterface and is implemented from the same version.
     @Test
     fun `Implicit interfaces extended by other implemented interfaces`() {
         checkSignatureFiles(
@@ -321,7 +319,6 @@ class ApiSignatureFileConsumerTest {
                         <class name="test/pkg/ImplementsBothFromStart" since="1">
                             <extends name="java/lang/Object"/>
                             <implements name="test/pkg/SubInterface"/>
-                            <implements name="test/pkg/SuperInterface"/>
                         </class>
                         <class name="test/pkg/ImplementsSubInterfaceLater" since="1">
                             <extends name="java/lang/Object"/>

@@ -164,20 +164,14 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
      * @param allClasses all classes keyed by their names.
      */
     fun removeImplicitInterfaces(allClasses: Map<String, ApiClass>) {
-        if (mInterfaces.isEmpty() || mSuperClasses.isEmpty()) {
+        if (mInterfaces.isEmpty()) {
             return
         }
         val iterator = mInterfaces.values.iterator()
         while (iterator.hasNext()) {
             val interfaceElement = iterator.next()
-            for (superClass in superClasses) {
-                if (superClass.introducedNotLaterThan(interfaceElement)) {
-                    val cls = allClasses[superClass.name]
-                    if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                        iterator.remove()
-                        break
-                    }
-                }
+            if (implementsImplicitInterface(interfaceElement, allClasses)) {
+                iterator.remove()
             }
         }
     }

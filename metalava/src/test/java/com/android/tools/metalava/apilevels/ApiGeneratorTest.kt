@@ -1718,8 +1718,11 @@ class ApiGeneratorTest : DriverTest() {
         )
     }
 
-    // TODO(b/569883236): SuperInterface should be removed from Foo in api-versions.xml because
-    //  SubInterface extends SuperInterface and is implemented from the same version.
+    /**
+     * Verifies that when a hidden superclass implements a superinterface of an interface
+     * implemented by the public subclass, the redundant superinterface is removed from
+     * `api-versions.xml`.
+     */
     @Test
     fun `Inheriting redundant superinterface from a hidden super class`() {
         checkConsistencyBetweenHistoricalAndLatestCode(
@@ -1809,7 +1812,6 @@ class ApiGeneratorTest : DriverTest() {
                         <class name="test/pkg/Foo" since="1.0">
                             <extends name="java/lang/Object"/>
                             <implements name="test/pkg/SubInterface"/>
-                            <implements name="test/pkg/SuperInterface"/>
                             <method name="&lt;init>()V"/>
                         </class>
                         <class name="test/pkg/SubInterface" since="1.0">
