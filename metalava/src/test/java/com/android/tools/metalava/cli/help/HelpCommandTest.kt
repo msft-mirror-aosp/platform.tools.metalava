@@ -38,7 +38,7 @@ Concepts
                                              --stub-packages.
   signature-file-formats                     Describes the different signature file formats.
   historical-api-patterns                    Explains the syntax and behavior of historical API patterns used in options
-                                             like --android-jar-pattern.
+                                             like `api-history --pattern`.
   api-surfaces                               Explains what API surfaces are and how to specify them.
                 """
                     .trimIndent()
@@ -273,7 +273,7 @@ Usage: metalava help signature-file-formats
                 """
 Usage: metalava help historical-api-patterns
 
-  Explains the syntax and behavior of historical API patterns used in options like --android-jar-pattern.
+  Explains the syntax and behavior of historical API patterns used in options like `api-history --pattern`.
 
   A historical API pattern is used to find historical versioned API files that are used to construct a history of an API
   surface, e.g. when items were added, removed, deprecated, etc.. It allows for efficiently scanning a directory for
@@ -288,8 +288,8 @@ Usage: metalava help historical-api-patterns
 
   A `version` placeholder is mandatory in non-exclusion patterns, all other placeholders are optional. Files that match
   a non-exclusion pattern are assumed to provide the definition of that version of the API. e.g. given a pattern of
-  `prebuilts/sdk/{version:level}/public/android.jar` then it will match a file like `prebuilts/sdk/1/public/android.jar`
-  and that file is assumed to define version 1 of the API.
+  `prebuilts/sdk/{version:level}/public/api/android.txt` then it will match a file like
+  `prebuilts/sdk/1/public/api/android.txt` and that file is assumed to define version 1 of the API.
 
   Patterns can also include any number of wildcards:
 

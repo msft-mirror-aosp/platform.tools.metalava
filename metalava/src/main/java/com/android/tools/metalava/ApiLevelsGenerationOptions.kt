@@ -22,15 +22,10 @@ import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
-import com.android.tools.metalava.apilevels.VersionedApi
-import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
 import com.android.tools.metalava.apilevels.createGenerateApiHistoryConfig
-import com.android.tools.metalava.cli.common.EarlyOptions
-import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaOptionGroup
-import com.android.tools.metalava.cli.common.RequiresOtherGroups
 import com.android.tools.metalava.cli.common.SignatureFileLoader
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
@@ -39,7 +34,6 @@ import com.android.tools.metalava.cli.common.newFile
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
-import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
 import com.github.ajalt.clikt.parameters.options.convert
 import com.github.ajalt.clikt.parameters.options.default
@@ -61,8 +55,6 @@ const val ARG_API_VERSION_RANGE = "--api-version-range"
 
 const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
 const val ARG_SDK_EXTENSION_VERSION_RANGE = "--sdk-extension-version-range"
-
-const val ARG_ANDROID_JAR_PATTERN = "--android-jar-pattern"
 
 const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
 
@@ -87,10 +79,7 @@ internal fun OptionWithValues<String?, String, String>.apiVersionRange() = conve
     ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
 }
 
-class ApiLevelsGenerationOptions(
-    private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
-    private val earlyOptions: EarlyOptions = EarlyOptions(),
-) :
+class ApiLevelsGenerationOptions :
     MetalavaOptionGroup(
         name = "Api Levels Generation",
         help =
@@ -98,12 +87,7 @@ class ApiLevelsGenerationOptions(
                 Options controlling the API levels file, e.g. `api-versions.xml` file.
             """
                 .trimIndent()
-    ),
-    RequiresOtherGroups {
-
-    /** Make sure that the [earlyOptions] is correctly initialized when testing. */
-    override val requiredGroups: List<OptionGroup>
-        get() = listOf(earlyOptions)
+    ) {
 
     /** API level XML file to generate. */
     val generateApiLevelsXmlFile: File? by
@@ -189,21 +173,6 @@ class ApiLevelsGenerationOptions(
             )
             .apiVersionRange()
 
-    /** The list of patterns used to find matching jars in the set of files visible to Metalava. */
-    private val androidJarPatterns: List<String> by
-        option(
-                ARG_ANDROID_JAR_PATTERN,
-                metavar = "<historical-api-pattern>",
-                help =
-                    """
-                        Pattern to use to locate Android JAR files. Must end with `.jar`.
-
-                        See `metalava help historical-api-patterns` for more information.
-                    """
-                        .trimIndent(),
-            )
-            .multiple(default = emptyList())
-
     /**
      * The list of patterns used to find matching signature files in the set of files visible to
      * Metalava.
@@ -248,7 +217,7 @@ class ApiLevelsGenerationOptions(
                         The special pattern \"*\" refers to all APIs in the given mainline module.
                         Lines beginning with # are comments.
 
-                        If specified then the $ARG_ANDROID_JAR_PATTERN must include at least one
+                        If specified then the $ARG_API_VERSION_SIGNATURE_PATTERN must include at least one
                         pattern that uses `{version:extension}` and `{module}` placeholders and that
                         pattern must match at least one file.
                     """
@@ -282,28 +251,6 @@ class ApiLevelsGenerationOptions(
             .apiVersion()
 
     /**
-     * Create a [VersionedApi] from [updater] and [files].
-     *
-     * It requires [files] to contain a single entry.
-     */
-    private fun createVersionedJarApi(
-        updater: ApiHistoryUpdater,
-        files: List<MatchedPatternFile>,
-    ): VersionedApi {
-        val version = updater.apiVersion
-        val jarFiles = files.map { it.file }
-        verbosePrint { "Found API $version at ${jarFiles.joinToString()}" }
-        return VersionedJarApi(jarFiles, updater)
-    }
-
-    /** Print string returned by [message] if verbose output has been requested. */
-    private inline fun verbosePrint(message: () -> String) {
-        if (earlyOptions.verbosity.verbose) {
-            executionEnvironment.stdout.println(message())
-        }
-    }
-
-    /**
      * Get the [GenerateApiHistoryConfig] for Android.
      *
      * This has some Android specific code, e.g. structure of SDK extensions.
@@ -314,30 +261,12 @@ class ApiLevelsGenerationOptions(
         codebaseFragmentProvider: () -> CodebaseFragment,
     ) =
         generateApiLevelsXmlFile?.let { outputFile ->
-            fun createVersionedSignatureApi(
-                updater: ApiHistoryUpdater,
-                files: List<MatchedPatternFile>,
-            ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
-
-            if (androidJarPatterns.isNotEmpty() && signaturePatterns.isNotEmpty()) {
-                cliError(
-                    "Cannot combine $ARG_API_VERSION_SIGNATURE_PATTERN with $ARG_ANDROID_JAR_PATTERN"
-                )
-            }
-
             // Scan for all the files that could contribute to the API history.
             val currentDir = fileForPathInner(".")
-            val (apiFilePatterns, versionedApiFactory) =
-                if (signaturePatterns.isEmpty()) {
-                    Pair(androidJarPatterns, ::createVersionedJarApi)
-                } else {
-                    Pair(signaturePatterns, ::createVersionedSignatureApi)
-                }
-
             createGenerateApiHistoryConfig(
                 outputFile = outputFile,
                 currentDir = currentDir,
-                apiFilePatterns = apiFilePatterns,
+                apiFilePatterns = signaturePatterns,
                 apiVersionRange = apiVersionRange,
                 sdkExtensionVersionRange = sdkExtensionVersionRange,
                 sdkInfoFile = sdkInfoFile,
@@ -350,7 +279,9 @@ class ApiLevelsGenerationOptions(
                         version,
                     )
                 },
-                versionedApiFactory = versionedApiFactory,
+                versionedApiFactory = { updater, files ->
+                    VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
+                },
                 missingClassAction =
                     if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
                     else MissingClassAction.REPORT,

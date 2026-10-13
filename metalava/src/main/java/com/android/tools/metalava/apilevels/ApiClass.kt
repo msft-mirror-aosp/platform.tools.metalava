@@ -49,21 +49,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         get() = mFields.values
 
     /**
-     * Corrects a historical mistake in android.jar files where methods returning
-     * `AbstractStringBuilder` should return the concrete subclass instead.
-     */
-    internal fun correctMethodSignature(signature: String): String {
-        if (
-            signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
-                signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
-        ) {
-            val index = signature.lastIndexOf(')')
-            return signature.substring(0, index) + ")L" + this.name + ";"
-        }
-        return signature
-    }
-
-    /**
      * Updates the [ApiElement] for method with [signature], creating and adding one if necessary.
      *
      * @param signature the signature of the method, which includes the name and parameter/return
@@ -77,8 +62,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         updater: ApiHistoryUpdater,
         deprecated: Boolean,
     ): ApiElement {
-        val correctedName = correctMethodSignature(signature)
-        return updateElementInMap(mMethods, correctedName, updater, deprecated)
+        return updateElementInMap(mMethods, signature, updater, deprecated)
     }
 
     val methods: Collection<ApiElement>

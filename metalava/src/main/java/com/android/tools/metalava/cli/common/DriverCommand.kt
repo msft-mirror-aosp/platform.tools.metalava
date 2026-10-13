@@ -84,11 +84,7 @@ abstract class DriverCommand(
     protected val stubGenerationOptions by StubGenerationOptions()
 
     /** Api levels generation options. */
-    protected val apiLevelsGenerationOptions by
-        ApiLevelsGenerationOptions(
-            executionEnvironment = executionEnvironment,
-            earlyOptions = commonOptions,
-        )
+    protected val apiLevelsGenerationOptions by ApiLevelsGenerationOptions()
 
     /** Miscellaneous options. */
     protected val miscellaneousOptions by MiscellaneousOptions()
