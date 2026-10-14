@@ -31,6 +31,7 @@ import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
+import com.android.tools.metalava.cli.compatibility.CheckCompatibilityCommand
 import com.android.tools.metalava.cli.compatibility.CheckRequest
 import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.cli.compatibility.ComputedCompatibilityCheckOptions
@@ -172,6 +173,7 @@ class Driver(
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
                 ApiHistoryCommand(),
+                CheckCompatibilityCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
                 JarToJDiffCommand(),

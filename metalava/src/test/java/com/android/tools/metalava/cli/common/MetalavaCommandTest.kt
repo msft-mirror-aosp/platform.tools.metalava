@@ -212,6 +212,7 @@ Arguments:
 Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
   api-history                                Generate an API versions XML or JSON file from API signature files.
+  check-compatibility                        Check compatibility between two APIs.
   flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
   jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
