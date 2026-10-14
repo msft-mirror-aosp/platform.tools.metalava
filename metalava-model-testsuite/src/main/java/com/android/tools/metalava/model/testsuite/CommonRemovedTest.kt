@@ -1,0 +1,294 @@
+/*
+ * Copyright (C) 2026 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.android.tools.metalava.model.testsuite
+
+import com.android.tools.metalava.model.api.ApiSurfaceRules
+import com.android.tools.metalava.model.api.SurfaceSelectionRule
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
+import com.android.tools.metalava.model.api.flags.ApiFlags
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.testing.KnownSourceFiles
+import com.android.tools.metalava.testing.java
+import org.junit.Test
+
+/** Common tests for verifying the behavior of configured removed annotations. */
+@SupportedInputFormats(InputFormat.JAVA)
+class CommonRemovedTest : BaseModelTest() {
+
+    private val removedAnnotationSource =
+        java(
+            """
+                package test.pkg;
+
+                import java.lang.annotation.Retention;
+                import java.lang.annotation.RetentionPolicy;
+
+                @Retention(RetentionPolicy.SOURCE)
+                @interface Removed {}
+            """
+        )
+
+    private fun createApiSurfaceRules(): ApiSurfaceRules {
+        val apiSurfaces = ApiSurfaces.create()
+        val rulesByName = mapOf("main" to listOf(SurfaceSelectionRule.unannotated))
+        val variantRules =
+            listOf(
+                SurfaceSelectionRule.createAnnotationRule(
+                    "test.pkg.Removed",
+                    effect = SurfaceSelectionRule.Effect.REMOVED,
+                ),
+            )
+        return ApiSurfaceRules(apiSurfaces, rulesByName, variantRules)
+    }
+
+    @Test
+    fun `Test class annotated with configured removed annotation is marked as removed`() {
+        runCodebaseTest(
+            inputSet(
+                removedAnnotationSource,
+                java(
+                    """
+                        package test.pkg;
+
+                        @Removed
+                        public class Foo {
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            fooClass.assertItemApiVariants(
+                "ApiVariantSet[main(R)]",
+                message = "Foo should be removed",
+            )
+        }
+    }
+
+    @Test
+    fun `Test items annotated with configured removed annotation and FlaggedApi`() {
+        runCodebaseTest(
+            inputSet(
+                removedAnnotationSource,
+                KnownSourceFiles.flaggedApiSource,
+                java(
+                    """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+
+                        @Removed
+                        @FlaggedApi("test.pkg.flags.finalized_flag")
+                        public class FinalizedRemovedClass {
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+
+                        @Removed
+                        @FlaggedApi("test.pkg.flags.kept_flag")
+                        public class KeptRemovedClass {
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+
+                        @Removed
+                        @FlaggedApi("test.pkg.flags.reverted_flag")
+                        public class RevertedRemovedClass {
+                            public void method() {}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+
+                        public class Foo {
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.finalized_flag")
+                            public void finalizedRemovedMethod() {}
+
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            public void keptRemovedMethod() {}
+
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.reverted_flag")
+                            public void revertedRemovedMethod() {}
+
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.finalized_flag")
+                            public int finalizedRemovedField;
+
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.kept_flag")
+                            public int keptRemovedField;
+
+                            @Removed
+                            @FlaggedApi("test.pkg.flags.reverted_flag")
+                            public int revertedRemovedField;
+                        }
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = createApiSurfaceRules(),
+                    apiFlags =
+                        ApiFlags(
+                            listOf(
+                                ApiFlag("test.pkg.flags.finalized_flag", ApiFlagAction.FINALIZE),
+                                ApiFlag("test.pkg.flags.kept_flag", ApiFlagAction.KEEP),
+                                ApiFlag("test.pkg.flags.reverted_flag", ApiFlagAction.REVERT),
+                            )
+                        ),
+                ),
+        ) {
+            val finalizedRemovedClass = codebase.assertClass("test.pkg.FinalizedRemovedClass")
+            finalizedRemovedClass.assertItemApiVariants(
+                "ApiVariantSet[main(R)]",
+                message = "FinalizedRemovedClass should be removed",
+            )
+            finalizedRemovedClass
+                .assertMethod("method", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(R)]",
+                    message = "FinalizedRemovedClass.method() should be removed",
+                )
+
+            val keptRemovedClass = codebase.assertClass("test.pkg.KeptRemovedClass")
+            keptRemovedClass.assertItemApiVariants(
+                "ApiVariantSet[main(C)]",
+                message = "KeptRemovedClass should be in main(C)",
+            )
+            keptRemovedClass
+                .assertMethod("method", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "KeptRemovedClass.method() should be in main(C)",
+                )
+
+            val revertedRemovedClass = codebase.assertClass("test.pkg.RevertedRemovedClass")
+            revertedRemovedClass.assertItemApiVariants(
+                "ApiVariantSet[main(C)]",
+                message = "RevertedRemovedClass should be in main(C)",
+            )
+            revertedRemovedClass
+                .assertMethod("method", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "RevertedRemovedClass.method() should be in main(C)",
+                )
+
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            fooClass.assertItemApiVariants(
+                "ApiVariantSet[main(C)]",
+                message = "Foo should be in main(C)",
+            )
+            fooClass
+                .assertMethod("finalizedRemovedMethod", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(R)]",
+                    message = "Foo.finalizedRemovedMethod() should be removed",
+                )
+            fooClass
+                .assertMethod("keptRemovedMethod", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "Foo.keptRemovedMethod() should be in main(C)",
+                )
+            fooClass
+                .assertMethod("revertedRemovedMethod", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "Foo.revertedRemovedMethod() should be in main(C)",
+                )
+            fooClass
+                .assertField("finalizedRemovedField")
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(R)]",
+                    message = "Foo.finalizedRemovedField should be removed",
+                )
+            fooClass
+                .assertField("keptRemovedField")
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "Foo.keptRemovedField should be in main(C)",
+                )
+            fooClass
+                .assertField("revertedRemovedField")
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "Foo.revertedRemovedField should be in main(C)",
+                )
+        }
+    }
+
+    @Test
+    fun `Test items annotated with configured removed annotation and FlaggedApi with no ApiFlags`() {
+        runCodebaseTest(
+            inputSet(
+                removedAnnotationSource,
+                KnownSourceFiles.flaggedApiSource,
+                java(
+                    """
+                        package test.pkg;
+
+                        import android.annotation.FlaggedApi;
+
+                        @Removed
+                        @FlaggedApi("test.pkg.flags.flag")
+                        public class Foo {
+                            public void method() {}
+                        }
+                    """
+                ),
+            ),
+            testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            fooClass.assertItemApiVariants(
+                "ApiVariantSet[main(C)]",
+                message = "Foo should be in main(C)",
+            )
+            fooClass
+                .assertMethod("method", emptyList())
+                .assertItemApiVariants(
+                    "ApiVariantSet[main(C)]",
+                    message = "Foo.method() should be in main(C)",
+                )
+        }
+    }
+}

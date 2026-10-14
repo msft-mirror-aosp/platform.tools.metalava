@@ -18,8 +18,8 @@ package com.android.tools.metalava.cli.compatibility
 
 import com.android.tools.metalava.cli.common.BaseOptionGroupTest
 import com.android.tools.metalava.cli.common.SignatureBasedApi
+import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.model.api.surface.ApiVariantType
-import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.testing.signature
 import com.android.tools.metalava.testing.source
 import com.google.common.truth.Truth.assertThat
@@ -32,6 +32,15 @@ Compatibility Checks:
 
   Options controlling which, if any, compatibility checks are performed against a previously released API.
 
+  --check-compatibility [enabled|disabled]   Determines whether the --check-compatibility:api:released and
+                                             --check-compatibility:removed:released cause a compatibility check to be
+                                             performed. This must be set to `disabled` when those options are only
+                                             provided to supply the previously released API to which flagged APIs are
+                                             reverted.
+
+                                             enabled (default) - Compatibility checks are performed.
+
+                                             disabled - Compatibility checks are NOT performed.
   --check-compatibility:api:released <file>  Check compatibility of the previously released API.
 
                                              When multiple files are provided any files that are a delta on another file
@@ -76,15 +85,14 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released`() {
-        val file =
-            signature("released.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, file.path) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi = SignatureBasedApi.fromFiles(listOf(file)),
-                            apiType = ApiType.PUBLIC_API,
+                            type = CheckType.PUBLIC_API,
                         ),
                     )
                 )
@@ -93,25 +101,21 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility api released multiple files`() {
-        val file1 =
-            signature("released1.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
-        val file2 =
-            signature("released2.txt", "// Signature format: 2.0\n")
-                .createFile(temporaryFolder.root)
+        val file1 = signature("released1.txt", "// Signature format: 2.0\n").toFile()
+        val file2 = signature("released2.txt", "// Signature format: 2.0\n").toFile()
         runTest(
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file1.path,
             ARG_CHECK_COMPATIBILITY_API_RELEASED,
             file2.path,
         ) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(listOf(file1, file2)),
-                            apiType = ApiType.PUBLIC_API,
+                            type = CheckType.PUBLIC_API,
                         ),
                     )
                 )
@@ -120,19 +124,18 @@ class CompatibilityCheckOptionsTest :
 
     @Test
     fun `check compatibility removed api released`() {
-        val file =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val file = signature("removed.txt", "// Signature format: 2.0\n").toFile()
         runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, file.path) {
-            assertThat(options.compatibilityChecks)
+            assertThat(options.compute().compatibilityChecks)
                 .isEqualTo(
                     listOf(
-                        CompatibilityCheckOptions.CheckRequest(
+                        CheckRequest(
                             previouslyReleasedApi =
                                 SignatureBasedApi.fromFiles(
                                     listOf(file),
                                     apiVariantType = ApiVariantType.REMOVED,
                                 ),
-                            apiType = ApiType.REMOVED,
+                            type = CheckType.REMOVED,
                         ),
                     )
                 )
@@ -143,7 +146,7 @@ class CompatibilityCheckOptionsTest :
      * Create a fake jar file. It is ok that it is not actually a jar file as its contents are not
      * read.
      */
-    private fun fakeJar() = source("some.jar", "PK...").createFile(temporaryFolder.root)
+    private fun fakeJar() = source("some.jar", "PK...").toFile()
 
     @Test
     fun `check compatibility api released from jar`() {
@@ -151,7 +154,7 @@ class CompatibilityCheckOptionsTest :
         val exception =
             assertThrows(IllegalStateException::class.java) {
                 runTest(ARG_CHECK_COMPATIBILITY_API_RELEASED, jarFile.path) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
 
@@ -164,8 +167,7 @@ class CompatibilityCheckOptionsTest :
     @Test
     fun `check compatibility api released mixture of signature and jar`() {
         val jarFile = fakeJar()
-        val signatureFile =
-            signature("removed.txt", "// Signature format: 2.0\n").createFile(temporaryFolder.root)
+        val signatureFile = signature("removed.txt", "// Signature format: 2.0\n").toFile()
 
         val exception =
             assertThrows(IllegalStateException::class.java) {
@@ -175,7 +177,7 @@ class CompatibilityCheckOptionsTest :
                     ARG_CHECK_COMPATIBILITY_API_RELEASED,
                     signatureFile.path,
                 ) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
 
@@ -192,7 +194,7 @@ class CompatibilityCheckOptionsTest :
         val exception =
             assertThrows(IllegalStateException::class.java) {
                 runTest(ARG_CHECK_COMPATIBILITY_REMOVED_RELEASED, jarFile.path) {
-                    options.compatibilityChecks
+                    options.compute().compatibilityChecks
                 }
             }
         assertThat(exception.message)
@@ -209,8 +211,27 @@ class CompatibilityCheckOptionsTest :
             ARG_API_COMPAT_ANNOTATION,
             "com.example.MyOtherAnnotation",
         ) {
-            assertThat(options.apiCompatAnnotations)
+            assertThat(options.compute().apiCompatAnnotations)
                 .containsExactly("com.example.MyAnnotation", "com.example.MyOtherAnnotation")
+        }
+    }
+
+    @Test
+    fun `Test check-compatibility=disabled disables check but not previously released API`() {
+        val file = signature("released.txt", "// Signature format: 2.0\n").toFile()
+        runTest(
+            ARG_CHECK_COMPATIBILITY_API_RELEASED,
+            file.path,
+            ARG_CHECK_COMPATIBILITY,
+            "disabled",
+        ) {
+            val computedOptions = options.compute()
+            // Make sure that no compatibility checks are returned when they are disabled.
+            assertThat(computedOptions.compatibilityChecks).isEmpty()
+
+            // Make sure that the previously released API is returned even when the checks are
+            // disabled.
+            assertThat(computedOptions.previouslyReleasedApi).isNotNull()
         }
     }
 }

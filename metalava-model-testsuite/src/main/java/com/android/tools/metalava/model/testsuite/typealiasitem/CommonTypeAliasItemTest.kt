@@ -16,7 +16,12 @@
 
 package com.android.tools.metalava.model.testsuite.typealiasitem
 
+import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PrimitiveTypeItem
+import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.createAndroidModuleDescription
 import com.android.tools.metalava.testing.createCommonModuleDescription
@@ -25,6 +30,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 
+@SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
 class CommonTypeAliasItemTest : BaseModelTest() {
     @Test
     fun `accessing type alias from codebase`() {
@@ -67,7 +73,11 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             ),
         ) {
             val pkg = codebase.assertPackage("test.pkg")
-            assertThat(pkg.typeAliases()).hasSize(1)
+
+            val typeAlias = pkg.topLevelClasses().single { it.simpleName() == "Foo" }
+            assertThat(typeAlias.classKind).isEqualTo(ClassKind.TYPEALIAS)
+
+            assertThat(pkg.allClasses().toList()).contains(typeAlias)
         }
     }
 
@@ -90,8 +100,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             ),
         ) {
             val typeAlias = codebase.assertTypeAlias("test.pkg.Foo")
-            assertThat(typeAlias.qualifiedName).isEqualTo("test.pkg.Foo")
-            assertThat(typeAlias.simpleName).isEqualTo("Foo")
+            assertThat(typeAlias.qualifiedName()).isEqualTo("test.pkg.Foo")
+            assertThat(typeAlias.simpleName()).isEqualTo("Foo")
         }
     }
 
@@ -126,6 +136,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `private type alias visibility`() {
         // No signature case: private APIs aren't written to signature files
@@ -223,6 +234,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `functional type alias type`() {
         // No signature case: functional types are just parsed as class types (b/169798041).
@@ -238,13 +250,14 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             functionType.assertLambdaTypeItem {
                 assertThat(parameterTypes).hasSize(1)
                 assertThat(parameterTypes.single().isString()).isTrue()
-                returnType.assertPrimitiveTypeItem {
-                    assertThat(kind).isEqualTo(PrimitiveTypeItem.Primitive.INT)
+                returnType.assertClassTypeItem {
+                    assertThat(qualifiedName).isEqualTo("java.lang.Integer")
                 }
             }
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `type alias referencing other type alias`() {
         // type aliases should be expanded to the underlying type
@@ -265,9 +278,7 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             bar.aliasedType.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(arguments).hasSize(1)
-                arguments.single().assertWildcardItem {
-                    assertThat(extendsBound!!.isString()).isTrue()
-                }
+                assertThat(arguments.single().isString()).isTrue()
             }
         }
     }
@@ -290,8 +301,8 @@ class CommonTypeAliasItemTest : BaseModelTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public typealias NoTypeParameter = String;
-                      public typealias OneTypeParameter<T> = java.util.List<? extends T>;
-                      public typealias TwoTypeParameter<K, V> = java.util.Map.Entry<? extends K,? extends V>;
+                      public typealias OneTypeParameter<T> = java.util.List<T>;
+                      public typealias TwoTypeParameter<K, V> = java.util.Map.Entry<K,V>;
                     }
                 """
             ),
@@ -307,11 +318,9 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             listT.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.List")
                 assertThat(arguments).hasSize(1)
-                arguments.single().assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(t)
-                        assertThat(t.type()).isEqualTo(this)
-                    }
+                arguments.single().assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(t)
+                    assertThat(t.type()).isEqualTo(this)
                 }
             }
 
@@ -325,22 +334,19 @@ class CommonTypeAliasItemTest : BaseModelTest() {
             mapEntryKV.assertClassTypeItem {
                 assertThat(qualifiedName).isEqualTo("java.util.Map.Entry")
                 assertThat(arguments).hasSize(2)
-                arguments[0].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(k)
-                        assertThat(k.type()).isEqualTo(this)
-                    }
+                arguments[0].assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(k)
+                    assertThat(k.type()).isEqualTo(this)
                 }
-                arguments[1].assertWildcardItem {
-                    extendsBound.assertVariableTypeItem {
-                        assertThat(asTypeParameter).isEqualTo(v)
-                        assertThat(v.type()).isEqualTo(this)
-                    }
+                arguments[1].assertVariableTypeItem {
+                    assertThat(asTypeParameter).isEqualTo(v)
+                    assertThat(v.type()).isEqualTo(this)
                 }
             }
         }
     }
 
+    @SupportedInputFormats(InputFormat.KOTLIN)
     @Test
     fun `expect actual typealias`() {
         val commonSource =
@@ -395,6 +401,66 @@ class CommonTypeAliasItemTest : BaseModelTest() {
         ) {
             val pkg = codebase.assertPackage("test.pkg")
             assertThat(pkg.emit).isTrue()
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Origin for typealias`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    // The kotlin package is used here to make it so built-in kotlin typealiases are
+                    // also processed.
+                    """
+                    package kotlin
+                    """
+                ),
+                kotlin(
+                    """
+                    package test.pkg
+                    typealias Foo = String
+                    """
+                )
+            )
+        ) {
+            val fooAlias = codebase.assertTypeAlias("test.pkg.Foo")
+            assertThat(fooAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
+
+            val errorAlias = codebase.assertResolvedClass("kotlin.Error", expectedEmit = false)
+            assertThat(errorAlias.classKind).isEqualTo(ClassKind.TYPEALIAS)
+            assertThat(errorAlias.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Typealias excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+                        typealias Included = test.excluded.pkg.Excluded
+                    """
+                ),
+                kotlin(
+                    """
+                        package test.excluded.pkg
+                        typealias Excluded = String
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            val included = codebase.assertTypeAlias("test.pkg.Included")
+            assertThat(included.aliasedType.isString()).isTrue()
+
+            assertThat(codebase.findClass("test.excluded.pkg.Excluded")).isNull()
+            assertThat(codebase.findPackage("test.excluded.pkg")).isNull()
         }
     }
 }

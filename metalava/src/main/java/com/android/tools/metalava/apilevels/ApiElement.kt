@@ -47,13 +47,28 @@ interface ParentApiElement {
  * @param name the name of the API element
  */
 open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElement> {
+    /**
+     * A special constructor, used by [ApiClass.addClassDependentMembersIfNeeded] that will be used
+     * to create additional members on [containingClass] whose API history is identical to the
+     * class.
+     *
+     * This is currently used for compiler generated enum methods `valueOf(String)` and `values()`.
+     */
+    internal constructor(name: String, containingClass: ApiClass) : this(name) {
+        since = containingClass.since
+        sinceExtension = containingClass.sinceExtension
+        sdks = containingClass.sdks
+        mainlineModule = containingClass.mainlineModule
+        deprecatedIn = containingClass.deprecatedIn
+        lastPresentIn = containingClass.lastPresentIn
+    }
 
     /**
      * The Android API level of this ApiElement. i.e. The Android platform SDK version this API was
      * first introduced in.
      */
     final override lateinit var since: ApiVersion
-        private set
+        protected set
 
     /**
      * The extension version of this ApiElement. i.e. The Android extension SDK version this API was
@@ -116,6 +131,23 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
             if (deprecatedVersion != null && deprecatedVersion < apiVersion) {
                 deprecatedIn = null
             }
+        }
+    }
+
+    /** Updates [lastPresentIn] if [version] is greater than the current [lastPresentIn]. */
+    fun updateLastPresentIn(version: ApiVersion) {
+        if (!::lastPresentIn.isInitialized || lastPresentIn < version) {
+            lastPresentIn = version
+        }
+    }
+
+    /**
+     * Updates the [deprecatedIn] version of this element if it was not already deprecated in an
+     * earlier version.
+     */
+    fun updateDeprecatedIn(version: ApiVersion) {
+        if (deprecatedIn == null || deprecatedIn!! > version) {
+            deprecatedIn = version
         }
     }
 

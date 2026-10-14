@@ -81,4 +81,61 @@ object TargetLanguageSet {
      * - The renamed version of a Kotlin API annotated with [JvmName]
      */
     val NOT_KOTLIN: Set<TargetLanguage> = EnumSet.of(TargetLanguage.BYTECODE, TargetLanguage.JAVA)
+
+    /**
+     * [TargetLanguage] set for an API that cannot be referenced from Java source, but can be
+     * referenced from Kotlin source and from bytecode.
+     *
+     * Examples include:
+     * - An API annotated with [JvmSynthetic]
+     */
+    val NOT_JAVA: Set<TargetLanguage> = EnumSet.of(TargetLanguage.BYTECODE, TargetLanguage.KOTLIN)
+
+    /**
+     * [TargetLanguage] set with all targets except [TargetLanguage.BYTECODE]. This might be used by
+     * a visitor which wants to skip APIs that only exist in bytecode.
+     */
+    val SOURCE: Set<TargetLanguage> = EnumSet.of(TargetLanguage.JAVA, TargetLanguage.KOTLIN)
+
+    /**
+     * Mapping from the representation used in signature files to the corresponding target language
+     * set.
+     */
+    val signatureFileRepresentationToTargetLanguageSet =
+        mapOf(
+            "@KotlinOnly" to KOTLIN_ONLY,
+            "@BytecodeOnly" to BYTECODE_ONLY,
+            "@InaccessibleFromKotlin" to NOT_KOTLIN,
+            "@InaccessibleFromJava" to NOT_JAVA,
+        )
+
+    /**
+     * Reverse of [signatureFileRepresentationToTargetLanguageSet]: mapping from a target language
+     * set to the corresponding modifier to use in signature files.
+     */
+    val targetLanguageSetToSignatureFileRepresentation =
+        signatureFileRepresentationToTargetLanguageSet.entries.associate { it.value to it.key }
+}
+
+/**
+ * Returns a [FilterPredicate] that returns `true` for any [SelectableItem] that can be targeted for
+ * at least one of this set's [TargetLanguage].
+ *
+ * If this set is all [TargetLanguage]s then it returns `null` to avoid any filtering.
+ */
+fun Set<TargetLanguage>.inclusionFilter(): FilterPredicate? =
+    if (this == TargetLanguageSet.ALL) null else TargetLanguageInclusionPredicate(this)
+
+/**
+ * [FilterPredicate] that returns `true` for any [SelectableItem] that can be targeted for at least
+ * one of [targetLanguages].
+ */
+private class TargetLanguageInclusionPredicate(
+    private val targetLanguages: Set<TargetLanguage>,
+) : FilterPredicate() {
+    override fun test(t: SelectableItem): Boolean = targetLanguages.any { it in t.targetLanguages }
+
+    override fun format(indenter: Indenter) {
+        indenter.append("TargetLanguageInclusionPredicate($targetLanguages)")
+    }
 }

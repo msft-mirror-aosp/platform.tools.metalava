@@ -28,29 +28,23 @@ application {
 
 dependencies {
     implementation(project(":metalava-model"))
-    implementation(project(":metalava-model-psi"))
     implementation(project(":metalava-model-source"))
     implementation(project(":metalava-model-text"))
     implementation(project(":metalava-reporter"))
-    implementation(libs.androidToolsExternalUast)
-    implementation(libs.androidToolsExternalKotlinCompiler)
-    implementation(libs.androidToolsExternalIntellijCore)
     implementation(libs.androidLintApi)
     implementation(libs.androidLintChecks)
     implementation(libs.androidLintGradle)
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
-    implementation(libs.androidToolsSdkCommon)
     implementation(libs.androidToolsSdklib)
     implementation(libs.clikt)
-    implementation(libs.kotlinStdlib)
     implementation(libs.asm)
     implementation(libs.asmTree)
     implementation(libs.gson)
-    implementation(libs.jacksonDataformatXml)
-    implementation(libs.jacksonModuleKotlin)
+    implementation(libs.tracingWire)
 
-    testImplementation(project(":metalava-model-turbine"))
+    runtimeOnly(project(":metalava-model-psi"))
+
     testImplementation(project(":metalava-testing"))
     testImplementation(testFixtures(project(":metalava-model")))
     testImplementation(testFixtures(project(":metalava-model-text")))
@@ -58,6 +52,9 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
+
+    testRuntimeOnly(project(":metalava-model-turbine"))
 }
 
 /** The location into which a fake representation of the prebuilts/sdk directory will be written. */

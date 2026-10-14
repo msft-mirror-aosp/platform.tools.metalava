@@ -34,6 +34,8 @@ dependencies {
     implementation(libs.androidLintGradle)
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
+    implementation(libs.kotlinMetadataJvm)
+    implementation(libs.tracing)
 
     testImplementation(testFixtures(project(":metalava-model")))
     // Pick up the SourceModelSuiteRunner service to run the `metalava-model-testsuite`.
@@ -44,4 +46,5 @@ dependencies {
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
     testImplementation(libs.kotlinTest)
+    testImplementation(libs.kotlinTestJUnit)
 }

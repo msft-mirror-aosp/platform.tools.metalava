@@ -25,8 +25,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -47,12 +47,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Add or delete formal parameter (Incompatible)`() {
+    fun `Add or delete formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -73,12 +73,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change type of a formal parameter (Incompatible)`() {
+    fun `Change type of a formal parameter - Incompatible`() {
         check(
             expectedIssues =
                 """
-                released-api.txt:4: error: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
-            """,
+                released-api.txt:4: error: Binary breaking change: Removed method test.pkg.Foo.bar(int) [RemovedMethod]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -103,8 +103,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed return type from void to int [ChangedType]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -125,59 +125,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Add checked exceptions thrown (Incompatible)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Method test.pkg.Foo.bar added thrown exception java.lang.Throwable [ChangedThrows]
-            """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public class Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Delete checked exceptions thrown (Incompatible)`() {
-        check(
-            expectedIssues =
-                """
-                load-api.txt:4: error: Method test.pkg.Foo.bar no longer throws exception java.lang.Throwable [ChangedThrows]
-            """,
-            signatureSource =
-                """
-                package test.pkg {
-                  public class Foo {
-                    method public void bar(int);
-                  }
-                }
-            """,
-            checkCompatibilityApiReleased =
-                """
-                package test.pkg {
-                  public class Foo {
-                    method public void bar(int) throws java.lang.Throwable;
-                  }
-                }
-            """
-        )
-    }
-
-    @Test
-    fun `Re-order list of exceptions thrown (Compatible)`() {
+    fun `Re-order list of exceptions thrown - Compatible`() {
         check(
             signatureSource =
                 """
@@ -207,8 +155,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:4: error: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
-            """,
+               load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar changed visibility from public to protected [ChangedScope]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -229,7 +177,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Increase access, that is, from protected access to public access (Compatible)`() {
+    fun `Increase access, that is, from protected access to public access - Compatible`() {
         check(
             signatureSource =
                 """
@@ -251,7 +199,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change abstract to non-abstract (Compatible)`() {
+    fun `Change abstract to non-abstract - Compatible`() {
         check(
             signatureSource =
                 """
@@ -273,12 +221,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-abstract to abstract (Incompatible)`() {
+    fun `Change non-abstract to abstract - Incompatible`() {
         check(
             expectedIssues =
                 """
-               load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
-            """,
+               load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'abstract' qualifier [ChangedAbstract]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -299,12 +247,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change final to non-final (Compatible but Disallowed)`() {
+    fun `Change final to non-final - Compatible but Disallowed`() {
         check(
             expectedIssues =
                 """
                load-api.txt:4: error: Method test.pkg.Foo.bar has removed 'final' qualifier [RemovedFinalStrict]
-            """,
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -351,7 +299,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-               load-api.txt:5: error: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
+               load-api.txt:5: error: Binary breaking change: Method test.pkg.Foo.bar has added 'final' qualifier [AddedFinal]
             """,
             signatureSource =
                 """
@@ -375,12 +323,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change static to non-static (Incompatible)`() {
+    fun `Change static to non-static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -401,12 +349,12 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-static to static (Incompatible)`() {
+    fun `Change non-static to static - Incompatible`() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
-            """,
+                load-api.txt:4: error: Binary breaking change: Method test.pkg.Foo.bar has changed 'static' qualifier [ChangedStatic]
+                """,
             signatureSource =
                 """
                 package test.pkg {
@@ -427,7 +375,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change native to non-native (Compatible)`() {
+    fun `Change native to non-native - Compatible`() {
         check(
             signatureSource =
                 """
@@ -449,7 +397,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-native to native (Compatible)`() {
+    fun `Change non-native to native - Compatible`() {
         check(
             signatureSource =
                 """
@@ -471,7 +419,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change synchronized to non-synchronized (Compatible)`() {
+    fun `Change synchronized to non-synchronized - Compatible`() {
         check(
             signatureSource =
                 """
@@ -493,7 +441,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
     }
 
     @Test
-    fun `Change non-synchronized to synchronized (Compatible)`() {
+    fun `Change non-synchronized to synchronized - Compatible`() {
         check(
             signatureSource =
                 """
@@ -556,7 +504,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Delete type parameter (Incompatible)`() {
+    fun `Delete type parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -575,7 +523,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Re-order type parameters (Incompatible)`() {
+    fun `Re-order type parameters - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -594,7 +542,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Rename type parameter (Compatible)`() {
+    fun `Rename type parameter - Compatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -613,7 +561,7 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         )
     }
     @Test
-    fun `Add, delete, or change type bounds of parameter (Incompatible)`() {
+    fun `Add, delete, or change type bounds of parameter - Incompatible`() {
         check(
             signatureSource = """
                 package test.pkg {
@@ -660,8 +608,8 @@ class BinaryCompatibilityClassMethodsAndConstructors : DriverTest() {
         check(
             expectedIssues =
                 """
-                load-api.txt:4: error: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
-            """,
+                load-api.txt:4: error: Binary breaking change: Changing from varargs to array is an incompatible change: parameter arg1 in test.pkg.Foo.bar(T[] arg1) [VarargRemoval]
+                """,
             signatureSource =
                 """
                 package test.pkg {
