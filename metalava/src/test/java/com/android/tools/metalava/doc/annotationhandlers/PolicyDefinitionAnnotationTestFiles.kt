@@ -208,6 +208,15 @@ object PolicyDefinitionAnnotationTestFiles {
                 ListResolutionMechanism resolutionMechanism();
                 int maxListLength() default 10000;
             }
+
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface ListOfEnumPolicyDefinition {
+                PolicyDefinition base();
+                Class<?> intDef();
+                boolean emptyListAllowed() default false;
+                ListResolutionMechanism resolutionMechanism();
+                int maxListLength() default 10000;
+            }
             """
         )
 

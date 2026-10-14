@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.source.javadoc
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.ReferencableItem
+import com.android.tools.metalava.model.parser.Token
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.value.StringValue
 import com.android.tools.metalava.model.value.Value
@@ -72,6 +73,7 @@ internal interface ExprBuilderContext {
 
 /** Builds [Expr] instances. */
 internal class ExprBuilder(
+    private val text: String,
     private val context: ExprBuilderContext,
     private val reporter: TokenIssueReporter,
 ) {
@@ -92,7 +94,7 @@ internal class ExprBuilder(
         functionNameToken: Token,
         fieldReferenceTokens: List<Token>,
     ): Expr {
-        val name = functionNameToken.text
+        val name = functionNameToken.text(text)
         if (name != "flag") {
             reporter.report(
                 functionNameToken,
@@ -109,7 +111,7 @@ internal class ExprBuilder(
         }
 
         // Get the field reference, removing any white space.
-        val fieldReference = fieldReferenceTokens.joinToString("") { it.text }
+        val fieldReference = fieldReferenceTokens.joinToString("") { it.text(text) }
 
         // Resolve the field reference.
         val resolved = context.resolveItemReference(fieldReference, NameClassification.FIELD)

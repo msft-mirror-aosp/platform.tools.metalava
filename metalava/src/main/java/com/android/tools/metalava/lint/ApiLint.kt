@@ -70,6 +70,7 @@ import com.android.tools.metalava.model.JAVA_LANG_OBJECT
 import com.android.tools.metalava.model.JAVA_LANG_RECORD
 import com.android.tools.metalava.model.JAVA_LANG_STRING
 import com.android.tools.metalava.model.JAVA_LANG_THROWABLE
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -82,6 +83,7 @@ import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
@@ -1275,7 +1277,7 @@ private constructor(
 
                 // If the return type and builder type are not equal (after erasing to handle
                 // type variables) then it is an error.
-                if (returnType.asErasedType() != builderType.asErasedType()) {
+                if (!TypeComparator.ERASED.compare(returnType, builderType)) {
                     report(
                         SETTER_RETURNS_THIS,
                         method,
@@ -2012,6 +2014,12 @@ private constructor(
             is ClassTypeItem ->
                 qualifiedName in qualifiedClassNames ||
                     arguments.any { it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) }
+            is LambdaTypeItem ->
+                receiverType?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
+                    parameterTypes.any {
+                        it.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
+                    } ||
+                    returnType.usesAnyClassIn(qualifiedClassNames, checkVariableTypes)
             is WildcardTypeItem ->
                 extendsBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true ||
                     superBound?.usesAnyClassIn(qualifiedClassNames, checkVariableTypes) == true
@@ -2076,6 +2084,13 @@ private constructor(
 
     private fun checkHasNullability(item: Item) {
         val itemType = item.type() ?: return
+        // Skips nullability checks for items generated from Kotlin source for use by Java clients
+        // because the nullability of these methods is compiler-generated and can't be changed.
+        if (
+            (item is MethodItem || item is ParameterItem) &&
+                item.targetLanguages == TargetLanguageSet.NOT_KOTLIN
+        )
+            return
         val inherited =
             when (item) {
                 is ParameterItem -> item.possibleContainingMethod()?.inheritedFromAncestor == true
@@ -2925,6 +2940,14 @@ private constructor(
             }
         }
 
+        // Allow the Java collection `toArray` method.
+        if (
+            (item is MethodItem && item.name() == "toArray") ||
+                (item is ParameterItem && item.possibleContainingMethod()?.name() == "toArray") &&
+                    item.containingClass().isCollection()
+        )
+            return
+
         val action =
             when (item) {
                 is MethodItem -> "Method should return"
@@ -3412,7 +3435,8 @@ private constructor(
             val setterParamType = setter.parameters().single().type()
             // Don't check nullness if the methods don't use the same type (this type equality check
             // doesn't consider modifiers).
-            if (getterReturnType != setterParamType) return
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(getterReturnType, setterParamType))
+                return
 
             // Recur through the getter and setter type simultaneously.
             getterReturnType.accept(

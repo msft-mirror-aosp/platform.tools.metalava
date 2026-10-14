@@ -25,15 +25,16 @@ java_library_host {
     ],
     java_resource_dirs: ["src/main/resources/"],
     libs: [
-        "kotlin_metadata_jvm",
-
         "metalava-model",
         "metalava-reporter",
         "metalava-model-source",
 
         "prebuilts-metalava-asm",
         "prebuilts-metalava-lint",
-        "prebuilts-metalava-psi",
         "prebuilts-metalava-tracing",
+    ],
+    static_libs: [
+        "kotlin_metadata_jvm",
+        "prebuilts-metalava-psi",
     ],
 }

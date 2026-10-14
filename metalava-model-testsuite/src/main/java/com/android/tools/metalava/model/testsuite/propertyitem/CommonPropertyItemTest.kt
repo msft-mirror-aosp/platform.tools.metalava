@@ -205,7 +205,7 @@ class CommonPropertyItemTest : BaseModelTest() {
             val propertyItem = fooClass.properties().single()
             assertThat(propertyItem.name()).isEqualTo("delegatingList")
             val propertyType = propertyItem.type()
-            propertyType.assertClassTypeItem {
+            propertyType.assertLambdaTypeItem {
                 assertThat(testTypeString(kotlinStyleNulls = true))
                     .isEqualTo(
                         "kotlin.jvm.functions.Function2<java.lang.Integer,java.lang.String?,java.lang.Boolean>"
@@ -1103,7 +1103,7 @@ class CommonPropertyItemTest : BaseModelTest() {
                 .isTrue()
             assertThat(oneTypeParameterWithBoundsReceiverT.isReified()).isFalse()
             oneTypeParameterWithBoundsReceiver.receiver.assertVariableTypeItem {
-                assertEquals(asTypeParameter, oneTypeParameterReceiverT)
+                assertEquals(asTypeParameter, oneTypeParameterWithBoundsReceiverT)
             }
 
             // val <T1, T2> Map<T1, T2>.twoTypeParameterMapReceiver

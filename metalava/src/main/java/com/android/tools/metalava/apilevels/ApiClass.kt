@@ -26,8 +26,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     private val mSuperClasses = mutableMapOf<String, ApiElement>()
     private val mInterfaces = mutableMapOf<String, ApiElement>()
 
-    /** If `true`, never seen as public. */
-    var alwaysHidden = false // Package private class?
     private val mFields = mutableMapOf<String, ApiElement>()
     private val mMethods = mutableMapOf<String, ApiElement>()
 
@@ -54,7 +52,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
      * Corrects a historical mistake in android.jar files where methods returning
      * `AbstractStringBuilder` should return the concrete subclass instead.
      */
-    private fun correctMethodSignature(signature: String): String {
+    internal fun correctMethodSignature(signature: String): String {
         if (
             signature.endsWith(")Ljava/lang/AbstractStringBuilder;") ||
                 signature.endsWith(")Ltest/pkg/AbstractStringBuilder;")
@@ -128,10 +126,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
     val superClasses: Collection<ApiElement>
         get() = mSuperClasses.values
 
-    fun updateHidden(hidden: Boolean) {
-        alwaysHidden = hidden
-    }
-
     /**
      * Updates an element for [interfaceType], creating and adding one if necessary.
      *
@@ -170,20 +164,14 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
      * @param allClasses all classes keyed by their names.
      */
     fun removeImplicitInterfaces(allClasses: Map<String, ApiClass>) {
-        if (mInterfaces.isEmpty() || mSuperClasses.isEmpty()) {
+        if (mInterfaces.isEmpty()) {
             return
         }
         val iterator = mInterfaces.values.iterator()
         while (iterator.hasNext()) {
             val interfaceElement = iterator.next()
-            for (superClass in superClasses) {
-                if (superClass.introducedNotLaterThan(interfaceElement)) {
-                    val cls = allClasses[superClass.name]
-                    if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                        iterator.remove()
-                        break
-                    }
-                }
+            if (implementsImplicitInterface(interfaceElement, allClasses)) {
+                iterator.remove()
             }
         }
     }
@@ -192,21 +180,27 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (localInterface in interfaces) {
-            if (localInterface.introducedNotLaterThan(interfaceElement)) {
-                if (interfaceElement.name == localInterface.name) {
-                    return true
-                }
-                // Check parent interface.
-                val cls = allClasses[localInterface.name]
-                if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
-                    return true
-                }
-            }
+        val localInterface = mInterfaces[interfaceElement.name]
+        return if (
+            localInterface != null && localInterface.introducedNotLaterThan(interfaceElement)
+        ) {
+            true
+        } else {
+            implementsImplicitInterface(interfaceElement, allClasses)
         }
-        for (superClass in superClasses) {
-            if (superClass.introducedNotLaterThan(interfaceElement)) {
-                val cls = allClasses[superClass.name]
+    }
+
+    /**
+     * Checks if the given [interfaceElement] is implemented by a superclass or extended by an
+     * interface this class implements.
+     */
+    private fun implementsImplicitInterface(
+        interfaceElement: ApiElement,
+        allClasses: Map<String, ApiClass>
+    ): Boolean {
+        for (parent in Iterables.concat(interfaces, superClasses)) {
+            if (parent.introducedNotLaterThan(interfaceElement)) {
+                val cls = allClasses[parent.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
                     return true
                 }
@@ -234,6 +228,8 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
                 val superMethod = findMethodInAncestors(method, allClasses)
                 if (superMethod != null) {
                     method.updateLastPresentIn(minOf(lastPresentIn, superMethod.lastPresentIn))
+                    deprecatedIn?.let { method.updateDeprecatedIn(it) }
+                    superMethod.deprecatedIn?.let { method.updateDeprecatedIn(it) }
                 }
             }
         }
@@ -251,12 +247,12 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         val name = method.name
         val localMethod = mMethods[name]
         return if (
-            // A hidden class will not be emitted in the API, so do not treat its methods as
-            // existing API methods being overridden by subclasses.
-            !alwaysHidden && localMethod != null && localMethod.introducedNotLaterThan(method)
+            localMethod != null &&
+                localMethod.introducedNotLaterThan(method) &&
+                localMethod.lastPresentIn >= method.lastPresentIn
         ) {
             // This class has the method, and it was introduced in at the same api level
-            // as the child method, or before.
+            // as the child method, or before, and was not removed before the child method.
             true
         } else {
             isOverrideOfInherited(method, allClasses)
@@ -312,80 +308,6 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             }
         }
         return bestMatch
-    }
-
-    private var haveInlined = false
-
-    fun inlineFromHiddenSuperClasses(hidden: Map<String, ApiClass>) {
-        if (haveInlined) {
-            return
-        }
-        haveInlined = true
-        for (superClass in superClasses) {
-            val hiddenSuper = hidden[superClass.name]
-            if (hiddenSuper != null) {
-                hiddenSuper.inlineFromHiddenSuperClasses(hidden)
-                val myMethods = mMethods
-                val myFields = mFields
-                for ((name, value) in hiddenSuper.mMethods) {
-                    // Constructors are not inherited.
-                    if (name.startsWith("<init>")) {
-                        continue
-                    }
-
-                    // Correct historical mistake in return types (e.g. AbstractStringBuilder ->
-                    // StringBuilder) before checking if the method is already present or adding it.
-                    val correctedName = correctMethodSignature(name)
-
-                    // When reading from sources, HiddenAspectsInheritor copies inherited
-                    // methods from hidden super classes onto the subclass. If the method already
-                    // exists on this class, update its since version with the version from the
-                    // hidden super class in case it was present in an earlier bytecode version.
-                    val existing = myMethods[correctedName]
-                    if (existing == null) {
-                        myMethods[correctedName] = value
-                    } else {
-                        existing.update(value.since)
-                    }
-                }
-                for ((name, value) in hiddenSuper.mFields) {
-                    // When reading from sources, HiddenAspectsInheritor copies inherited
-                    // fields from hidden super classes onto the subclass. If the field already
-                    // exists on this class, update its since version with the version from the
-                    // hidden super class in case it was present in an earlier bytecode version.
-                    val existing = myFields[name]
-                    if (existing == null) {
-                        myFields[name] = value
-                    } else {
-                        existing.update(value.since)
-                    }
-                }
-            }
-        }
-    }
-
-    fun removeHiddenSuperClasses(api: Map<String, ApiClass>) {
-        // If we've included a package private class in the super class map (from the older
-        // android.jar files)
-        // remove these here and replace with the filtered super classes, updating API levels in the
-        // process
-        val iterator = mSuperClasses.values.iterator()
-        var min = ApiVersion.HIGHEST
-        while (iterator.hasNext()) {
-            val next = iterator.next()
-            min = minOf(min, next.since)
-            val extendsClass = api[next.name]
-            if (extendsClass != null && extendsClass.alwaysHidden) {
-                val since = extendsClass.since
-                iterator.remove()
-                for (other in superClasses) {
-                    if (other.since >= since) {
-                        other.update(min)
-                    }
-                }
-                break
-            }
-        }
     }
 
     // Ensure this class doesn't extend/implement any other classes/interfaces that are

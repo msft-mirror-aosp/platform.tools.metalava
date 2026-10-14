@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.LineMap
 import com.android.tools.metalava.model.source.doc.BaseDocCommentTest
+import com.android.tools.metalava.model.source.doc.TestDocumentationIssueReporter
 import kotlin.test.assertEquals
 import org.junit.Test
 
@@ -37,20 +39,24 @@ class JavadocLexerTest : BaseDocCommentTest() {
         expectedIssues: String = "",
         includePosition: Boolean = false,
     ) {
-        val lexer = JavadocLexer(text, startInclusive, endExclusive, reporter)
-        val tokens = lexer.tokenize()
-        val actual =
-            tokens.joinToString("\n") { token ->
-                val escaped =
-                    token.text.replace("\r", "\\r").replace("\n", "\\n").replace("\t", "\\t")
-                if (includePosition) {
-                    "${token.type} '$escaped' (${token.line}:${token.charPositionInLine}, ${token.startOffset}..${token.endOffset})"
-                } else {
-                    "${token.type} '$escaped'"
-                }
-            }
+        val lineMap = LineMap.create(text)
+        val lexer =
+            JavadocLexer(
+                text,
+                startInclusive,
+                endExclusive,
+                TestDocumentationIssueReporter(reporter, lineMap),
+            )
+        val tokenStream = lexer.tokenize()
+        val tokens = buildList {
+            do {
+                val token = tokenStream.consume()
+                add(token)
+            } while (token.type != JavadocTokenType.EOF)
+        }
+        val actual = tokens.joinToString("\n") { it.format(text, includePosition) }
         assertEquals(expectedTokens.trimIndent(), actual)
-        reporter.assertJavadocParserIssues(expectedIssues)
+        assertJavadocParserIssues(expectedIssues)
     }
 
     @Test
@@ -545,11 +551,11 @@ class JavadocLexerTest : BaseDocCommentTest() {
             includePosition = true,
             expectedTokens =
                 """
-                    TEXT_CONTENT 'line1' (1:0, 0..5)
-                    NEWLINE '\n *' (1:5, 5..8)
-                    SPACE ' ' (2:2, 8..9)
-                    TEXT_CONTENT 'line2' (2:3, 9..14)
-                    EOF '' (2:8, 14..14)
+                    TEXT_CONTENT 'line1' (0..5)
+                    NEWLINE '\n *' (5..8)
+                    SPACE ' ' (8..9)
+                    TEXT_CONTENT 'line2' (9..14)
+                    EOF '' (14..14)
                 """,
         )
     }

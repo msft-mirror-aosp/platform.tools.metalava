@@ -2430,7 +2430,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Moving removed api back to public api`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityRemovedApiReleased =
                 """
                 package android.content {
@@ -2585,7 +2584,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited deprecated protected @removed method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package android.icu.util {
@@ -2925,7 +2923,6 @@ class CompatibilityCheckTest : DriverTest() {
     @Test
     fun `Inherited abstract method`() {
         check(
-            extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE),
             checkCompatibilityApiReleased =
                 """
                 package test.pkg {
@@ -4411,6 +4408,35 @@ class CompatibilityCheckTest : DriverTest() {
                     // Signature format: 5.0
                     package test.pkg {
                       public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                        method public void foo(Integer t);
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """,
+            signatureSource =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child extends test.pkg.Parent<java.lang.Integer> {
+                      }
+                      public class Parent<T> {
+                        method public void foo(T! t);
+                      }
+                    }
+                """
+        )
+    }
+
+    @Test
+    fun `Test that newly inherited parent method with type parameter matches child method`() {
+        check(
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class Child {
                         method public void foo(Integer t);
                       }
                       public class Parent<T> {

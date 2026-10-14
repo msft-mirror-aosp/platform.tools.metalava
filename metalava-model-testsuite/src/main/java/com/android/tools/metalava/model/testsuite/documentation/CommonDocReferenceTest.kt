@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.testing.html
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertTrue
 import org.junit.Test
@@ -233,6 +234,54 @@ class CommonDocReferenceTest : BaseModelTest() {
                 // TODO(b/447588621): Should report an issue about the #invalid(...) reference.
                 ""
             )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `Test link tag in package-html`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+                        public class Test {
+                            public int field;
+                            public void method(Test t, String s) {}
+                        }
+                    """
+                ),
+                html(
+                    "src/test/pkg/package.html",
+                    """
+                        <HTML>
+                        <BODY>
+                        {@link String}
+                        {@link String#length()}
+                        {@link Test}
+                        {@link Test#field}
+                        {@link Test#method(Test,String)}
+                        </BODY>
+                        </HTML>
+                    """
+                ),
+            ),
+        ) {
+            val testPackage = codebase.assertPackage("test.pkg")
+            testPackage.assertPrintedDocumentation(
+                expectedOutput =
+                    """
+                        /**
+                         * {@link java.lang.String String}
+                         * {@link java.lang.String#length() String.length()}
+                         * {@link test.pkg.Test Test}
+                         * {@link test.pkg.Test#field Test.field}
+                         * {@link test.pkg.Test#method(test.pkg.Test,java.lang.String) Test.method(Test,String)}
+                         */
+                    """,
+            )
+
+            assertAndRemoveReportedIssues("")
         }
     }
 }

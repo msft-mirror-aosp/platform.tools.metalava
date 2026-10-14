@@ -72,6 +72,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.PsiTypeParameterListOwner
+import com.intellij.psi.SyntheticElement
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.psi.KtAnnotated
@@ -208,7 +209,7 @@ internal class PsiClassBuilder(
 
         val classItem =
             itemFactory.createClassItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiClass),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiClass),
                 sourceLanguage = psiClass.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -292,7 +293,7 @@ internal class PsiClassBuilder(
             val type = classTypeItemFactory.getGeneralType(PsiTypeInfo(component.type, component))
 
             itemFactory.createRecordComponentItem(
-                fileLocation = PsiFileLocation.fromPsiElement(component),
+                fileLocationSource = PsiFileLocation.fileLocationSource(component),
                 modifiers = modifiers,
                 name = component.name,
                 containingClass = classItem,
@@ -382,6 +383,10 @@ internal class PsiClassBuilder(
                             !(classItem.modifiers.isData() &&
                                 psiMethod.name.startsWith("component"))
                     ) {
+                        TargetLanguageSet.NOT_KOTLIN
+                    } else if ((psiMethod as? UMethod)?.isMappedCollectionMethod() == true) {
+                        // The mapped versions of collection methods are for Java use only and can't
+                        // be used from Kotlin.
                         TargetLanguageSet.NOT_KOTLIN
                     } else {
                         TargetLanguageSet.ALL
@@ -639,7 +644,7 @@ internal class PsiClassBuilder(
             }
 
         return itemFactory.createFieldItem(
-            fileLocation = PsiFileLocation(psiField),
+            fileLocationSource = PsiFileLocation.fileLocationSource(psiField),
             sourceLanguage = psiField.sourceLanguage,
             targetLanguages = targetLanguages,
             modifiers = modifiers,
@@ -752,7 +757,7 @@ internal class PsiClassBuilder(
 
         val method =
             itemFactory.createMethodItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -820,7 +825,7 @@ internal class PsiClassBuilder(
             )
         val constructor =
             itemFactory.createConstructorItem(
-                fileLocation = PsiFileLocation(psiMethod),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiMethod),
                 sourceLanguage = psiMethod.sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,
@@ -919,7 +924,7 @@ internal class PsiClassBuilder(
             computeParameterKind(psiParameter, containingCallable, parameterIndex, fingerprint)
         val parameter =
             itemFactory.createParameterItem(
-                fileLocation = PsiFileLocation.fromPsiElement(psiParameter),
+                fileLocationSource = PsiFileLocation.fileLocationSource(psiParameter),
                 sourceLanguage = psiParameter.sourceLanguage,
                 modifiers = modifiers,
                 name = name,
@@ -1171,3 +1176,36 @@ private fun PsiMethod.isKotlinProperty(): Boolean {
  */
 private val UMethod.isPrimaryConstructor: Boolean
     get() = sourcePsi is KtPrimaryConstructor || sourcePsi is KtClassOrObject
+
+/**
+ * Whether the [UMethod] is generated from a Kotlin-source collection as a mapped method for Java
+ * clients, which does not exist for Kotlin clients or in source.
+ *
+ * TODO: https://youtrack.jetbrains.com/issue/KT-89729 -- this should be replaced with a more
+ *   reliable way to tell if this is a mapped collection method.
+ */
+internal fun UMethod.isMappedCollectionMethod(): Boolean {
+    if (!isKotlin()) return false
+    if (name == "equals") return false
+    // Some generated methods have type `SymbolLightMethodForMappedJavaCollectionStubMethod` (an
+    // internal type) which is a `SyntheticElement`.
+    val isSynthetic = javaPsi is SyntheticElement
+    // Other generated methods have type `SymbolLightMethodForMappedKotlinCollectionMethod` (an
+    // internal type). These methods have an object parameter type (where the Kotlin version
+    // uses the collection element type).
+    fun hasObjectParameter() = psiParameters.any { it.type.canonicalText == "java.lang.Object" }
+    // Whether the method is an override of a base Java collection method.
+    fun overridesCollectionMethod() =
+        javaPsi.findSuperMethods().any { superMethod ->
+            superMethod.containingClass?.qualifiedName?.let {
+                it in
+                    setOf(
+                        "java.util.Collection",
+                        "java.util.Map",
+                        "java.util.List",
+                        "java.util.Set"
+                    )
+            } == true
+        }
+    return (isSynthetic || hasObjectParameter()) && overridesCollectionMethod()
+}
