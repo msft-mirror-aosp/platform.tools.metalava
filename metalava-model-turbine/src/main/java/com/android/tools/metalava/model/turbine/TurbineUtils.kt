@@ -82,9 +82,8 @@ internal fun CompUnit.getHeaderComments(): String {
     return source.substring(0, packageKeywordStart).replace("\r\n", "\n")
 }
 
-/** Get an [ItemDocumentationFactory] for [decl] in [sourceFile]. */
+/** Get an [ItemDocumentationFactory] for [decl]. */
 internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
-    sourceFile: TurbineSourceFile?,
     decl: Tree?
 ): ItemDocumentationFactory {
     // If comments are not read then ignore the javadoc.
@@ -101,7 +100,7 @@ internal fun TurbineGlobalContext.itemDocumentationFactoryForDecl(
         } ?: return NO_SOURCE_COMMENT_FACTORY
 
     return ItemDocumentationFactory { item ->
-        createSourceItemDocumentation(item, TurbineSourceComment(sourceFile, turbineJavadoc))
+        createSourceItemDocumentation(item, TurbineSourceComment(item, turbineJavadoc))
     }
 }
 

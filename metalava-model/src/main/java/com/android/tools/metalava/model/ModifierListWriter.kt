@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model
 
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
@@ -282,9 +283,15 @@ class ModifierListWriter(
         }
     }
 
-    /** Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s, if there is one. */
-    private fun List<AnnotationItem>.findFlaggedApiAnnotation() = find {
-        it.qualifiedName == ANDROID_FLAGGED_API
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted
+     * and, in stub files, is not on an item with an [Effect.REMOVED] annotation, if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
+        if (target.isStubsFile() && any { it.surfaceData?.effect == Effect.REMOVED }) {
+            return null
+        }
+        return find { it.qualifiedName == ANDROID_FLAGGED_API && it.apiFlag?.revert != true }
     }
 
     /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
@@ -369,6 +376,13 @@ class ModifierListWriter(
                 )
 
                 annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
+            }
+
+            // Do not map @FlaggedApi on removed APIs to @RequiresFlag in stub files. Remove any
+            // direct @FlaggedApi before checking enclosing classes so an outer @FlaggedApi can
+            // still be inherited if applicable.
+            if (annotations.any { it.surfaceData?.effect == Effect.REMOVED }) {
+                annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
             }
 
             // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),

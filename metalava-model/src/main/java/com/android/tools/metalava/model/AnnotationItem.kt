@@ -98,8 +98,9 @@ sealed interface AnnotationItem {
     /**
      * The [ApiFlag] referenced by this [AnnotationItem].
      *
-     * This will be `null` if no [ApiFlags] have been provided or this [AnnotationItem]'s type is
-     * not [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
+     * This will be `null` if this [AnnotationItem]'s type is not [ANDROID_FLAGGED_API]. If no
+     * [ApiFlags] have been provided, this will be [ApiFlag.KEEP_ALL]; otherwise, it will be an
+     * instance of [ApiFlag] from [ApiFlags].
      */
     val apiFlag: ApiFlag?
 

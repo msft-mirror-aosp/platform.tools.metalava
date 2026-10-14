@@ -129,9 +129,6 @@ class ApiXmlPrinter(
         indent: String,
         writer: PrintWriter
     ) {
-        if (alwaysHidden) {
-            return
-        }
         print(tag, false, parentApiElement, indent, writer)
         val innerIndent = indent + '\t'
         print(superClasses, "extends", innerIndent, writer)

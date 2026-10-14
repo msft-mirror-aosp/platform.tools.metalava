@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.psi
 
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.model.source.doc.characterOffsetFor
 import com.android.tools.metalava.model.source.doc.lineOffsetFor
 import com.android.tools.metalava.reporter.BaselineKey
@@ -163,6 +164,16 @@ class PsiFileLocation(private val psiElement: PsiElement) : FileLocation() {
          */
         fun fromPsiElement(element: PsiElement?): FileLocation {
             return element?.let { PsiFileLocation(it) } ?: FileLocation.UNKNOWN
+        }
+
+        /**
+         * Compute a [FileLocationSource] from a [PsiElement].
+         *
+         * @param element the optional element from which the path, line and [BaselineKey] will be
+         *   computed.
+         */
+        fun fileLocationSource(element: PsiElement?): FileLocationSource {
+            return FileLocationSource.fromFileLocation(fromPsiElement(element))
         }
 
         private fun getTextRange(element: PsiElement): TextRange? {

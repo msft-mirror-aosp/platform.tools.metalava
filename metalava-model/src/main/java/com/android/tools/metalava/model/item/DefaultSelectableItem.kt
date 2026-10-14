@@ -23,13 +23,14 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.api.SelectedApi
-import com.android.tools.metalava.reporter.FileLocation
 
 internal sealed class DefaultSelectableItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     modifiers: BaseModifierList,
     documentationFactory: ItemDocumentationFactory,
@@ -37,7 +38,8 @@ internal sealed class DefaultSelectableItem(
 ) :
     DefaultItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         modifiers,
     ),

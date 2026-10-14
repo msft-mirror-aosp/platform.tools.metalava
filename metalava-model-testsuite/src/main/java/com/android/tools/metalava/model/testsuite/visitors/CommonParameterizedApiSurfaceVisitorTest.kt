@@ -22,10 +22,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.api.ApiSurfaceRules
 import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.REMOVED_FROM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
@@ -75,6 +77,8 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
         val apiFiltersVisitorFilters: (Codebase.() -> ApiFilters?)? = null,
         val filterEmit: (Codebase.() -> FilterPredicate?)? = null,
         val classpath: List<TestFile> = emptyList(),
+        val expectedIssues: String = "",
+        val apiSurfaceRules: ApiSurfaceRules = publicSystemModuleRules,
     ) {
         /**
          * Record the stack trace of the creation of this which can be used to provide a stack trace
@@ -182,6 +186,45 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                 },
                 filterEmit = null,
                 classpath = classpath,
+            )
+
+        /**
+         * Create a [TestCase] that tests [ApiVisitor] and [ApiFiltersVisitor] using
+         * [ApiSurfacePredicate.forStubs].
+         */
+        @EntryPoint
+        fun forStubsTestCase(
+            name: String,
+            input: List<TestFile>,
+            expectedNotNested: String,
+            expectedNested: String = expectedNotNested,
+            includeDocOnly: Boolean = false,
+            apiSurface: Codebase.() -> ApiSurface = { apiSurfaces.main },
+            classpath: List<TestFile> = emptyList(),
+            expectedIssues: String = "",
+            apiSurfaceRules: ApiSurfaceRules = publicSystemModuleRules,
+        ) =
+            TestCase(
+                name = "for stubs/$name",
+                input = input,
+                expectedNotNested = expectedNotNested,
+                expectedNested = expectedNested,
+                apiVisitorFilters = {
+                    ApiSurfacePredicate.forStubs(
+                        apiSurface(),
+                        includeDocOnly = includeDocOnly,
+                    )
+                },
+                apiFiltersVisitorFilters = {
+                    ApiSurfacePredicate.forStubs(
+                        apiSurface(),
+                        includeDocOnly = includeDocOnly,
+                    )
+                },
+                filterEmit = null,
+                classpath = classpath,
+                expectedIssues = expectedIssues,
+                apiSurfaceRules = apiSurfaceRules,
             )
 
         @JvmStatic
@@ -852,6 +895,220 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
                         """,
                     apiType = ApiType.REMOVED,
                 ),
+                forStubsTestCase(
+                    name = "hiding override of public method",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "hiding override of protected method in final class",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        protected void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public final class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        protected void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "hiding override of system method in system API",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["system"]!! },
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name = "system override of public method in public API",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $SYSTEM_API
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["public"]!! },
+                    apiSurfaceRules = publicSystemModuleRules.retargetAt("public"),
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
+                forStubsTestCase(
+                    name =
+                        "system class overriding system method from system superclass marked as @Hide",
+                    input =
+                        listOf(
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Parent {
+                                        public Parent() {}
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                            java(
+                                """
+                                    package test.pkg;
+
+                                    $SYSTEM_API
+                                    public class Child extends Parent {
+                                        public Child() {}
+                                        $HIDE
+                                        @Override
+                                        public void method() {}
+                                    }
+                                """
+                            ),
+                        ),
+                    expectedNotNested =
+                        """
+                            package test.pkg
+                              class test.pkg.Parent
+                                constructor test.pkg.Parent()
+                                method test.pkg.Parent.method()
+                              class test.pkg.Child
+                                constructor test.pkg.Child()
+                                method test.pkg.Child.method()
+                        """,
+                    apiSurface = { apiSurfaces.byName["system"]!! },
+                    expectedIssues =
+                        """
+                            MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method() which overrides method test.pkg.Parent.method() which is already part of the API [HidingApiMethodOverride]
+                        """,
+                ),
             )
     }
 
@@ -947,17 +1204,32 @@ class CommonParameterizedApiSurfaceVisitorTest : BaseModelTest() {
     ) {
         val expected =
             if (preserveClassNesting) testCase.expectedNested else testCase.expectedNotNested
+        val inputSets =
+            testCase.input
+                .groupBy { InputFormat.fromFilename(it.targetRelativePath) }
+                .values
+                .map { inputSet(it) }
+                .toTypedArray()
         runCodebaseTest(
-            *testCase.input.toTypedArray(),
+            *inputSets,
             testFixture =
                 TestFixture(
                     additionalClassPath = testCase.classpath.map { it.toFile() },
-                    apiSurfaceRules = publicSystemModuleRules,
+                    apiSurfaceRules = testCase.apiSurfaceRules,
                 ),
         ) {
             codebase.initializeSelectedApiInstances()
             val actual = codebase.dump()
             assertEquals(expected.trimIndent().trim(), actual.trim())
+            val actualIssues =
+                removeReportedIssues().let { issues ->
+                    if (!testCase.expectedIssues.contains(Regex("""\.[a-z]+:\d+:"""))) {
+                        issues.replace(Regex("""(\.[a-z]+):\d+:"""), "$1:")
+                    } else {
+                        issues
+                    }
+                }
+            assertEquals(testCase.expectedIssues.trimIndent(), actualIssues)
         }
     }
 

@@ -28,7 +28,6 @@ import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaCommand
 import com.android.tools.metalava.cli.common.SourceOptions
-import com.android.tools.metalava.cli.common.Verbosity
 import com.android.tools.metalava.cli.common.VersionCommand
 import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.commonOptions
@@ -42,11 +41,13 @@ import com.android.tools.metalava.cli.historical.AndroidJarsToSignaturesCommand
 import com.android.tools.metalava.cli.internal.MakeAnnotationsPackagePrivateCommand
 import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
+import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
 import com.android.tools.metalava.cli.signature.SignatureToJDiffCommand
+import com.android.tools.metalava.cli.signature.SignatureToStubsCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureMigrateCommand
 import com.android.tools.metalava.cli.signature.migration.SignatureReformatCommand
 import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
@@ -67,9 +68,7 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.multiplatform.MultiplatformCodebase
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
-import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
-import com.android.tools.metalava.model.source.SourceSet
+import com.android.tools.metalava.model.source.Environment
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_SEALED_CLASSES
 import com.android.tools.metalava.model.text.FileFormat
@@ -96,9 +95,8 @@ const val PROGRAM_NAME = "metalava"
 class Driver(
     private val executionEnvironment: ExecutionEnvironment,
     private val tracer: Tracer,
-    private val environmentManager: EnvironmentManager,
+    private val environmentProvider: () -> Environment,
     private val reporter: Reporter,
-    private val verbosity: Verbosity,
     private val miscellaneousOptions: ComputedMiscellaneousOptions,
     private val apiLevelsGenerationOptions: ApiLevelsGenerationOptions,
     private val apiLintOptions: ComputedApiLintOptions,
@@ -142,25 +140,24 @@ class Driver(
             val stdout = executionEnvironment.stdout
             val stderr = executionEnvironment.stderr
 
-            // Process the early options. This does not consume any arguments, they will be parsed
-            // again later. A little inefficient but produces cleaner code.
-            val earlyOptions = EarlyOptions.parse(args)
+            try {
+                // Process the early options. This does not consume any arguments, they will be
+                // parsed again later. A little inefficient but produces cleaner code.
+                val earlyOptions = EarlyOptions.parse(args)
 
-            val traceDriver = createTraceDriver(earlyOptions.traceFile)
-            // Actual work begins here.
-            val exitCode =
-                traceDriver.use {
+                val traceDriver = createTraceDriver(earlyOptions.traceFile)
+                // Actual work begins here.
+                return traceDriver.use {
                     val command =
                         it.tracer.trace("createMetalavaCommand") {
                             createMetalavaCommand(executionEnvironment, it.tracer)
                         }
                     it.tracer.trace("command.process") { command.process(args) }
                 }
-
-            stdout.flush()
-            stderr.flush()
-
-            return exitCode
+            } finally {
+                stdout.flush()
+                stderr.flush()
+            }
         }
 
         private fun createMetalavaCommand(
@@ -176,6 +173,7 @@ class Driver(
             command.subcommands(
                 MainCommand(command.commonOptions, executionEnvironment),
                 AndroidJarsToSignaturesCommand(),
+                ApiHistoryCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
                 JarToJDiffCommand(),
@@ -187,8 +185,10 @@ class Driver(
                 SignatureReformatCommand(),
                 SignatureToDexCommand(),
                 SignatureToJDiffCommand(),
+                SignatureToStubsCommand(),
                 VersionCommand(),
-                MultiSurfaceCommand().subcommands(SingleSurfaceCommand()),
+                MultiSurfaceCommand()
+                    .subcommands(SingleSurfaceCommand(command.commonOptions, executionEnvironment)),
             )
             return command
         }
@@ -241,23 +241,17 @@ class Driver(
         }
 
     private val sourceParser by
-        lazy(LazyThreadSafetyMode.NONE) {
-            val modelOptions = sourceOptions.modelOptions
-            environmentManager.createSourceParser(
-                codebaseConfig = codebaseConfig,
-                tracer = tracer,
-                javaLanguageLevel = sourceOptions.javaLanguageLevelAsString,
-                kotlinLanguageLevel = sourceOptions.kotlinLanguageLevelAsString,
-                modelOptions = modelOptions,
-                jdkHome = sourceOptions.jdkHome,
-            )
-        }
+        lazy(LazyThreadSafetyMode.NONE) { environmentProvider().createSourceParser(codebaseConfig) }
 
     private val signatureFileLoader by
-        lazy(LazyThreadSafetyMode.NONE) { DefaultSignatureFileLoader(codebaseConfig) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            DefaultSignatureFileLoader(codebaseConfig, tracer = tracer)
+        }
 
     internal val signatureFileCache by
-        lazy(LazyThreadSafetyMode.NONE) { SignatureFileCache(signatureFileLoader) }
+        lazy(LazyThreadSafetyMode.NONE) {
+            SignatureFileCache(signatureFileLoader) { classPathResolver }
+        }
 
     /**
      * Avoids creating a [ClassPathResolver] unnecessarily as it is expensive to create but once
@@ -266,7 +260,7 @@ class Driver(
     private val classPathResolver: ClassPathResolver? by lazy {
         val classpath = sourceOptions.classpath
         if (classpath.isNotEmpty()) {
-            sourceParser.getClassPathResolver(classpath)
+            sourceParser.getClassPathResolver()
         } else {
             null
         }
@@ -287,9 +281,6 @@ class Driver(
             apiSurface = apiSurface,
             annotationsMergerConfig =
                 AnnotationsMerger.Config(
-                    sources = sourceOptions.sourceFiles,
-                    sourcePath = sourceOptions.sourcePath,
-                    classpath = sourceOptions.classpath,
                     apiPackageFilter = sourceOptions.apiPackageFilter,
                     nullabilityAnnotationsValidator =
                         nullabilityValidationOptions.validatorForMerging,
@@ -350,7 +341,6 @@ class Driver(
                         EmittedOnlyPredicate.and(
                             ApiSurfacePredicate.wholeCoreApi(
                                 apiSurface,
-                                includeOverridingMethods = true,
                             )
                         )
 
@@ -395,6 +385,7 @@ class Driver(
         // modify the [codebase].
         val generatorConfig =
             stubGenerationOptions.generatorConfig(
+                signatureFileLoader = signatureFileCache::load,
                 javaRecordClasses = signatureFormatOptions.fileFormat[JAVA_RECORD_CLASSES],
                 javaSealedClasses = signatureFormatOptions.fileFormat[JAVA_SEALED_CLASSES],
             )
@@ -404,7 +395,6 @@ class Driver(
                 tracer,
                 executionEnvironment,
                 reporter,
-                signatureFileCache,
                 apiSurface,
             )
             .generateStubs()
@@ -419,7 +409,7 @@ class Driver(
     private val previouslyReleasedApiLintCodebase by lazy {
         tracer.trace("ApiLint.loadPreviouslyReleasedApi") {
             apiLintOptions.previouslyReleasedApi?.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolver)
+                signatureFileCache.load(signatureFiles)
             }
         }
     }
@@ -553,12 +543,10 @@ class Driver(
                         "Inconsistent input file types: The first file is of $DOT_TXT, but detected different extension in ${it.path}"
                     )
                 }
-            return tracer.trace("signatureFileLoader.load") {
-                signatureFileLoader.load(
-                    SignatureFile.fromFiles(sources),
-                    classPathResolver,
-                )
-            }
+            return signatureFileLoader.load(
+                SignatureFile.fromFiles(sources),
+                classPathResolver,
+            )
         } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
             return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
@@ -580,8 +568,7 @@ class Driver(
                 error(
                     "Cannot supply both a project description and source api directory for creating a multiplatform codebase"
                 )
-            projectDescription != null ->
-                sourceParser.createMultiplatformCodebase(projectDescription)
+            projectDescription != null -> sourceParser.createMultiplatformCodebase()
             sourceApiDirectory != null ->
                 signatureFileLoader.loadMultiplatform(
                     SignatureFile.fromFiles(sourceApiDirectory.listFiles().toList())
@@ -791,7 +778,7 @@ class Driver(
             }
         }
 
-        val apiGenerator = ApiGenerator()
+        val apiGenerator = ApiGenerator(tracer)
         apiLevelsGenerationOptions
             .forAndroidConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created
@@ -854,7 +841,7 @@ class Driver(
 
         val oldCodebase =
             check.previouslyReleasedApi.load { signatureFiles ->
-                signatureFileCache.load(signatureFiles, classPathResolver)
+                signatureFileCache.load(signatureFiles)
             }
 
         val apiName =
@@ -864,45 +851,29 @@ class Driver(
 
         // If configured, compares the new API with the previous API and reports any
         // incompatibilities.
-        CompatibilityCheck.checkCompatibility(
-            newCodebase,
-            oldCodebase,
-            checkType,
-            reporter,
-            issueReportingOptions.issueConfiguration,
-            compatibilityCheckOptions.apiCompatAnnotations,
-            apiName,
-            apiSurface,
-        )
+        tracer.trace("CompatibilityCheck.checkCompatibility") {
+            CompatibilityCheck.checkCompatibility(
+                newCodebase,
+                oldCodebase,
+                checkType,
+                reporter,
+                issueReportingOptions.issueConfiguration,
+                compatibilityCheckOptions.apiCompatAnnotations,
+                apiName,
+                apiSurface,
+            )
+        }
     }
 
     private fun loadFromSources(): Codebase? {
-        val sourceSet =
-            tracer.trace("createSourceSet") {
-                if (sourceOptions.sourceFiles.isEmpty()) {
-                    if (verbosity.verbose) {
-                        executionEnvironment.stdout.println(
-                            "No source files specified: recursively including all sources found in the source path (${sourceOptions.sourcePath.joinToString()}})"
-                        )
-                    }
-                    SourceSet.createFromSourcePath(reporter, sourceOptions.sourcePath)
-                } else {
-                    SourceSet(sourceOptions.sourceFiles, sourceOptions.sourcePath)
-                }
-            }
-
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet,
-                "Codebase loaded from source folders",
-                classPath = sourceOptions.classpath,
-                apiPackages = sourceOptions.apiPackageFilter,
-                projectDescription = sourceOptions.projectDescription,
-                compiledSourceJar = sourceOptions.compiledSourceJar,
-            )
-
         val codebase =
-            tracer.trace("parseSources") { sourceParser.parseSources(inputs) } ?: return null
+            tracer.trace("parseSources") {
+                sourceParser.parseSources(
+                    description = "Codebase loaded from source folders",
+                    apiPackages = sourceOptions.apiPackageFilter,
+                    compiledSourceJar = sourceOptions.compiledSourceJar,
+                )
+            } ?: return null
 
         val analyzer = ApiAnalyzer(sourceParser, codebase, reporter, apiAnalyzerConfig)
         tracer.trace("analyzer.mergeExternalInclusionAnnotations") {
