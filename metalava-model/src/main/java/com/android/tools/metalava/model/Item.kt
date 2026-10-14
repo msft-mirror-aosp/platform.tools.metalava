@@ -18,6 +18,7 @@ package com.android.tools.metalava.model
 
 import com.android.tools.metalava.model.doc.DocContent
 import com.android.tools.metalava.model.doc.DocContentOwner
+import com.android.tools.metalava.model.item.FileLocationSource
 import com.android.tools.metalava.reporter.BaselineKey
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Reportable
@@ -163,6 +164,14 @@ interface Item : Reportable {
     fun hasSuppressCompatibilityMetaAnnotation(): Boolean =
         codebase.annotationManager.hasSuppressCompatibilityMetaAnnotations(modifiers)
 
+    /** The [FileLocationSource] for this [Item]. */
+    val fileLocationSource: FileLocationSource
+        get() = FileLocationSource.NONE
+
+    /** The [SourcePosition] for this [Item]. */
+    val sourcePosition: SourcePosition
+        get() = SourcePosition.UNKNOWN
+
     override val fileLocation: FileLocation
         get() = FileLocation.UNKNOWN
 
@@ -177,6 +186,9 @@ interface Item : Reportable {
 
     /** Returns the class that contains this item. */
     fun containingClass(): ClassItem?
+
+    /** Returns the corresponding source file, if any. */
+    fun sourceFile(): SourceFile? = containingClass()?.sourceFile()
 
     /**
      * Returns the associated type, if any.

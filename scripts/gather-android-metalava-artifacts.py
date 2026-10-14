@@ -149,11 +149,11 @@ def default_api_version_files():
         "out/soong/lint/api_versions_module_lib.xml",
         "out/soong/lint/api_versions_system_server.xml",
         Target(
-            buildFile="out/soong/.intermediates/frameworks/base/api/api_versions_module_lib_complete/android_common/everything/api-versions.xml",
+            buildFile="out/soong/.intermediates/frameworks/base/api/api_versions_module_lib_complete/android_common/api-versions.xml",
             outputFile="api_versions_module_lib_complete.xml",
         ),
         Target(
-            buildFile="out/soong/.intermediates/frameworks/base/api/api_versions_system_server_complete/android_common/everything/api-versions.xml",
+            buildFile="out/soong/.intermediates/frameworks/base/api/api_versions_system_server_complete/android_common/api-versions.xml",
             outputFile="api_versions_system_server_complete.xml",
         ),
     ])

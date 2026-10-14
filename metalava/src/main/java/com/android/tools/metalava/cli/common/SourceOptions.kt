@@ -22,6 +22,7 @@ import com.android.tools.lint.detector.api.isJdkFolder
 import com.android.tools.metalava.model.ModelOptions
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SelectableItem
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.source.DEFAULT_JAVA_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.DEFAULT_KOTLIN_LANGUAGE_LEVEL
 import com.android.tools.metalava.model.source.SourceModelProvider
@@ -30,9 +31,12 @@ import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
+import com.github.ajalt.clikt.parameters.options.transformAll
 import com.github.ajalt.clikt.parameters.types.choice
 import java.io.File
-import org.jetbrains.jps.model.java.impl.JavaSdkUtil
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.Path
 
 const val ARG_SOURCE_MODEL_PROVIDER = "--source-model-provider"
 
@@ -48,6 +52,7 @@ const val ARG_API_CLASS_RESOLUTION = "--api-class-resolution"
 const val ARG_PROJECT = "--project"
 
 const val ARG_STUB_PACKAGES = "--stub-packages"
+const val ARG_PACKAGE_FILTER = "--package-filter"
 
 const val ARG_COMPILED_SOURCES = "--compiled-sources"
 
@@ -87,7 +92,11 @@ class SourceOptions(
 
     /** Get the [SourceModelProvider] corresponding to [sourceModelProviderName]. */
     val sourceModelProvider: SourceModelProvider
-        get() = SourceModelProvider.getImplementation(sourceModelProviderName)
+        get() =
+            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
+            executionEnvironment.testEnvironment?.sourceModelProvider
+                // Otherwise, use the one specified on the command line, or the default.
+                ?: SourceModelProvider.getImplementation(sourceModelProviderName)
 
     private val sourcePathString by
         option(
@@ -110,6 +119,11 @@ class SourceOptions(
         if (path == null) {
             emptyList()
         } else if (path.isBlank()) {
+            if (Capability.EMPTY_SOURCE_PATH !in sourceModelProvider.capabilities) {
+                cliError(
+                    "$argName \"\" is not supported by the ${sourceModelProvider.providerName} source model provider"
+                )
+            }
             // Don't compute absolute path; we want to skip this file later on.
             // For current directory one should use ".", not "".
             listOf(File(""))
@@ -203,11 +217,81 @@ class SourceOptions(
             }
         } else if (jdkHome != null) {
             val isJre = !isJdkFolder(jdkHome)
-            val roots = JavaSdkUtil.getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
+            val roots = getJdkClassesRoots(jdkHome.toPath(), isJre).map { it.toFile() }
             return classpath + roots
         }
 
         return classpath
+    }
+
+    /**
+     * Returns the class root JARs/directories for a JDK or JRE installation at [home].
+     *
+     * For modular JDKs (Java 9+, containing `lib/jrt-fs.jar`), returns an empty list because
+     * classes are loaded from the modular image rather than individual JAR files.
+     */
+    private fun getJdkClassesRoots(home: Path, isJre: Boolean): List<Path> {
+        val jarDirs: Array<Path>
+        val fileName = home.fileName
+        if (
+            fileName != null &&
+                "Home" == fileName.toString() &&
+                Files.exists(home.resolve("../Classes/classes.jar"))
+        ) {
+            val libDir = home.resolve("lib")
+            val classesDir = home.resolveSibling("Classes")
+            val libExtDir = libDir.resolve("ext")
+            val libEndorsedDir = libDir.resolve("endorsed")
+            jarDirs = arrayOf(libEndorsedDir, libDir, classesDir, libExtDir)
+        } else if (Files.exists(home.resolve("lib/jrt-fs.jar"))) {
+            jarDirs = emptyArray()
+        } else {
+            val libDir = home.resolve(if (isJre) "lib" else "jre/lib")
+            val libExtDir = libDir.resolve("ext")
+            val libEndorsedDir = libDir.resolve("endorsed")
+            jarDirs = arrayOf(libEndorsedDir, libDir, libExtDir)
+        }
+
+        val rootFiles = mutableListOf<Path>()
+        val pathFilter = mutableSetOf<String>()
+        for (jarDir in jarDirs) {
+            if (Files.isDirectory(jarDir)) {
+                try {
+                    Files.newDirectoryStream(jarDir, "*.jar").use { stream ->
+                        for (jarFile in stream) {
+                            val jarFileName = jarFile.fileName.toString()
+                            if (jarFileName == "alt-rt.jar" || jarFileName == "alt-string.jar") {
+                                continue // filter out alternative implementations
+                            }
+                            val canonicalPath =
+                                try {
+                                    jarFile.toRealPath().toString()
+                                } catch (e: IOException) {
+                                    null
+                                }
+                            if (canonicalPath == null || !pathFilter.add(canonicalPath)) {
+                                continue // filter out duplicate (symbolically linked) .jar files
+                            }
+                            rootFiles.add(jarFile)
+                        }
+                    }
+                } catch (ignored: IOException) {}
+            }
+        }
+
+        val classesZip = home.resolve("lib/classes.zip")
+        if (Files.isRegularFile(classesZip)) {
+            rootFiles.add(classesZip)
+        }
+
+        if (rootFiles.isEmpty()) {
+            val classesDir = home.resolve("classes")
+            if (Files.isDirectory(classesDir)) {
+                rootFiles.add(classesDir)
+            }
+        }
+
+        return rootFiles
     }
 
     /** Lint project description that describes project's module structure in details */
@@ -219,9 +303,10 @@ class SourceOptions(
             )
             .existingFile()
 
-    val apiPackageFilter by
+    val apiPackageFilter: PackageFilter? by
         option(
                 ARG_STUB_PACKAGES,
+                ARG_PACKAGE_FILTER,
                 metavar = "<package-list>",
                 help =
                     """
@@ -235,6 +320,7 @@ class SourceOptions(
                         .trimIndent()
             )
             .convert { PackageFilter.parse(it) }
+            .transformAll { it.reduceOrNull(PackageFilter::plus) }
 
     val compiledSourceJar by
         option(

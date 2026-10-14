@@ -30,6 +30,7 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeParameterListOwner
@@ -596,7 +597,14 @@ private constructor(
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, receiver, contextParameters)
+            var result = name.hashCode()
+            result = 31 * result + TypeComparator.NULLABILITY_AWARE.hash(receiver)
+            result =
+                31 * result +
+                    contextParameters.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }
@@ -692,12 +700,18 @@ protected constructor(
             return name == other.name &&
                 parameterTypes.size == other.parameterTypes.size &&
                 parameterTypes.zip(other.parameterTypes).all { (t1, t2) ->
-                    t1.equalToType(t2, includeNullability = true)
+                    TypeComparator.NULLABILITY_AWARE.compare(t1, t2)
                 }
         }
 
         override fun hashCode(): Int {
-            return Objects.hash(name, parameterTypes)
+            var result = name.hashCode()
+            result =
+                31 * result +
+                    parameterTypes.fold(1) { acc, param ->
+                        31 * acc + TypeComparator.NULLABILITY_AWARE.hash(param)
+                    }
+            return result
         }
     }
 }

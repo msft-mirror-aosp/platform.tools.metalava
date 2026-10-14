@@ -139,7 +139,8 @@ private constructor(
         var originalAnnotations = originalPackage.modifiers.annotations()
         val annotations = originalAnnotations.map { it.snapshot(snapshotCodebase) }
         return PackageInfo(
-            fileLocation = originalPackage.fileLocation,
+            fileLocationSource = originalPackage.fileLocationSource,
+            sourcePosition = originalPackage.sourcePosition,
             sourceFile = originalPackage.sourceFile,
             annotations = annotations,
             commentFactory = originalPackage.documentation.snapshottingFactory(),
@@ -217,9 +218,10 @@ private constructor(
     private fun RecordComponentItem.snapshot(
         containingClass: ClassItem,
         classTypeItemFactory: SnapshotTypeItemFactory
-    ) =
+    ): RecordComponentItem =
         itemFactory.createRecordComponentItem(
-            fileLocation,
+            fileLocationSource = fileLocationSource,
+            sourcePosition = sourcePosition,
             modifiers = modifiers.snapshot(snapshotCodebase),
             name = name,
             containingClass = containingClass,
@@ -292,7 +294,8 @@ private constructor(
         // Create the class and register it in the codebase.
         val newClass =
             itemFactory.createClassItem(
-                fileLocation = classToSnapshot.fileLocation,
+                fileLocationSource = classToSnapshot.fileLocationSource,
+                sourcePosition = classToSnapshot.sourcePosition,
                 sourceLanguage = classToSnapshot.sourceLanguage,
                 targetLanguages = classToSnapshot.targetLanguages,
                 modifiers = classToSnapshot.modifiers.snapshot(),
@@ -344,7 +347,8 @@ private constructor(
             // within the scope of the constructor's SnapshotTypeItemFactory.
             constructorTypeItemFactory.inScope {
                 itemFactory.createConstructorItem(
-                    fileLocation = constructorToSnapshot.fileLocation,
+                    fileLocationSource = constructorToSnapshot.fileLocationSource,
+                    sourcePosition = constructorToSnapshot.sourcePosition,
                     sourceLanguage = constructorToSnapshot.sourceLanguage,
                     targetLanguages = constructorToSnapshot.targetLanguages,
                     modifiers = constructorToSnapshot.modifiers.snapshot(),
@@ -390,7 +394,8 @@ private constructor(
             // within the scope of the method's SnapshotTypeItemFactory.
             methodTypeItemFactory.inScope {
                 itemFactory.createMethodItem(
-                    fileLocation = methodToSnapshot.fileLocation,
+                    fileLocationSource = methodToSnapshot.fileLocationSource,
+                    sourcePosition = methodToSnapshot.sourcePosition,
                     sourceLanguage = methodToSnapshot.sourceLanguage,
                     targetLanguages = methodToSnapshot.targetLanguages,
                     modifiers = methodToSnapshot.modifiers.snapshot(),
@@ -425,7 +430,8 @@ private constructor(
             // containing class's SnapshotTypeItemFactory.
             globalTypeItemFactory.from(containingClass).inScope {
                 itemFactory.createFieldItem(
-                    fileLocation = fieldToSnapshot.fileLocation,
+                    fileLocationSource = fieldToSnapshot.fileLocationSource,
+                    sourcePosition = fieldToSnapshot.sourcePosition,
                     sourceLanguage = fieldToSnapshot.sourceLanguage,
                     targetLanguages = fieldToSnapshot.targetLanguages,
                     modifiers = fieldToSnapshot.modifiers.snapshot(),
@@ -457,7 +463,8 @@ private constructor(
             // containing class's SnapshotTypeItemFactory.
             propertyTypeItemFactory.inScope {
                 itemFactory.createPropertyItem(
-                    fileLocation = propertyToSnapshot.fileLocation,
+                    fileLocationSource = propertyToSnapshot.fileLocationSource,
+                    sourcePosition = propertyToSnapshot.sourcePosition,
                     sourceLanguage = propertyToSnapshot.sourceLanguage,
                     modifiers = propertyToSnapshot.modifiers.snapshot(),
                     documentationFactory = snapshotDocumentation(propertyToSnapshot, property),
@@ -611,7 +618,8 @@ private constructor(
                     }
 
                 itemFactory.createParameterItem(
-                    fileLocation = parameterItem.fileLocation,
+                    fileLocationSource = parameterItem.fileLocationSource,
+                    sourcePosition = parameterItem.sourcePosition,
                     sourceLanguage = parameterItem.sourceLanguage,
                     modifiers = parameterItem.modifiers.snapshot(),
                     name = name,
@@ -662,6 +670,8 @@ internal class SourceFileSnapshot(
 
     override val fileLocation: FileLocation
         get() = originalSourceFile.fileLocation
+
+    override fun computeLineMap() = originalSourceFile.lineMap
 
     override fun computeContainingPackageName() =
         originalSourceFile.containingPackage.qualifiedName()

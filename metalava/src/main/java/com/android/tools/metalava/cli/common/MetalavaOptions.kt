@@ -416,7 +416,8 @@ private fun constructStyleableChoiceOption(value: String, prefix: String = "") =
  * A regular expression that will match choice options created using
  * [constructStyleableChoiceOption].
  */
-private val deconstructStyleableChoiceOption = """$BLANK_LINE(.*?)(\*\*([^*]+)\*\*)""".toRegex()
+private val deconstructStyleableChoiceOption =
+    """$BLANK_LINE([^\n`]*?)(\*\*([^*\n]+)\*\*)""".toRegex()
 
 /**
  * The index of the group in [deconstructStyleableChoiceOption] that matches the prefix provided to

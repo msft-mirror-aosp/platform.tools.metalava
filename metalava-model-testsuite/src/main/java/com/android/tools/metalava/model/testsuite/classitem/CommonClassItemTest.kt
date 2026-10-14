@@ -1657,6 +1657,8 @@ class CommonClassItemTest : BaseModelTest() {
                     """
                         package test.excluded.pkg;
 
+                        import unresolved.Import;
+
                         public class Excluded {
                             private Excluded() {}
                         }
@@ -1671,6 +1673,50 @@ class CommonClassItemTest : BaseModelTest() {
             // Make sure that a class defined excluded by a package filter can be resolved but is
             // not emitted.
             codebase.assertResolvedClass("test.excluded.pkg.Excluded")
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `Test multifile class excluded by package filter`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class Test private constructor()
+                    """
+                ),
+                kotlin(
+                    "test/excluded/pkg/Part1.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("ExcludedMulti")
+                        package test.excluded.pkg
+
+                        fun part1() {}
+                    """
+                ),
+                kotlin(
+                    "test/excluded/pkg/Part2.kt",
+                    """
+                        @file:JvmMultifileClass
+                        @file:JvmName("ExcludedMulti")
+                        package test.excluded.pkg
+
+                        fun part2() {}
+                    """
+                ),
+            ),
+            testFixture =
+                TestFixture(
+                    apiPackages = PackageFilter.parse("test.pkg"),
+                ),
+        ) {
+            // Make sure that a multifile class excluded by a package filter does not fail during
+            // initialization and can be resolved without being emitted.
+            codebase.assertResolvedClass("test.excluded.pkg.ExcludedMulti")
         }
     }
 

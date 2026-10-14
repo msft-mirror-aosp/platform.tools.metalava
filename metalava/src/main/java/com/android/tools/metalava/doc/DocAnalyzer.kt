@@ -30,6 +30,7 @@ import com.android.tools.metalava.doc.annotationhandlers.BaseDevicePolicyAnnotat
 import com.android.tools.metalava.doc.annotationhandlers.DevicePolicyContext
 import com.android.tools.metalava.doc.annotationhandlers.EnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.IntegerPolicyAnnotationHandler
+import com.android.tools.metalava.doc.annotationhandlers.ListOfEnumPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfPackagePolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.ListOfStringPolicyAnnotationHandler
 import com.android.tools.metalava.doc.annotationhandlers.LongPolicyAnnotationHandler
@@ -276,6 +277,9 @@ class DocAnalyzer(
                                 .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.ListOfPackagePolicyDefinition" ->
                             ListOfPackagePolicyAnnotationHandler(devicePolicyContext)
+                                .handlePolicyAnnotation(annotation, item)
+                        "android.processor.devicepolicy.ListOfEnumPolicyDefinition" ->
+                            ListOfEnumPolicyAnnotationHandler(devicePolicyContext)
                                 .handlePolicyAnnotation(annotation, item)
                         "android.processor.devicepolicy.PackagePolicyDefinition" ->
                             PackagePolicyAnnotationHandler(devicePolicyContext)

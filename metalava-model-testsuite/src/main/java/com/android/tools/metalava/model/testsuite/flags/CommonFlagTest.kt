@@ -31,7 +31,6 @@ import com.android.tools.metalava.testing.KnownJarFiles
 import com.android.tools.metalava.testing.java
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.Test
 
@@ -80,7 +79,7 @@ class CommonFlagTest : BaseModelTest() {
             val annotation = fooClass.assertAnnotation(ANDROID_FLAGGED_API)
 
             val apiFlag = annotation.apiFlag
-            assertNull(apiFlag, "apiFlag")
+            assertEquals(ApiFlag.KEEP_ALL, apiFlag, "apiFlag")
             assertEquals(ANNOTATION_IN_ALL_STUBS, annotation.targets, "targets")
 
             // An unconfigured @FlaggedApi has no effect on showability (showability is NO_EFFECT).

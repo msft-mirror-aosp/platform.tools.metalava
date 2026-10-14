@@ -24,14 +24,15 @@ import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultPackageItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     override val sourceFile: SourceFile?,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
@@ -43,7 +44,8 @@ internal class DefaultPackageItem(
 ) :
     DefaultSelectableItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
@@ -122,8 +124,14 @@ internal class DefaultPackageItem(
                 isFirstSimpleName = true,
             )
         } else {
-            // Otherwise, just look for a class in this package, if allowed.
+            // Otherwise, look for a class in this package, or if the name is unqualified in
+            // java.lang, if allowed.
             findClassIfAllowed(simpleName, nameClassification)
+                ?: if (isFirstSimpleName) {
+                    nameClassification.findClass { codebase.resolveClass("java.lang.$simpleName") }
+                } else {
+                    null
+                }
         }
 
     // N.A. a package cannot be contained in a class

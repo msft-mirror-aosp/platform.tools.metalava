@@ -1138,4 +1138,23 @@ class SignatureInputOutputTest : Assertions {
             fileFormat = FileFormat.V5
         )
     }
+
+    @Test
+    fun `Test mangled names containing hyphens`() {
+        val api =
+            """
+            // Signature format: 5.0
+            package test.pkg {
+              public final class -Foo-Bar {
+                method @BytecodeOnly public int box-impl(int);
+                method @BytecodeOnly public static int foo--bar(long, long);
+              }
+            }
+            """
+        runInputOutputTest(api, FileFormat.V5) {
+            val cls = codebase.assertClass("test.pkg.-Foo-Bar")
+            cls.assertMethod("box-impl", listOf("int"))
+            cls.assertMethod("foo--bar", listOf("long", "long"))
+        }
+    }
 }

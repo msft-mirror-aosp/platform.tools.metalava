@@ -16,10 +16,13 @@
 
 package com.android.tools.metalava.model.testsuite.value
 
+import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.value.fieldReferenceValue
 import com.android.tools.metalava.model.testsuite.BaseModelTest
+import com.android.tools.metalava.model.testsuite.assertHasNonNullNullability
+import com.android.tools.metalava.model.value.ClassObjectValue
 import com.android.tools.metalava.model.value.Value
 import com.android.tools.metalava.model.value.ValueStringConfiguration
 import com.android.tools.metalava.testing.java
@@ -162,6 +165,43 @@ class CommonValueTest : BaseModelTest() {
             val value = annotationAttribute.value
             assertEquals(fieldReferenceValue("test.pkg.Anno", "CONSTANT"), value)
             assertEquals(37, value.asLiteralValue()?.underlyingValue)
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.SIGNATURE)
+    @Test
+    fun `Test array class literal nullability`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    import java.util.BitSet;
+                    public @interface Anno {
+                        Class<?> value() default BitSet[].class;
+                    }
+                """
+            ),
+            signature(
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public @interface Anno {
+                        method public abstract Class<?> value() default java.util.BitSet[].class;
+                      }
+                    }
+                """
+            ),
+        ) {
+            val anno = codebase.assertClass("test.pkg.Anno")
+            val method = anno.methods().single()
+            val value = method.defaultValue as ClassObjectValue
+            val arrayType = value.typeItem as ArrayTypeItem
+
+            // The array type of a class literal is non-null.
+            arrayType.assertHasNonNullNullability(expectAnnotation = false)
+
+            // The component type of an array class literal is also non-null.
+            arrayType.componentType.assertHasNonNullNullability(expectAnnotation = false)
         }
     }
 }

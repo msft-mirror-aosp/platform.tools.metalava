@@ -2846,43 +2846,94 @@ class UastTest : DriverTest() {
                         "v1N+nP7YT4Qb/1dw/s76cVqZn1hlwH/9PcKCX+D7td07a3RnFxb6fvoTwPLm" +
                         "GvsJAAA="
                 ),
-            // The mapped collection APIs shouldn't be bytecode only, but it is better that they are
-            // tracked that way than not tracked at all.
             expectedApiSignature =
                 """
                 // Signature format: 5.0
                 package test.pkg {
                   public final class EmptyStringList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
                     ctor public EmptyStringList();
-                    method @BytecodeOnly public void add(int, String!);
-                    method @BytecodeOnly public boolean add(String!);
-                    method @BytecodeOnly public boolean addAll(int, java.util.Collection<? extends java.lang.String!>!);
-                    method @BytecodeOnly public boolean addAll(java.util.Collection<? extends java.lang.String!>!);
-                    method @BytecodeOnly public void clear();
-                    method @BytecodeOnly public boolean contains(Object!);
+                    method @InaccessibleFromKotlin public void add(int p, String! p1);
+                    method @InaccessibleFromKotlin public boolean add(String! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.String!>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.String!>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method @InaccessibleFromKotlin public boolean contains(Object element);
                     method public boolean contains(String element);
-                    method public boolean containsAll(java.util.Collection<java.lang.String> elements);
+                    method public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
                     method public Void get(int index);
                     method @InaccessibleFromKotlin public int getSize();
-                    method @BytecodeOnly public int indexOf(Object!);
+                    method @InaccessibleFromKotlin public int indexOf(Object element);
                     method public int indexOf(String element);
                     method public boolean isEmpty();
                     method public Void iterator();
-                    method @BytecodeOnly public int lastIndexOf(Object!);
+                    method @InaccessibleFromKotlin public int lastIndexOf(Object element);
                     method public int lastIndexOf(String element);
                     method public Void listIterator();
                     method public Void listIterator(int index);
-                    method @BytecodeOnly public String! remove(int);
-                    method @BytecodeOnly public boolean remove(Object!);
-                    method @BytecodeOnly public boolean removeAll(java.util.Collection<? extends java.lang.Object!>!);
+                    method @InaccessibleFromKotlin public String! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
                     method @BytecodeOnly public void replaceAll(java.util.function.UnaryOperator<java.lang.String!>!);
-                    method @BytecodeOnly public boolean retainAll(java.util.Collection<? extends java.lang.Object!>!);
-                    method @BytecodeOnly public String! set(int, String!);
-                    method @BytecodeOnly public int size();
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public String! set(int p, String! p1);
+                    method @InaccessibleFromKotlin public int size();
                     method @BytecodeOnly public void sort(java.util.Comparator<? super java.lang.String!>!);
                     method public test.pkg.EmptyStringList subList(int fromIndex, int toIndex);
-                    method @BytecodeOnly public Object![]! toArray();
-                    method @BytecodeOnly public <T> T[]! toArray(T[]!);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
+                    property public int size;
+                  }
+                }
+                """
+        )
+    }
+
+    @Test
+    fun `Test mapped collections methods by delegate`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class StringList(private val items: MutableList<String>): List<String> by items
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                // Signature format: 5.0
+                package test.pkg {
+                  public final class StringList implements kotlin.jvm.internal.markers.KMappedMarker java.util.List<java.lang.String> {
+                    ctor public StringList(java.util.List<java.lang.String> items);
+                    method @InaccessibleFromKotlin public void add(int p, String! p1);
+                    method @InaccessibleFromKotlin public boolean add(String! p);
+                    method @InaccessibleFromKotlin public boolean addAll(int p, java.util.Collection<? extends java.lang.String!>! p1);
+                    method @InaccessibleFromKotlin public boolean addAll(java.util.Collection<? extends java.lang.String!>! p);
+                    method @InaccessibleFromKotlin public void clear();
+                    method @InaccessibleFromKotlin public boolean contains(Object element);
+                    method public operator boolean contains(String element);
+                    method @InaccessibleFromKotlin public boolean containsAll(java.util.Collection<? extends java.lang.Object?> elements);
+                    method @KotlinOnly public boolean containsAll(java.util.Collection<java.lang.String> elements);
+                    method public operator String get(int index);
+                    method public int getSize();
+                    method @InaccessibleFromKotlin public int indexOf(Object element);
+                    method public int indexOf(String element);
+                    method public boolean isEmpty();
+                    method public operator java.util.Iterator<java.lang.String> iterator();
+                    method @InaccessibleFromKotlin public int lastIndexOf(Object element);
+                    method public int lastIndexOf(String element);
+                    method public java.util.ListIterator<java.lang.String> listIterator();
+                    method public java.util.ListIterator<java.lang.String> listIterator(int index);
+                    method @InaccessibleFromKotlin public String! remove(int p);
+                    method @InaccessibleFromKotlin public boolean remove(Object! p);
+                    method @InaccessibleFromKotlin public boolean removeAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public boolean retainAll(java.util.Collection<? extends java.lang.Object?>! p);
+                    method @InaccessibleFromKotlin public String! set(int p, String! p1);
+                    method @InaccessibleFromKotlin public int size();
+                    method public java.util.List<java.lang.String> subList(int fromIndex, int toIndex);
+                    method @InaccessibleFromKotlin public Object![]! toArray();
+                    method @InaccessibleFromKotlin public <T> T[]! toArray(T[]! p);
                     property public int size;
                   }
                 }
@@ -3266,6 +3317,35 @@ class UastTest : DriverTest() {
                   }
                 }
                 """
+        )
+    }
+
+    @Test
+    fun `Unmapped kotlin collection superclass`() {
+        check(
+            sourceFiles =
+                arrayOf(
+                    kotlin(
+                        """
+                        package test.pkg
+                        class StringList: AbstractList<String>() {
+                            override fun get(index: Int): String = ""
+                            override val size: Int = 0
+                        }
+                        """
+                    )
+                ),
+            expectedApiSignature =
+                """
+                package test.pkg {
+                  public final class StringList extends kotlin.collections.AbstractList<java.lang.String> {
+                    ctor public StringList();
+                    method public String get(int index);
+                    method @InaccessibleFromKotlin public int getSize();
+                    property public int size;
+                  }
+                }
+                """,
         )
     }
 }
