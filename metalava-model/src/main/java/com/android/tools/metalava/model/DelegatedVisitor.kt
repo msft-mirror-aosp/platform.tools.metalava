@@ -41,6 +41,15 @@ interface DelegatedVisitor {
     val requiresSortedClasses: Boolean
         get() = false
 
+    /**
+     * If `true` then a class's members are visited in deterministic sorted order, otherwise they
+     * are visited in declaration order.
+     *
+     * Defaults to `true` because most implementations need members to be sorted.
+     */
+    val requiresSortedMembers: Boolean
+        get() = true
+
     fun visitCodebase(codebase: Codebase) {}
 
     fun afterVisitCodebase(codebase: Codebase) {}

@@ -34,6 +34,7 @@ import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.JAVA_LANG_ERROR
 import com.android.tools.metalava.model.JAVA_LANG_RUNTIME_EXCEPTION
+import com.android.tools.metalava.model.LambdaTypeItem
 import com.android.tools.metalava.model.MergedCodebase
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.MultipleTypeVisitor
@@ -47,6 +48,7 @@ import com.android.tools.metalava.model.SourceLanguage
 import com.android.tools.metalava.model.StripJavaLangPrefix
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TargetLanguageSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeStringConfiguration
@@ -408,7 +410,13 @@ private constructor(
             return false
         // While it might be possible to switch to a method with a different return type in some
         // cases, in general this is not a safe source compatible change.
-        if (candidate.returnType() != original.returnType()) return false
+        if (
+            !TypeComparator.IGNORE_NULLABILITY.compare(
+                candidate.returnType(),
+                original.returnType()
+            )
+        )
+            return false
         // The nullability of the return type also can't change from non-null to nullable, because
         // usages of the return are currently expecting it to be non-null.
         if (
@@ -464,10 +472,11 @@ private constructor(
         original: TypeItem,
         candidate: TypeItem,
     ): Boolean {
-        // Parameter types must be the same. Note: TypeItem.equals() does not check nullability (or
-        // annotations). So, it is possible that two TypeItems that are equal are not compatible due
-        // to differences in nullability. That will be checked below.
-        if (original != candidate) return false
+        // Parameter types must be the same. Note: TypeComparator.IGNORE_NULLABILITY does not check
+        // nullability (or annotations). So, it is possible that two TypeItems that are equal are
+        // not
+        // compatible due to differences in nullability. That will be checked below.
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(original, candidate)) return false
 
         // If the nullability is the same then the parameters are compatible.
         if (original.modifiers.nullability == candidate.modifiers.nullability) return true
@@ -905,7 +914,7 @@ private constructor(
 
         val oldType = old.type
         val newType = new.type
-        if (oldType != newType) {
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(oldType, newType)) {
             report(
                 Issues.CHANGED_RECORD_COMPONENT,
                 new,
@@ -915,7 +924,7 @@ private constructor(
     }
 
     fun compareTypeAliasItems(old: ClassItem, new: ClassItem) {
-        if (old.aliasedType != new.aliasedType) {
+        if (!TypeComparator.IGNORE_NULLABILITY.compare(old.aliasedType, new.aliasedType)) {
             val typeStringConfiguration =
                 TypeStringConfiguration(
                     annotations = true,
@@ -959,6 +968,18 @@ private constructor(
         new: TypeItem,
         targetLanguages: Set<TargetLanguage>,
     ): Boolean {
+        // Convert any LambdaTypeItem to its underlying Kotlin Function* ClassTypeItem so that it
+        // can be compared against ClassTypeItem (e.g. from signature files) and VariableTypeItem
+        // bounds without relying on LambdaTypeItem extending ClassTypeItem.
+        if (old is LambdaTypeItem || new is LambdaTypeItem) {
+            return compatibleReturnTypes(
+                oldCodebase,
+                if (old is LambdaTypeItem) old.asJvmClassType() else old,
+                newCodebase,
+                if (new is LambdaTypeItem) new.asJvmClassType() else new,
+                targetLanguages,
+            )
+        }
         when (new) {
             is ArrayTypeItem ->
                 return old is ArrayTypeItem &&
@@ -974,7 +995,12 @@ private constructor(
                     is VariableTypeItem -> {
                         // If both return types are parameterized then the constraints must be
                         // exactly the same.
-                        return old.asTypeParameter.typeBounds() == new.asTypeParameter.typeBounds()
+                        val oldBounds = old.asTypeParameter.typeBounds()
+                        val newBounds = new.asTypeParameter.typeBounds()
+                        return oldBounds.size == newBounds.size &&
+                            oldBounds.zip(newBounds).all { (b1, b2) ->
+                                TypeComparator.IGNORE_NULLABILITY.compare(b1, b2)
+                            }
                     }
                     is ClassTypeItem -> {
                         // Resolve the old type to the class. If it cannot be resolved then assume
@@ -1023,13 +1049,13 @@ private constructor(
                             true
                         } else {
                             // Otherwise check that the type arguments are equal as well.
-                            old == new
+                            TypeComparator.IGNORE_NULLABILITY.compare(old, new)
                         }
                     }
                     else -> false
                 }
             }
-            else -> return old == new
+            else -> return TypeComparator.IGNORE_NULLABILITY.compare(old, new)
         }
     }
 
@@ -1296,7 +1322,7 @@ private constructor(
         if (!old.isEnumConstant()) {
             val oldType = old.type()
             val newType = new.type()
-            if (oldType != newType) {
+            if (!TypeComparator.IGNORE_NULLABILITY.compare(oldType, newType)) {
                 val message =
                     "${new.describe(capitalize = true)} has changed type from $oldType to $newType"
                 report(Issues.CHANGED_TYPE, new, message, oldItem = old)
@@ -1994,25 +2020,23 @@ private constructor(
         }
 
         /**
-         * Returns a filter based on the [apiType] and [apiSurface] which includes overriding
-         * methods. This is used to filter which items are included in compatibility checks.
+         * Returns a filter based on the [apiType] and [apiSurface]. This is used to filter which
+         * items are included in compatibility checks.
          */
         private fun getSurfaceFilter(apiType: ApiType, apiSurface: ApiSurface) =
             ApiSurfacePredicate.forDelta(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
 
         /**
-         * Returns a reference filter based on the [apiType] and [apiSurface] which includes
-         * overriding methods. This is used to check referenced types (interfaces, throws).
+         * Returns a reference filter based on the [apiType] and [apiSurface]. This is used to check
+         * referenced types (interfaces, throws).
          */
         private fun getReferenceFilter(apiType: ApiType, apiSurface: ApiSurface) =
             ApiSurfacePredicate.referenceFilter(
                 apiType,
                 apiSurface,
-                includeOverridingMethods = true,
             )
     }
 }

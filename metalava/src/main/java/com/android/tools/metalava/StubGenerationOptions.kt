@@ -23,7 +23,9 @@ import com.android.tools.metalava.cli.common.PreviouslyReleasedApi
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.cli.common.map
 import com.android.tools.metalava.cli.common.newDir
+import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.PackageFilter
+import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.stub.StubGenerator
 import com.android.tools.metalava.stub.StubWriterConfig
 import com.github.ajalt.clikt.parameters.options.OptionWithValues
@@ -250,8 +252,18 @@ class StubGenerationOptions :
     internal fun getApiVersionLabel(version: ApiVersion): String =
         apiVersionToLabel[version] ?: version.toString()
 
-    /** Construct a [StubGenerator.Config] based on these options. */
+    /**
+     * Construct a [StubGenerator.Config] based on these options.
+     *
+     * @param signatureFileLoader Function used to load the [PreviouslyReleasedApi] signature files
+     *   configured via [ARG_MIGRATE_NULLNESS].
+     * @param javaRecordClasses Whether the target language level supports Java `record` classes.
+     * @param javaSealedClasses Whether the target language level supports Java `sealed` classes.
+     */
     internal fun generatorConfig(
+        signatureFileLoader: (List<SignatureFile>) -> Codebase = {
+            error("unsupported signature file loading")
+        },
         javaRecordClasses: Boolean = false,
         javaSealedClasses: Boolean = false,
     ): StubGenerator.Config {
@@ -301,7 +313,10 @@ class StubGenerationOptions :
             generateAnnotations = includeAnnotations,
 
             // Provide config needed to migrate nullability information.
-            nullabilityConversionPreviouslyReleasedApi = nullabilityConversionPreviouslyReleasedApi,
+            nullabilityConversionPreviouslyReleasedCodebase =
+                nullabilityConversionPreviouslyReleasedApi?.let { previouslyReleasedApi ->
+                    { previouslyReleasedApi.load(signatureFileLoader) }
+                },
             nullabilityConversionPackageFilter = forceConvertToWarningNullabilityAnnotations,
 
             // Provide config needed to apply API versions to the documentation.

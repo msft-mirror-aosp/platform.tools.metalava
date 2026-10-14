@@ -16,8 +16,8 @@
 
 package com.android.tools.metalava.cli.common
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.Driver
-import com.android.tools.metalava.testing.getNoopTracer
 import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.subcommands
 import org.junit.Assert.assertEquals
@@ -29,7 +29,7 @@ class MetalavaCommandTest :
     BaseCommandTest<MetalavaCommand>({ executionEnvironment ->
         MetalavaCommand(
             executionEnvironment = executionEnvironment,
-            tracer = getNoopTracer(),
+            tracer = Tracer.getStubTracer(),
         )
     }) {
 
@@ -48,7 +48,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         try {
             command.processThrowCliException(args.toTypedArray())
@@ -98,7 +98,7 @@ class MetalavaCommandTest :
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
                 defaultCommandName = subCommand.commandName,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(subCommand)
 
@@ -129,7 +129,7 @@ class MetalavaCommandTest :
         val command =
             MetalavaCommand(
                 executionEnvironment = executionEnvironment,
-                tracer = getNoopTracer(),
+                tracer = Tracer.getStubTracer(),
             )
         command.subcommands(FailCommand())
         command.process(args.toTypedArray())
@@ -174,7 +174,7 @@ $separator
             args += listOf(ARG_NO_COLOR, "--version")
 
             expectedStderr = ""
-            expectedStdout = "metalava version: 1.0.0-alpha15"
+            expectedStdout = "metalava version: 1.0.0-alpha16"
         }
     }
 
@@ -213,6 +213,7 @@ Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
   android-jars-to-signatures                 Rewrite the signature files in the `prebuilts/sdk` directory in the Android
                                              source tree.
+  api-history                                Generate an API versions XML or JSON file from API signature files.
   flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
   jar-to-jdiff                               Convert a jar file into a file in the JDiff XML format.
@@ -224,6 +225,7 @@ Sub-commands:
   signature-to-dex                           Convert API signature files into a file containing a list of DEX
                                              signatures.
   signature-to-jdiff                         Convert an API signature file into a file in the JDiff XML format.
+  signature-to-stubs                         Generate stub source files from API signature files.
   version                                    Show the version
   multi-surface                              Command that sets up state to run operations for multiple API surfaces.
             """

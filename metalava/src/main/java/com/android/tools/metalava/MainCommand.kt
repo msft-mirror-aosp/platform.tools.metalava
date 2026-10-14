@@ -23,6 +23,7 @@ import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.SourceOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.reporter.DEFAULT_BASELINE_NAME
 import com.github.ajalt.clikt.parameters.arguments.argument
 import com.github.ajalt.clikt.parameters.arguments.multiple
@@ -68,17 +69,19 @@ class MainCommand(
 
     override fun run() {
         // Perform any necessary initialization.
-        initializeOptionGroups()
+        tracer.trace("initializeOptionGroups") { initializeOptionGroups() }
 
-        val sourceModelProvider =
-            // Use the [SourceModelProvider] specified by the [TestEnvironment], if any.
-            executionEnvironment.testEnvironment?.sourceModelProvider
-                // Otherwise, use the one specified on the command line, or the default.
-                ?: sourceOptions.sourceModelProvider
+        val sourceModelProvider = sourceOptions.sourceModelProvider
 
-        sourceModelProvider
-            .createEnvironmentManager(executionEnvironment.disableStderrDumping())
-            .use { environmentManager -> runAndReportIssues(environmentManager) }
+        tracer
+            .trace("createEnvironmentManager") {
+                sourceModelProvider.createEnvironmentManager(
+                    executionEnvironment.disableStderrDumping()
+                )
+            }
+            .use { environmentManager ->
+                runAndReportIssues { reporter -> createEnvironment(environmentManager, reporter) }
+            }
     }
 
     /** Initialize any option groups that require it. */

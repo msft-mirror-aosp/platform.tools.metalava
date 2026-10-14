@@ -63,4 +63,7 @@ enum class Capability {
 
     /** Can create [MultiplatformCodebase]s */
     MULTIPLATFORM,
+
+    /** Can parse sources without a source path (i.e. `--source-path ""`). */
+    EMPTY_SOURCE_PATH,
 }

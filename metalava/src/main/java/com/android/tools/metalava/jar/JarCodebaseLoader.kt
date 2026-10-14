@@ -155,7 +155,12 @@ private constructor(
                     reporter = reporter,
                 )
 
-            val sourceParser = environmentManager.createSourceParser(codebaseConfig, tracer)
+            val environment =
+                environmentManager.createEnvironment(
+                    reporter = reporter,
+                    tracer = tracer,
+                )
+            val sourceParser = environment.createSourceParser(codebaseConfig)
 
             val jarLoader =
                 JarCodebaseLoader.createForSourceParser(

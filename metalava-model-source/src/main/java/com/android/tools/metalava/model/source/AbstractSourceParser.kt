@@ -16,11 +16,12 @@
 
 package com.android.tools.metalava.model.source
 
+import androidx.tracing.Tracer
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassOrigin
-import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.JavaConstants
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.item.DefaultCodebase
 import com.android.tools.metalava.reporter.Issues
@@ -30,30 +31,36 @@ import java.io.IOException
 import java.util.zip.ZipFile
 import kotlin.collections.iterator
 
-abstract class AbstractSourceParser(protected val reporter: Reporter) : SourceParser {
-
-    final override fun getClassPathResolver(classPath: List<File>): ClassPathResolver =
-        loadCodebaseFromJars(
-            classPath,
-            "Codebase from classpath",
-            includeKotlinInCodebase = true,
-        )
+abstract class AbstractSourceParser(
+    protected val environment: AbstractEnvironment<*>,
+    protected val codebaseConfig: Codebase.Config,
+    protected val tracer: Tracer,
+) : SourceParser {
+    protected val reporter: Reporter
+        get() = codebaseConfig.reporter
 
     /** Load a [DefaultCodebase] from a set of [jars]. */
-    protected open fun loadCodebaseFromJars(
+    private fun loadCodebaseFromJars(
         jars: List<File>,
         description: String,
         includeKotlinInCodebase: Boolean,
     ): DefaultCodebase {
-        val inputs =
-            SourceParser.Inputs(
-                sourceSet = SourceSet.empty(),
-                description = description,
+        val jarEnvironment =
+            environment.environmentManager.createEnvironment(
                 classPath = jars,
-                includeKotlinInCodebase = includeKotlinInCodebase,
+                javaLanguageLevel = environment.javaLanguageLevel,
+                kotlinLanguageLevel = environment.kotlinLanguageLevel,
+                jdkHome = environment.jdkHome,
+                reporter = reporter,
+                tracer = tracer,
             )
-
-        val codebase = parseSources(inputs) ?: error("Could not create codebase from $jars")
+        val codebase =
+            jarEnvironment
+                .createSourceParser(codebaseConfig)
+                .parseSources(
+                    description = description,
+                    includeKotlinInCodebase = includeKotlinInCodebase,
+                ) ?: error("Could not create codebase from $jars")
 
         return codebase as DefaultCodebase
     }
@@ -69,7 +76,7 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
                 "Codebase loaded from $apiJar",
                 includeKotlinInCodebase = false,
             )
-        initializeFromJar(codebase, apiJar)
+        tracer.trace("initializeFromJar") { initializeFromJar(codebase, apiJar) }
         return codebase
     }
 
@@ -139,28 +146,52 @@ abstract class AbstractSourceParser(protected val reporter: Reporter) : SourcePa
         nestedClasses().forEach { it.markAsEmittable() }
     }
 
-    /**
-     * Override to ensure that [inputs] are correctly prepared for [processInputs].
-     *
-     * Preparation includes replacing [Inputs.sourceSet] with the result of calling
-     * [SourceSet.extractRoots] on it, and making [Inputs.classPath], absolute files.
-     */
-    final override fun parseSources(inputs: SourceParser.Inputs): Codebase? {
-        val absoluteInputs =
-            inputs.copy(
-                sourceSet = inputs.sourceSet.extractRoots(reporter),
-                classPath = inputs.classPath.map { it.absoluteFile },
+    final override fun parseSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        includeKotlinInCodebase: Boolean,
+    ): Codebase? =
+        processSources(
+                description = description,
+                apiPackages = apiPackages,
+                compiledSourceJar = compiledSourceJar,
+                includeKotlinInCodebase = includeKotlinInCodebase,
             )
+            ?.let { postProcessCodebase(it) }
 
-        return processInputs(absoluteInputs)?.also { codebase ->
+    /** Process the sources in [environment] to produce a [Codebase], if possible. */
+    protected abstract fun processSources(
+        description: String,
+        apiPackages: PackageFilter?,
+        compiledSourceJar: File?,
+        includeKotlinInCodebase: Boolean,
+    ): Codebase?
 
-            // Determine sealed class exhaustivity.
+    final override fun parseJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase? =
+        processJavaStubs(
+                javaStubFiles = javaStubFiles.map { it.absoluteFile }.distinct(),
+                apiPackages = apiPackages,
+            )
+            ?.let { postProcessCodebase(it) }
+
+    /** Process the [javaStubFiles] against [environment] to produce a [Codebase], if possible. */
+    protected abstract fun processJavaStubs(
+        javaStubFiles: List<File>,
+        apiPackages: PackageFilter?,
+    ): Codebase?
+
+    /** Perform common post-processing on a newly parsed source [codebase]. */
+    private fun postProcessCodebase(codebase: Codebase): Codebase {
+        // Determine sealed class exhaustivity.
+        tracer.trace("determineIfInaccessibleClassesMakeSuperClassesNonExhaustive") {
             codebase.determineIfInaccessibleClassesMakeSuperClassesNonExhaustive()
         }
+        return codebase
     }
-
-    /** Process the [inputs] to produce a [Codebase], if possible. */
-    protected abstract fun processInputs(inputs: SourceParser.Inputs): Codebase?
 
     /**
      * Determine if sealed classes make super classes non-exhaustive.

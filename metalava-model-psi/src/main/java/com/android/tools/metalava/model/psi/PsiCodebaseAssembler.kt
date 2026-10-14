@@ -328,17 +328,19 @@ internal class PsiCodebaseAssembler(
 
         // Get the `PsiClass`es from the `PsiFile`s.
         val psiClasses =
-            tracer.trace("getPsiClassesFromPsiFiles") { getPsiClassesFromPsiFiles(psiFiles) }
+            tracer.trace("getPsiClassesFromPsiFiles") {
+                getPsiClassesFromPsiFiles(psiFiles, apiPackages)
+            }
 
         // Create the initial set of packages that were found in the source files.
-        tracer.trace("createInitialPackages") { createInitialPackages(sourceSet) }
+        tracer.trace("createInitialPackages") { createInitialPackages(sourceSet, apiPackages) }
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
         if (includeKotlinInCodebase) {
             kaCodebaseAssembler =
                 psiCodebase.mainAnalysisModule?.let {
-                    KaCodebaseAssembler(kotlinFiles, psiCodebase)
+                    KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
                 }
         }
 
@@ -490,6 +492,12 @@ internal class PsiCodebaseAssembler(
         multiFileClasses: HashMap<FqName, Set<PsiFile>>,
         apiPackages: PackageFilter?
     ) {
+        // If a package filter is supplied then ignore any classes that do not match it.
+        if (apiPackages != null) {
+            val packageName = psiClass.packageName
+            if (!apiPackages.matches(packageName)) return
+        }
+
         // Multi file classes appear from each file they're defined in. When the class parts are
         // defined in the same source set, the PsiClass from each file is identical, but if the
         // class parts are in different source sets, the members of each PsiClass will contain
@@ -532,12 +540,6 @@ internal class PsiCodebaseAssembler(
             }
         }
 
-        // If a package filter is supplied then ignore any classes that do not match it.
-        if (apiPackages != null) {
-            val packageName = psiClass.packageName
-            if (!apiPackages.matches(packageName)) return
-        }
-
         val classItem =
             createTopLevelClassAndContents(
                 psiClass,
@@ -550,13 +552,22 @@ internal class PsiCodebaseAssembler(
     /**
      * Extract all the top level classes from [psiFiles].
      *
-     * During the processing this checks each [PsiFile] for unresolved imports and syntax errors.
+     * During the processing this checks each [PsiFile] that matches [apiPackages] for unresolved
+     * imports and syntax errors.
      */
-    private fun getPsiClassesFromPsiFiles(psiFiles: List<PsiFile>): List<PsiClass> {
+    private fun getPsiClassesFromPsiFiles(
+        psiFiles: List<PsiFile>,
+        apiPackages: PackageFilter?,
+    ): List<PsiClass> {
         // Make sure we only process the files once; sometimes there's overlap in the source lists
         return psiFiles
             .asSequence()
             .distinct()
+            .filter { psiFile ->
+                apiPackages == null ||
+                    (psiFile as? PsiClassOwner)?.let { apiPackages.matches(it.packageName) } !=
+                        false
+            }
             .flatMap { psiFile ->
                 // Check for syntax errors across the whole file.
                 checkForSyntaxErrors(psiFile)

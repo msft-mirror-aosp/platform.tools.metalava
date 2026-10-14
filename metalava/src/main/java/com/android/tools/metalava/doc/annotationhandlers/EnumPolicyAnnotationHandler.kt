@@ -16,15 +16,10 @@
 
 package com.android.tools.metalava.doc.annotationhandlers
 
-import com.android.tools.metalava.model.ANDROIDX_INT_DEF
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.annotation.binding.bindTo
-import com.android.tools.metalava.model.testOrTrue
-import com.android.tools.metalava.model.value.FieldReferenceValue
-import com.android.tools.metalava.model.value.asAny
 import com.android.tools.metalava.reporter.Issues
 
 /** Handles @android.processor.devicepolicy.EnumPolicyDefinition annotation. */
@@ -58,7 +53,8 @@ data class EnumPolicyDefinitionProxy(
     val reporter = item.codebase.reporter
 
     fun generateDocs(context: DevicePolicyContext): String {
-        val enumValueToCodeReference = buildEnumValueToCodeReferenceMap(context.filterReference)
+        val enumValueToCodeReference =
+            buildEnumValueToCodeReferenceMap(intDef, item, context.filterReference)
         val defaultValue = defaultValue
 
         val tableEntries = buildList {
@@ -92,75 +88,6 @@ data class EnumPolicyDefinitionProxy(
         }
 
         return buildString { append(renderTable(tableEntries)) }
-    }
-
-    /**
-     * Build a map from the enum integer values to the corresponding integer variable's code
-     * reference. For example:
-     * ```
-     * class SomeClass {
-     *   int ENUM_VALUE_1 = 1;
-     *   int ENUM_VALUE_2 = 2;
-     *   @IntDef({
-     *     ENUM_VALUE_1,
-     *     ENUM_VALUE_2,
-     *   })
-     *   public @interface SomeEnumValue {}
-     * }
-     * ```
-     *
-     * will be translated to:
-     * ```
-     * {
-     *   1: "{@link SomeClass.SomeEnumValue#ENUM_VALUE_1}",
-     *   2: "{@link SomeClass.SomeEnumValue#ENUM_VALUE_2}",
-     * }
-     * ```
-     */
-    private fun buildEnumValueToCodeReferenceMap(
-        filterReference: FilterPredicate?
-    ): Map<Int, String> {
-        // Get the enum value class object. Currently, the @EnumPolicyDefinition annotation's intDef
-        // field is of type: Class<?>.
-        val classItem = intDef
-
-        // Find the @IntDef annotation of the enum value class
-        val intDefAnnotation =
-            classItem?.modifiers?.annotations()?.find { it.qualifiedName == ANDROIDX_INT_DEF }
-
-        val enumValueAttrs =
-            intDefAnnotation?.findAttribute("value")?.value?.asFlatList() ?: emptyList()
-
-        val enumValueToName = mutableMapOf<Int, String>()
-
-        for (enumValueAttr in enumValueAttrs) {
-            if (enumValueAttr is FieldReferenceValue) {
-                val qualifiedClassName = enumValueAttr.qualifiedClassName
-                val fieldName = enumValueAttr.fieldName
-                val fieldItem = enumValueAttr.resolve()
-                val fieldValue = fieldItem?.constantValue?.asAny() as? Int
-                if (fieldValue == null) {
-                    reporter.report(
-                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                        item,
-                        "Failed to resolve the value of: $fieldName"
-                    )
-                    continue
-                }
-                if (filterReference.testOrTrue(fieldItem)) {
-                    val link = "{@link $qualifiedClassName#$fieldName}"
-                    enumValueToName[fieldValue] = link
-                } else {
-                    reporter.report(
-                        Issues.INVALID_DEVICE_POLICY_ANNOTATION,
-                        item,
-                        "Cannot locate $fieldName required by $item (may be hidden or removed)"
-                    )
-                    enumValueToName[fieldValue] = fieldName
-                }
-            }
-        }
-        return enumValueToName
     }
 }
 

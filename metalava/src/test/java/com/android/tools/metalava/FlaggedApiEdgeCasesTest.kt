@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
 import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.xml
 import org.junit.Test
 
 /**
@@ -486,6 +487,164 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
+        )
+    }
+
+    @Test
+    fun `Test flagged API inheritance with RemovedFromApi`() {
+        check(
+            apiSurface = KnownApiSurface.PUBLIC,
+            format = FileFormat.V6,
+            configFiles =
+                arrayOf(
+                    xml(
+                        "config-flags.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                    <api-flag package="test.pkg" name="kept_removed_flag" mutability="mutable" status="enabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @FlaggedApi("test.pkg.kept_flag")
+                            public class Test {
+                                public Test() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public void revertedMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public void keptMethod() {}
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.reverted_flag")
+                                public static class RevertedNested {
+                                    public RevertedNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+
+                                @RemovedFromApi
+                                @FlaggedApi("test.pkg.kept_removed_flag")
+                                public static class KeptNested {
+                                    public KeptNested() {}
+
+                                    public static class NestedTwice {
+                                        public NestedTwice() {}
+                                    }
+                                }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+
+                            import android.annotation.FlaggedApi;
+                            import android.annotation.RemovedFromApi;
+
+                            @RemovedFromApi
+                            @FlaggedApi("test.pkg.kept_removed_flag")
+                            public class KeptRemovedClass {
+                                public KeptRemovedClass() {}
+
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
+                        ctor public KeptRemovedClass();
+                        method public void method();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public class Test {
+                        ctor public Test();
+                        method @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
+                        method public void revertedMethod();
+                      }
+                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
+                        ctor public Test.KeptNested();
+                      }
+                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
+                        ctor public Test.KeptNested.NestedTwice();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested {
+                        ctor public Test.RevertedNested();
+                      }
+                      @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested.NestedTwice {
+                        ctor public Test.RevertedNested.NestedTwice();
+                      }
+                    }
+                """,
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class KeptRemovedClass {
+                            public KeptRemovedClass() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public class Test {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public void keptMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public void revertedMethod() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class KeptNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public KeptNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class RevertedNested {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public RevertedNested() { throw new RuntimeException("Stub!"); }
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public static class NestedTwice {
+                            @$ANDROID_REQUIRES_FLAG("test.pkg.kept_flag")
+                            public NestedTwice() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                            }
+                        """
+                    ),
+                ),
         )
     }
 

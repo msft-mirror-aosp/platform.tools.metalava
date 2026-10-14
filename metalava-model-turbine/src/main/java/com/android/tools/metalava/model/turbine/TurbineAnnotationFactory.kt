@@ -141,7 +141,7 @@ internal class TurbineAnnotationFactory(globalContext: TurbineGlobalContext) :
             annotation
                 .source()
                 ?.let { sourceFile -> sourceFileCache.turbineSourceFile(sourceFile) }
-                ?.let { sourceFile -> TurbineFileLocation.forTree(sourceFile, tree) }
+                ?.let { sourceFile -> sourceFile.fileLocation(tree.sourcePosition) }
                 ?: FileLocation.UNKNOWN
 
         val annotationClass = annotation.sym()?.let { typeBoundClassForSymbol(it) }

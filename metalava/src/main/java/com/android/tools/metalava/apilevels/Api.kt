@@ -84,10 +84,8 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
 
     /** Cleans up the API surface for printing after all elements have been added. */
     fun clean() {
-        inlineFromHiddenSuperClasses()
         removeImplicitInterfaces()
         removeOverridingMethods()
-        prunePackagePrivateClasses()
 
         // Add any class dependent members. This is done here, after creating the API, as they need
         // to copy the containing class's state and that changes during creation.
@@ -167,25 +165,6 @@ class Api(val useInternalNames: Boolean) : ParentApiElement {
     private fun removeOverridingMethods() {
         for (classElement in mClasses.values) {
             classElement.removeOverridingMethods(mClasses)
-        }
-    }
-
-    private fun inlineFromHiddenSuperClasses() {
-        val hidden: MutableMap<String, ApiClass> = HashMap()
-        for (classElement in mClasses.values) {
-            if (classElement.alwaysHidden) {
-                // hidden in the .jar files? (mMax==codebase, -1: jar files)
-                hidden[classElement.name] = classElement
-            }
-        }
-        for (classElement in mClasses.values) {
-            classElement.inlineFromHiddenSuperClasses(hidden)
-        }
-    }
-
-    private fun prunePackagePrivateClasses() {
-        for (cls in mClasses.values) {
-            cls.removeHiddenSuperClasses(mClasses)
         }
     }
 

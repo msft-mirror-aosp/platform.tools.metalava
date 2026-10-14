@@ -55,13 +55,15 @@ class ApiSurfacePredicateTest {
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemApiVariantsPredicate(ApiVariantSet[base(C)])
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            OrPredicate(
-                                ItemApiVariantsPredicate(ApiVariantSet[base(C)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
-                            )
+                            ItemApiVariantsPredicate(ApiVariantSet[base(C)])
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C)])
@@ -69,17 +71,20 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = false).toString(),
+            message = "base without docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            OrPredicate(
-                                ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD)])
-                            )
+                            ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CD)])
@@ -87,17 +92,20 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(base, includeDocOnly = true).toString(),
+            message = "base with docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            OrPredicate(
-                                ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
-                            )
+                            ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(C),main(C)])
@@ -105,17 +113,20 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = false).toString(),
+            message = "main without docOnly",
         )
         assertEquals(
             """
                 ApiFilters(
+                    traversal =
+                        AndPredicate(
+                            EmittedOnlyPredicate
+                            ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
+                        )
                     emit =
                         AndPredicate(
                             EmittedOnlyPredicate
-                            OrPredicate(
-                                ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
-                            )
+                            ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
                         )
                     reference =
                         ItemApiVariantsPredicate(ApiVariantSet[base(CD),main(CD)])
@@ -123,6 +134,7 @@ class ApiSurfacePredicateTest {
             """
                 .trimIndent(),
             ApiSurfacePredicate.forStubs(main, includeDocOnly = true).toString(),
+            message = "main with docOnly",
         )
     }
 
@@ -313,7 +325,6 @@ class ApiSurfacePredicateTest {
                             OrPredicate(
                                 ItemApiVariantsPredicate(ApiVariantSet[base(C)])
                                 SuperClassApiVariantsPredicate(ApiVariantSet[base(C)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(C)])
                             )
                             NotElidablePredicate(ApiVariantSet[base(C)])
                         )
@@ -333,7 +344,6 @@ class ApiSurfacePredicateTest {
                             OrPredicate(
                                 ItemApiVariantsPredicate(ApiVariantSet[base(R)])
                                 SuperClassApiVariantsPredicate(ApiVariantSet[base(R)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[base(R)])
                             )
                             NotElidablePredicate(ApiVariantSet[base(R)])
                         )
@@ -353,7 +363,6 @@ class ApiSurfacePredicateTest {
                             OrPredicate(
                                 ItemApiVariantsPredicate(ApiVariantSet[main(C)])
                                 SuperClassApiVariantsPredicate(ApiVariantSet[main(C)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[main(C)])
                             )
                             NotElidablePredicate(ApiVariantSet[main(C)])
                         )
@@ -373,7 +382,6 @@ class ApiSurfacePredicateTest {
                             OrPredicate(
                                 ItemApiVariantsPredicate(ApiVariantSet[main(R)])
                                 SuperClassApiVariantsPredicate(ApiVariantSet[main(R)])
-                                SuperMethodApiVariantsPredicate(ApiVariantSet[main(R)])
                             )
                             NotElidablePredicate(ApiVariantSet[main(R)])
                         )

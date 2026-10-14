@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.model.source.javadoc
 
+import com.android.tools.metalava.model.parser.Token
+import com.android.tools.metalava.model.parser.TokenStream
+import com.android.tools.metalava.model.parser.TokenType
 import com.android.tools.metalava.model.source.doc.DocCommentContext
 import com.android.tools.metalava.model.source.doc.DocumentationIssueReporter
 import com.android.tools.metalava.model.source.doc.TagTypes
@@ -26,8 +29,8 @@ import com.android.tools.metalava.reporter.Issues
 /**
  * Parses a block of text into a [JavadocContent].
  *
- * This parser operates as a recursive-descent parser on a stream of [Token]s produced by
- * [JavadocLexer]. The parsing process is divided into two distinct phases:
+ * This parser operates as a recursive-descent parser on a [TokenStream] produced by [JavadocLexer].
+ * The parsing process is divided into two distinct phases:
  * 1. **Lexing ([JavadocLexer])**:
  *     - The lexer scans the raw character sequence from `startInclusive` to `endExclusive`.
  *     - It uses a mode stack to handle context-sensitive syntax. For example, it distinguishes
@@ -35,44 +38,43 @@ import com.android.tools.metalava.reporter.Issues
  *       (`INLINE_TAG` and `BALANCED_BRACE` modes), and conditional if-tag structures and
  *       expressions (`INLINE_IF_TAG` and `EXPR` modes).
  *     - The lexer handles comment formatting nuances, such as collapsing line-break continuation
- *       prefixes (e.g. `\n * `) into [TokenType.NEWLINE] tokens.
- *     - The result is a flat [List] of [Token]s ending with a [TokenType.EOF] token.
+ *       prefixes (e.g. `\n * `) into [JavadocTokenType.NEWLINE] tokens.
+ *     - The result is a [TokenStream] ending with a [JavadocTokenType.EOF] token.
  * 2. **Parsing ([JavadocParser])**:
- *     - Operates over the pre-tokenized [Token] stream using recursive-descent methods ([peek],
- *       [consume], [match], [expect]).
+ *     - Operates over the [TokenStream] using recursive-descent methods ([peek], [consume],
+ *       [match], [expect]).
  *     - **Text Accumulation**: Consecutive text, whitespace, and newline tokens are accumulated
  *       into [textBuffer]. When a non-text structure (such as an inline tag) is encountered or at
  *       the end of parsing, buffered text is flushed into a [JavadocText] node, trimming leading or
  *       trailing whitespace as configured.
- *     - **Inline Tags**: When a [TokenType.INLINE_TAG_START] is encountered, the parser delegates
- *       to [inlineTagHandler]. Tags are parsed into [JavadocInlineTag] instances, extracting
- *       tag-specific data unless in a text-only context (e.g. inside `{@code}` or `{@literal}`)
- *       where they are preserved as literal text.
- *     - **Conditional Javadoc**: When an [TokenType.INLINE_IF_TAG_START] (`{@if`) is encountered,
- *       the condition expression is parsed using [ExprBuilder] and evaluated against [context]. The
- *       active branch is then parsed and emitted into the content, while the inactive branch is
- *       skipped using [skipBraceExpression].
- *     - **Issue Reporting**: Syntax and validation errors are reported through [tokenIssueReporter]
- *       and [reporter], using the line numbers and character offsets tracked in each [Token].
+ *     - **Inline Tags**: When a [JavadocTokenType.INLINE_TAG_START] is encountered, the parser
+ *       delegates to [inlineTagHandler]. Tags are parsed into [JavadocInlineTag] instances,
+ *       extracting tag-specific data unless in a text-only context (e.g. inside `{@code}` or
+ *       `{@literal}`) where they are preserved as literal text.
+ *     - **Conditional Javadoc**: When an [JavadocTokenType.INLINE_IF_TAG_START] (`{@if`) is
+ *       encountered, the condition expression is parsed using [ExprBuilder] and evaluated against
+ *       [context]. The active branch is then parsed and emitted into the content, while the
+ *       inactive branch is skipped using [skipBraceExpression].
+ *     - **Issue Reporting**: Syntax and validation errors are reported through
+ *       [tokenIssueReporter], using the character offsets tracked in each [Token].
  *
- * @param tokens the list of [Token]s to parse.
+ * @param text the source text being parsed.
+ * @param tokens the [TokenStream] to parse.
  * @param context context that applies to the Javadoc comment (such as resolving references).
  * @param reporter used for reporting issues found during parsing.
  */
 internal class JavadocParser
 private constructor(
-    private val tokens: List<Token>,
+    private val text: String,
+    private val tokens: TokenStream,
     private val context: DocCommentContext,
-    private val reporter: DocumentationIssueReporter,
+    reporter: DocumentationIssueReporter,
 ) {
     /** A [TokenIssueReporter] that can be used to report issues with a [Token]. */
     private val tokenIssueReporter = TokenIssueReporter(reporter)
 
     /** [ExprBuilder] used to construct [Expr] for conditional javadoc processing. */
-    private val exprBuilder = ExprBuilder(context, tokenIssueReporter)
-
-    /** The index of the current token being examined in [tokens]. */
-    private var current = 0
+    private val exprBuilder = ExprBuilder(text, context, tokenIssueReporter)
 
     /**
      * Determines whether whitespace should be trimmed from the start of the content.
@@ -135,7 +137,7 @@ private constructor(
         ): JavadocContent? {
             val lexer = JavadocLexer(text, startInclusive, endExclusive, reporter)
             val tokens = lexer.tokenize()
-            val parser = JavadocParser(tokens, context, reporter)
+            val parser = JavadocParser(text, tokens, context, reporter)
             return parser.parse()
         }
 
@@ -164,55 +166,50 @@ private constructor(
             }
     }
 
-    /** Returns the token at [current] without advancing. */
-    private fun peek(): Token = tokens[current]
+    /** Extracts the text of [token] from [text]. */
+    private fun text(token: Token): String = token.text(text)
 
-    /** Returns the type of the token at [current]. */
-    private fun peekType(): TokenType = peek().type
+    /** Returns the current token in [tokens] without advancing. */
+    private fun peek(): Token = tokens.peek()
 
-    /** Consumes and returns the token at [current], advancing [current] by 1. */
-    private fun consume(): Token = tokens[current++]
+    /** Returns the type of the current token in [tokens]. */
+    private fun peekType(): TokenType = tokens.peekType()
 
-    /** Consumes the token at [current] if its type equals [type], returning `true`. */
-    private fun match(type: TokenType): Boolean {
-        // If the current token matches the expected type, consume it and return true.
-        if (peekType() == type) {
-            consume()
-            return true
-        }
-        return false
-    }
+    /** Consumes and returns the current token in [tokens]. */
+    private fun consume(): Token = tokens.consume()
+
+    /** Consumes the current token in [tokens] if its type equals [type], returning `true`. */
+    private fun match(type: TokenType): Boolean = tokens.match(type)
 
     /**
-     * Consumes and returns the token at [current] if its type equals [type]. Otherwise, reports an
-     * [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and returns
-     * `null`.
+     * Consumes and returns the current token in [tokens] if its type equals [type]. Otherwise,
+     * reports an [Issues.INVALID_JAVADOC] issue with [errorMessage] at the token's location and
+     * returns [Token.NONE].
      */
-    private fun expect(type: TokenType, errorMessage: String): Token? {
+    private fun expect(type: TokenType, errorMessage: String): Token {
         // If the current token matches the expected type, consume and return it.
         if (peekType() == type) {
             return consume()
         }
 
-        // Otherwise, report an issue at the current token's location and return null.
+        // Otherwise, report an issue at the current token's location and return Token.NONE.
         val token = peek()
-        reporter.report(
+        tokenIssueReporter.report(
+            token,
             Issues.INVALID_JAVADOC,
             errorMessage,
-            token.line - 1,
-            token.charPositionInLine
         )
-        return null
+        return Token.NONE
     }
 
     /**
      * Parse the full token stream into [JavadocContent].
      *
-     * Processes description elements until [TokenType.EOF] is reached, then flushes and trims
-     * trailing whitespace.
+     * Processes description elements until [JavadocTokenType.EOF] is reached, then flushes and
+     * trims trailing whitespace.
      */
     private fun parse(): JavadocContent? {
-        while (peekType() != TokenType.EOF) {
+        while (peekType() != JavadocTokenType.EOF) {
             parseDescriptionElement()
         }
         return getContent(trimTrailingWhitespace = true)
@@ -227,35 +224,35 @@ private constructor(
     private fun parseDescriptionElement() {
         when (peekType()) {
             // Plain text content. Append directly to text buffer.
-            TokenType.TEXT_CONTENT -> appendText(consume().text)
+            JavadocTokenType.TEXT_CONTENT -> appendText(consume())
 
             // Horizontal whitespace. Append to text buffer.
-            TokenType.SPACE -> appendText(consume().text)
+            JavadocTokenType.SPACE -> appendText(consume())
 
             // Newline sequence. Append a newline (trimming preceding non-newline whitespace).
-            TokenType.NEWLINE -> {
+            JavadocTokenType.NEWLINE -> {
                 consume()
                 appendNewline()
             }
 
             // Start of an inline tag '{@...}'. Parse as an inline tag.
-            TokenType.INLINE_TAG_START -> parseInlineTag()
+            JavadocTokenType.INLINE_TAG_START -> parseInlineTag()
 
             // Start of a conditional '{@if...}' tag. Parse as a conditional tag.
-            TokenType.INLINE_IF_TAG_START -> parseInlineIfTag()
+            JavadocTokenType.INLINE_IF_TAG_START -> parseInlineIfTag()
 
             // Opening brace '{'. Treated as literal text at description level.
-            TokenType.BRACE_OPEN -> appendText(consume().text)
+            JavadocTokenType.BRACE_OPEN -> appendText(consume())
 
             // Closing brace '}'. Treated as literal text at description level.
-            TokenType.BRACE_CLOSE -> appendText(consume().text)
+            JavadocTokenType.BRACE_CLOSE -> appendText(consume())
 
             // End of token stream. Nothing to parse.
-            TokenType.EOF -> return
+            JavadocTokenType.EOF -> return
 
             // Any other token type. Append as literal text.
             else -> {
-                appendText(consume().text)
+                appendText(consume())
             }
         }
     }
@@ -270,8 +267,8 @@ private constructor(
 
         // Expect the inline tag name (e.g. "link", "code"). If missing, parsing cannot continue for
         // this tag.
-        val nameToken = expect(TokenType.INLINE_TAG_NAME, "expected tag name after '{@'")
-        if (nameToken == null) {
+        val nameToken = expect(JavadocTokenType.INLINE_TAG_NAME, "expected tag name after '{@'")
+        if (nameToken == Token.NONE) {
             return
         }
 
@@ -291,7 +288,7 @@ private constructor(
         // from the start of the inline tag content.
         trimLeadingWhitespace = false
 
-        val tagTypeName = nameToken.text
+        val tagTypeName = text(nameToken)
         val tagType = TagTypes.tagTypeOf(tagTypeName)
 
         // Check whether the tag type is permitted in inline form. If not, report an issue.
@@ -304,26 +301,28 @@ private constructor(
         }
 
         // Consume any spaces immediately following INLINE_TAG_NAME as part of the tag structure.
-        while (peekType() == TokenType.SPACE) {
+        while (peekType() == JavadocTokenType.SPACE) {
             consume()
         }
 
         var closed = false
-        var firstContentToken: Token? = null
+        var firstContentToken: Token = Token.NONE
 
         // Parse nested content within the inline tag.
         val nestedTagContent =
             nestedContent(tagType.containsTextOnly) {
-                while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+                while (
+                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+                ) {
                     // Record the first content token for reporting purposes if needed.
-                    if (firstContentToken == null) {
+                    if (firstContentToken == Token.NONE) {
                         firstContentToken = peek()
                     }
                     parseInlineTagContentElement()
                 }
 
                 // If a closing brace '}' is found, consume it and mark the tag as closed.
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                     closed = true
                 }
@@ -341,7 +340,8 @@ private constructor(
         // Extract tag-specific data (e.g. reference for @link) from the nested content.
         val result =
             nestedTagContent?.let { tagContent ->
-                val tokenForReport = firstContentToken ?: startToken
+                val tokenForReport =
+                    if (firstContentToken != Token.NONE) firstContentToken else startToken
                 tokenIssueReporter.reportAtToken(tokenForReport) {
                     tagContent.extractTagDataForTagType(context, tagType, tokenIssueReporter)
                 }
@@ -360,21 +360,21 @@ private constructor(
      * Used when an inline tag is nested inside a tag that only supports text (e.g. `{@code}`).
      */
     private fun treatAsText(startToken: Token, nameToken: Token) {
-        appendText(startToken.text)
-        appendText(nameToken.text)
+        appendText(startToken)
+        appendText(nameToken)
 
-        while (peekType() == TokenType.SPACE) {
-            appendText(consume().text)
+        while (peekType() == JavadocTokenType.SPACE) {
+            appendText(consume())
         }
 
         var closed = false
-        while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+        while (peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE) {
             parseInlineTagContentElement()
         }
 
         // If a closing brace '}' is encountered, append it as text and mark as closed.
-        if (peekType() == TokenType.BRACE_CLOSE) {
-            appendText(consume().text)
+        if (peekType() == JavadocTokenType.BRACE_CLOSE) {
+            appendText(consume())
             closed = true
         }
 
@@ -383,7 +383,7 @@ private constructor(
             tokenIssueReporter.report(
                 startToken,
                 Issues.UNCLOSED_INLINE_TAG,
-                "unclosed inline '@${nameToken.text}' tag",
+                "unclosed inline '@${text(nameToken)}' tag",
             )
         }
     }
@@ -396,45 +396,47 @@ private constructor(
      */
     private fun parseInlineTagContentElement() {
         when (peekType()) {
-            TokenType.BRACE_OPEN -> {
+            JavadocTokenType.BRACE_OPEN -> {
                 // Opening brace '{'.
                 // A brace expression implicitly preserves the braces in the model.
                 consume()
                 appendText("{")
-                while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+                while (
+                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+                ) {
                     parseInlineTagContentElement()
                 }
 
                 // If the matching closing brace '}' is found, consume it and append to text.
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                     appendText("}")
                 }
             }
 
             // Plain text content. Append directly to text buffer.
-            TokenType.TEXT_CONTENT -> appendText(consume().text)
+            JavadocTokenType.TEXT_CONTENT -> appendText(consume())
 
             // Horizontal whitespace. Append to text buffer.
-            TokenType.SPACE -> appendText(consume().text)
+            JavadocTokenType.SPACE -> appendText(consume())
 
             // Newline sequence. Append a newline (trimming preceding non-newline whitespace).
-            TokenType.NEWLINE -> {
+            JavadocTokenType.NEWLINE -> {
                 consume()
                 appendNewline()
             }
 
             // Nested inline tag '{@...}'. Parse with inline tag handler.
-            TokenType.INLINE_TAG_START -> parseInlineTag()
+            JavadocTokenType.INLINE_TAG_START -> parseInlineTag()
 
             // Nested conditional '{@if...}' tag. Parse and evaluate condition.
-            TokenType.INLINE_IF_TAG_START -> parseInlineIfTag()
+            JavadocTokenType.INLINE_IF_TAG_START -> parseInlineIfTag()
 
             // End of token stream. Return without action.
-            TokenType.EOF -> return
+            JavadocTokenType.EOF -> return
 
             // Any other token type. Append as literal text.
-            else -> appendText(consume().text)
+            else -> appendText(consume())
         }
     }
 
@@ -449,23 +451,22 @@ private constructor(
         val ifStartToken = consume() // consume INLINE_IF_TAG_START
 
         // Expect opening parenthesis '(' for the condition expression.
-        if (peekType() != TokenType.PAREN_OPEN) {
+        if (peekType() != JavadocTokenType.PAREN_OPEN) {
             // Missing '(': report error and attempt error recovery by skipping true branch if
             // present.
             tokenIssueReporter.report(ifStartToken, Issues.INVALID_IF_TAG, "missing <expr>")
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
-                "expected '(', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
+                "expected '(', found '${text(token)}'",
             )
 
             // Error recovery: skip true branch if present.
-            if (peekType() == TokenType.BRACE_OPEN) {
+            if (peekType() == JavadocTokenType.BRACE_OPEN) {
                 consume()
                 skipBraceExpression()
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                 }
             }
@@ -478,17 +479,16 @@ private constructor(
         val expr = parseExpr()
 
         // Expect closing parenthesis ')' after the condition expression.
-        if (peekType() == TokenType.PAREN_CLOSE) {
+        if (peekType() == JavadocTokenType.PAREN_CLOSE) {
             // Found ')': consume it.
             consume()
         } else {
             // Missing ')': report error at current token.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
-                "expected ')', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
+                "expected ')', found '${text(token)}'",
             )
         }
 
@@ -496,16 +496,15 @@ private constructor(
         val result = expr?.evaluate(context) ?: false
 
         // Expect opening brace '{' to begin the true branch.
-        if (peekType() != TokenType.BRACE_OPEN) {
+        if (peekType() != JavadocTokenType.BRACE_OPEN) {
             // Missing '{': report error and exit.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
-                "expected '{', found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
+                "expected '{', found '${text(token)}'",
             )
-            if (peekType() == TokenType.BRACE_CLOSE) {
+            if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                 consume()
             }
             return
@@ -516,28 +515,29 @@ private constructor(
         // Process the true branch.
         if (result) {
             // Condition evaluated to true: parse and emit the true branch content.
-            while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+            while (
+                peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+            ) {
                 parseInlineTagContentElement()
             }
-            expect(TokenType.BRACE_CLOSE, "expected '}' to close true branch")
+            expect(JavadocTokenType.BRACE_CLOSE, "expected '}' to close true branch")
         } else {
             // Condition evaluated to false: skip the true branch without emitting content.
             skipBraceExpression()
         }
 
         // Handle optional else branch.
-        if (match(TokenType.IF_TAG_ELSE)) {
+        if (match(JavadocTokenType.IF_TAG_ELSE)) {
             // Found 'else' keyword.
-            if (peekType() != TokenType.BRACE_OPEN) {
+            if (peekType() != JavadocTokenType.BRACE_OPEN) {
                 // Missing '{' after 'else': report error.
                 val token = peek()
-                reporter.report(
+                tokenIssueReporter.report(
+                    token,
                     Issues.INVALID_JAVADOC,
-                    "expected '{' after 'else', found '${token.text}'",
-                    token.line - 1,
-                    token.charPositionInLine
+                    "expected '{' after 'else', found '${text(token)}'",
                 )
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                 }
                 return
@@ -546,10 +546,12 @@ private constructor(
             consume() // consume BRACE_OPEN
             if (!result) {
                 // Condition evaluated to false: parse and emit the else branch content.
-                while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+                while (
+                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+                ) {
                     parseInlineTagContentElement()
                 }
-                expect(TokenType.BRACE_CLOSE, "expected '}' to close else branch")
+                expect(JavadocTokenType.BRACE_CLOSE, "expected '}' to close else branch")
             } else {
                 // Condition evaluated to true: skip the else branch without emitting content.
                 skipBraceExpression()
@@ -557,7 +559,7 @@ private constructor(
         }
 
         // Expect closing brace '}' for the overall '{@if}' tag.
-        expect(TokenType.BRACE_CLOSE, "expected '}' to close '@if' tag")
+        expect(JavadocTokenType.BRACE_CLOSE, "expected '}' to close '@if' tag")
     }
 
     /**
@@ -567,8 +569,8 @@ private constructor(
      */
     private fun parseExpr(): Expr? {
         // Expect the function name identifier (e.g. "flag").
-        val functionNameToken = expect(TokenType.IDENTIFIER, "expected function name")
-        if (functionNameToken == null) {
+        val functionNameToken = expect(JavadocTokenType.IDENTIFIER, "expected function name")
+        if (functionNameToken == Token.NONE) {
             // If the function name is missing, skip tokens until closing parenthesis to recover.
             skipUntilParenClose()
             return null
@@ -585,38 +587,37 @@ private constructor(
      */
     private fun parseFunctionCall(functionNameToken: Token): Expr {
         // Expect opening parenthesis '(' for the function call arguments.
-        val parenOpen = expect(TokenType.PAREN_OPEN, "expected '(' after function name")
-        if (parenOpen == null) {
+        val parenOpen = expect(JavadocTokenType.PAREN_OPEN, "expected '(' after function name")
+        if (parenOpen == Token.NONE) {
             // Missing '('; return an empty function call representation.
             return FlagFunctionCall(null)
         }
 
         // Parse the qualified field reference argument: (IDENTIFIER DOT)* IDENTIFIER
         val fieldReferenceTokens = mutableListOf<Token>()
-        if (peekType() == TokenType.IDENTIFIER) {
+        if (peekType() == JavadocTokenType.IDENTIFIER) {
             // Field reference starts with an identifier.
             fieldReferenceTokens.add(consume())
 
             // Parse any dot-separated qualification segments (e.g. '.Flags.FLAG').
-            while (peekType() == TokenType.DOT) {
+            while (peekType() == JavadocTokenType.DOT) {
                 fieldReferenceTokens.add(consume()) // add DOT
-                val nextIdent = expect(TokenType.IDENTIFIER, "expected identifier after '.'")
-                if (nextIdent != null) {
+                val nextIdent = expect(JavadocTokenType.IDENTIFIER, "expected identifier after '.'")
+                if (nextIdent != Token.NONE) {
                     fieldReferenceTokens.add(nextIdent)
                 }
             }
         } else {
             // Missing initial identifier: report invalid Javadoc.
             val token = peek()
-            reporter.report(
+            tokenIssueReporter.report(
+                token,
                 Issues.INVALID_JAVADOC,
-                "expected field reference, found '${token.text}'",
-                token.line - 1,
-                token.charPositionInLine
+                "expected field reference, found '${text(token)}'",
             )
         }
 
-        expect(TokenType.PAREN_CLOSE, "expected ')' after field reference")
+        expect(JavadocTokenType.PAREN_CLOSE, "expected ')' after field reference")
         return exprBuilder.buildFunctionCall(functionNameToken, fieldReferenceTokens)
     }
 
@@ -626,20 +627,27 @@ private constructor(
      */
     private fun skipUntilParenClose() {
         var parenDepth = 1
-        while (peekType() != TokenType.EOF && parenDepth > 0) {
-            val token = consume()
-            if (token.type == TokenType.PAREN_OPEN) {
-                // Nested opening parenthesis: increase depth.
-                parenDepth++
-            } else if (token.type == TokenType.PAREN_CLOSE) {
-                // Closing parenthesis: decrease depth.
-                parenDepth--
-            } else if (token.type == TokenType.BRACE_OPEN) {
-                // Opening brace encountered: expression was likely unclosed before body block.
-                // Step back so the parser can handle the opening brace.
-                current--
-                break
+        while (parenDepth > 0) {
+            val tokenType = peekType()
+            when (tokenType) {
+                JavadocTokenType.PAREN_OPEN -> {
+                    // Nested opening parenthesis: increase depth.
+                    parenDepth++
+                }
+                JavadocTokenType.PAREN_CLOSE -> {
+                    // Closing parenthesis: decrease depth.
+                    parenDepth--
+                }
+                JavadocTokenType.BRACE_OPEN,
+                JavadocTokenType.EOF -> {
+                    // Opening brace or EOF encountered: expression was likely unclosed before body
+                    // block. Stop before consuming so the parser can handle it.
+                    break
+                }
             }
+
+            // Consume the token as it is part of the parenthesized expression being skipped.
+            consume()
         }
     }
 
@@ -649,12 +657,12 @@ private constructor(
      * Assumes the initial opening brace `{` has already been consumed.
      */
     private fun skipBraceExpression() {
-        while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+        while (peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE) {
             skipBraceContent()
         }
 
         // If the matching closing brace '}' is found, consume it.
-        if (peekType() == TokenType.BRACE_CLOSE) {
+        if (peekType() == JavadocTokenType.BRACE_CLOSE) {
             consume()
         }
     }
@@ -664,45 +672,47 @@ private constructor(
      */
     private fun skipBraceContent() {
         when (peekType()) {
-            TokenType.BRACE_OPEN -> {
+            JavadocTokenType.BRACE_OPEN -> {
                 consume()
                 skipBraceExpression()
             }
-            TokenType.INLINE_TAG_START -> {
+            JavadocTokenType.INLINE_TAG_START -> {
                 consume()
-                if (peekType() == TokenType.INLINE_TAG_NAME) {
+                if (peekType() == JavadocTokenType.INLINE_TAG_NAME) {
                     consume()
                 }
-                while (peekType() == TokenType.SPACE) {
+                while (peekType() == JavadocTokenType.SPACE) {
                     consume()
                 }
-                while (peekType() != TokenType.EOF && peekType() != TokenType.BRACE_CLOSE) {
+                while (
+                    peekType() != JavadocTokenType.EOF && peekType() != JavadocTokenType.BRACE_CLOSE
+                ) {
                     skipBraceContent()
                 }
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                 }
             }
-            TokenType.INLINE_IF_TAG_START -> {
+            JavadocTokenType.INLINE_IF_TAG_START -> {
                 consume()
-                if (peekType() == TokenType.PAREN_OPEN) {
+                if (peekType() == JavadocTokenType.PAREN_OPEN) {
                     skipUntilParenClose()
                 }
-                if (peekType() == TokenType.BRACE_OPEN) {
+                if (peekType() == JavadocTokenType.BRACE_OPEN) {
                     consume()
                     skipBraceExpression()
                 }
-                if (match(TokenType.IF_TAG_ELSE)) {
-                    if (peekType() == TokenType.BRACE_OPEN) {
+                if (match(JavadocTokenType.IF_TAG_ELSE)) {
+                    if (peekType() == JavadocTokenType.BRACE_OPEN) {
                         consume()
                         skipBraceExpression()
                     }
                 }
-                if (peekType() == TokenType.BRACE_CLOSE) {
+                if (peekType() == JavadocTokenType.BRACE_CLOSE) {
                     consume()
                 }
             }
-            TokenType.EOF -> return
+            JavadocTokenType.EOF -> return
             else -> consume()
         }
     }
@@ -726,32 +736,38 @@ private constructor(
         trimLeadingWhitespace = false
     }
 
+    /** Append the characters of [token] from [text] directly to [textBuffer]. */
+    private fun appendText(token: Token) = appendText(text, token.startOffset, token.endOffset)
+
     /**
-     * Append [text] to [textBuffer].
+     * Append [source] from [startInclusive] to [endExclusive] to [textBuffer].
      *
      * If [trimLeadingWhitespace] is true, strips leading whitespace from the start of the text.
      */
-    private fun appendText(text: String) {
+    private fun appendText(
+        source: String,
+        startInclusive: Int = 0,
+        endExclusive: Int = source.length
+    ) {
         // If this could be the start of the whole description block then check to see if there are
         // any leading newlines that can be skipped.
         if (trimLeadingWhitespace) {
             // Trimming leading whitespace is active.
             // Find the first non-newline character in the text to be appended.
-            val length = text.length
-            val start = text.skipForwardsOverLeadingWhitespace(0)
+            val start = source.skipForwardsOverLeadingWhitespace(startInclusive, endExclusive)
 
             // If the text only consists of a newline character then do nothing.
-            if (start == length) return
+            if (start == endExclusive) return
 
             // Append the text from the first non-newline character.
-            textBuffer.append(text, start, length)
+            textBuffer.append(source, start, endExclusive)
 
             // As a non-newline character was seen any newline characters found from now onwards
             // cannot be a leading newline.
             trimLeadingWhitespace = false
         } else {
             // Leading whitespace has already been handled; append text as-is.
-            textBuffer.append(text)
+            textBuffer.append(source, startInclusive, endExclusive)
         }
     }
 

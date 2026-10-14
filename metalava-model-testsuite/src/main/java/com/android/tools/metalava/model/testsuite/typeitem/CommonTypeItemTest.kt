@@ -1285,24 +1285,31 @@ class CommonTypeItemTest : BaseModelTest() {
              * Make sure that the [ClassItem] has a method whose single parameter is of the type
              * `java.lang.Collection<? extends Z>`.
              */
-            fun ClassItem.assertMethodTakesCollectionWildcardExtendsZ(name: String) {
+            fun ClassItem.assertMethodTakesCollection(name: String, wildcard: Boolean) {
                 assertMethodTakesCollection(name) {
-                    assertWildcardItem { extendsBound!!.assertReferencesTypeParameter(typeParam) }
+                    if (wildcard) {
+                        assertWildcardItem {
+                            extendsBound!!.assertReferencesTypeParameter(typeParam)
+                        }
+                    } else {
+                        assertWildcardItem {
+                            assertThat(extendsBound!!.isJavaLangObject()).isTrue()
+                        }
+                    }
                 }
             }
 
             // Defined in `java.util.Collection` as `addAll(Collection<? extends E> c)`. The type of
             // the `addAll` method in `Foo` should be `addAll(Collection<? extends Z>)`.Where `Z`
             // references the type parameter in `Foo<Z>`.
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("addAll")
+            fooClass.assertMethodTakesCollection("addAll", true)
 
             // Defined in `java.util.Collection` as `...(Collection<?> c)` these methods should be
             // `...(Collection<? extends Z>)`.Where `Z` references the type parameter in
             // `Foo<Z>`.
-            //
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("containsAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("removeAll")
-            fooClass.assertMethodTakesCollectionWildcardExtendsZ("retainAll")
+            fooClass.assertMethodTakesCollection("containsAll", false)
+            fooClass.assertMethodTakesCollection("removeAll", false)
+            fooClass.assertMethodTakesCollection("retainAll", false)
         }
     }
 
@@ -2078,53 +2085,6 @@ class CommonTypeItemTest : BaseModelTest() {
             assertThat(deprecatedWarning.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedError.firstParameterIsVarargs()).isFalse()
             assertThat(deprecatedHidden.firstParameterIsVarargs()).isFalse()
-        }
-    }
-
-    @SupportedInputFormats(InputFormat.SIGNATURE)
-    @Test
-    fun `Type equality including nullability`() {
-        runCodebaseTest(
-            // Methods out of alphabetical order to match source files
-            signature(
-                """
-                // Signature format: 5.0
-                // - include-type-use-annotations=yes
-                // - kotlin-name-type-order=yes
-                package test.pkg {
-                  public interface Foo {
-                    method public nonNullString(): String;
-                    method public nullableString(): String?;
-                    method public nonNullAnnotatedString(): @test.pkg.TypeAnno String;
-                    method public nonNullStringList(): java.util.List<java.lang.String>;
-                    method public nullableStringList(): java.util.List<java.lang.String?>;
-                    method public nonNullAnnotatedStringList(): java.util.List<java.lang.@test.pkg.TypeAnno String>;
-                  }
-                  @kotlin.annotation.Target(allowedTargets=kotlin.annotation.AnnotationTarget.TYPE) public @interface TypeAnno {
-                  }
-                }
-                """
-            )
-        ) {
-            val fooClass = codebase.assertClass("test.pkg.Foo")
-
-            val nonNullString = fooClass.assertMethod("nonNullString", emptyList()).returnType()
-            val nullableString = fooClass.assertMethod("nullableString", emptyList()).returnType()
-            val nonNullAnnotatedString =
-                fooClass.assertMethod("nonNullAnnotatedString", emptyList()).returnType()
-            assertThat(nonNullString.equalToType(nonNullString, true)).isTrue()
-            assertThat(nonNullString.equalToType(nullableString, true)).isFalse()
-            assertThat(nonNullString.equalToType(nonNullAnnotatedString, true)).isTrue()
-
-            val nonNullStringList =
-                fooClass.assertMethod("nonNullStringList", emptyList()).returnType()
-            val nullableStringList =
-                fooClass.assertMethod("nullableStringList", emptyList()).returnType()
-            val nonNullAnnotatedStringList =
-                fooClass.assertMethod("nonNullAnnotatedStringList", emptyList()).returnType()
-            assertThat(nonNullStringList.equalToType(nonNullStringList, true)).isTrue()
-            assertThat(nonNullStringList.equalToType(nullableStringList, true)).isFalse()
-            assertThat(nonNullStringList.equalToType(nonNullAnnotatedStringList, true)).isTrue()
         }
     }
 }

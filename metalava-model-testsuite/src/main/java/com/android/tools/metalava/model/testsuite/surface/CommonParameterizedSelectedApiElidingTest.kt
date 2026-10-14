@@ -19,6 +19,7 @@ package com.android.tools.metalava.model.testsuite.surface
 import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.junit4.ParameterFilter
 import com.android.tools.metalava.model.testing.CodebaseCreatorConfig
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.HIDE
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.model.testsuite.ModelSuiteRunner
@@ -59,6 +60,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class Parent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public void foo() {}
@@ -85,7 +91,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )
@@ -103,6 +108,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class SystemParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicChild extends SystemParent {
                                     @Override
                                     public void foo() {}
@@ -130,7 +140,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.PublicChild.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[system(C)]
                                    elidable - ApiVariantSet[system(C)]
                         """,
                 )
@@ -147,6 +156,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class PublicParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 $SYSTEM_API
                                 public class SystemChild extends PublicParent {
                                     @Override
@@ -174,7 +188,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[system(C)]
                                 method test.pkg.SystemChild.foo()
                                        self - ApiVariantSet[system(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C),system(C)]
                         """,
                 )
@@ -191,6 +204,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class ConcreteParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public abstract class AbstractChild extends ConcreteParent {
                                     @Override
                                     public abstract void foo();
@@ -217,7 +235,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.AbstractChild.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -233,10 +250,20 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class PublicGrandParent {
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 class InaccessibleParent extends PublicGrandParent {
                                     @Override
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class PublicChild extends InaccessibleParent {
                                     @Override
                                     public void foo() {}
@@ -263,14 +290,12 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[]
                                 method test.pkg.InaccessibleParent.foo()
                                        self - ApiVariantSet[]
-                                superMethod - ApiVariantSet[public(C)]
                               class test.pkg.PublicChild
                                      self - ApiVariantSet[public(C)]
                                 constructor test.pkg.PublicChild()
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.PublicChild.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                 )
@@ -287,6 +312,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public class Parent {
                                     public Object foo() { return null; }
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public String foo() { return null; }
@@ -313,7 +343,57 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
+                        """,
+                )
+            }
+
+            buildTests(
+                name = "hidden method with specialized return type",
+                surfaceRules = publicSystemModuleRules,
+                expectedIssues =
+                    """
+                        MAIN_SRC/src/test/pkg/Child.java: hidden: Attempting to hide method test.pkg.Child.method(int,String) which overrides method test.pkg.Parent.method(int,String) which is already part of the API [HidingApiMethodOverride]
+                    """,
+                sources =
+                    listOf(
+                        java(
+                            """
+                                package test.pkg;
+                                public class Parent {
+                                    protected Object method(int p1, String p2) { return null; }
+                                }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
+                                public class Child extends Parent {
+                                    $HIDE
+                                    @Override
+                                    public String method(int q1, String q2) { return null; }
+                                }
+                            """
+                        ),
+                    ),
+            ) {
+                surfaceTest(
+                    surface = "public",
+                    expected =
+                        """
+                            package test.pkg
+                                   self - ApiVariantSet[public(C)]
+                              class test.pkg.Parent
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Parent()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Parent.method(int,String)
+                                       self - ApiVariantSet[public(C)]
+                              class test.pkg.Child
+                                     self - ApiVariantSet[public(C)]
+                                constructor test.pkg.Child()
+                                       self - ApiVariantSet[public(C)]
+                                method test.pkg.Child.method(int,String)
+                                       self - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -329,9 +409,19 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                 public interface InterfaceA {
                                     default void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public interface InterfaceB {
                                     void foo();
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child implements InterfaceA, InterfaceB {
                                     @Override
                                     public void foo() {}
@@ -360,7 +450,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                                    elidable - ApiVariantSet[public(C)]
                         """,
                     expectedWithAdditionalOverrides =
@@ -381,7 +470,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -400,6 +488,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 public class Child extends Parent {
                                     @Override
                                     public void foo() {}
@@ -426,7 +519,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -447,6 +539,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 @Deprecated
                                 public class Child extends Parent {
                                     @Override
@@ -474,7 +571,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }
@@ -494,6 +590,11 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                      */
                                     public void foo() {}
                                 }
+                            """
+                        ),
+                        java(
+                            """
+                                package test.pkg;
                                 @Deprecated
                                 public class Child extends Parent {
                                     @Override
@@ -521,7 +622,6 @@ class CommonParameterizedSelectedApiElidingTest : BaseCommonParameterizedSelecte
                                        self - ApiVariantSet[public(C)]
                                 method test.pkg.Child.foo()
                                        self - ApiVariantSet[public(C)]
-                                superMethod - ApiVariantSet[public(C)]
                         """,
                 )
             }

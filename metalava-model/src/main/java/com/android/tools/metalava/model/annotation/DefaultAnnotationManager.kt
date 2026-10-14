@@ -613,8 +613,9 @@ private class LazyAnnotationInfo(
     override val apiFlag by lazy(LazyThreadSafetyMode.NONE) { getFlagForAnnotation(annotationItem) }
 
     private fun getFlagForAnnotation(annotationItem: AnnotationItem): ApiFlag? {
-        val apiFlags = config.apiFlags ?: return null
-        val flagName = annotationItem.optionalFlagName ?: return null
+        if (qualifiedName != ANDROID_FLAGGED_API) return null
+        val apiFlags = config.apiFlags ?: return ApiFlag.KEEP_ALL
+        val flagName = annotationItem.optionalFlagName ?: return ApiFlag.KEEP_ALL
         return apiFlags[flagName]
     }
 

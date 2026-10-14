@@ -19,7 +19,6 @@ package com.android.tools.metalava.reporter
 import com.android.tools.metalava.reporter.Severity.ERROR
 import com.android.tools.metalava.reporter.Severity.HIDDEN
 import com.android.tools.metalava.reporter.Severity.WARNING
-import java.io.File
 import java.io.OutputStreamWriter
 import java.io.PrintWriter
 import java.nio.file.Path
@@ -165,7 +164,7 @@ class DefaultReporter(
     private fun Path.relativizeLocationPath(): String {
         // b/255575766: Note that `relativize` requires two paths to compare to have same types:
         // either both of them are absolute paths or both of them are not absolute paths.
-        val path = environment.rootFolder.toPath().relativize(this).toString()
+        val path = environment.rootFolder.relativize(this).toString()
         if (path.startsWith("../")) return toString()
         return path
     }
@@ -249,7 +248,7 @@ class DefaultReporter(
 interface ReporterEnvironment {
 
     /** Root folder, against which location paths will be relativized to simplify the output. */
-    val rootFolder: File
+    val rootFolder: Path
 
     /** Print the report. */
     fun printReport(message: String, severity: Severity)
@@ -260,7 +259,7 @@ class DefaultReporterEnvironment(
     val stderr: PrintWriter = PrintWriter(OutputStreamWriter(System.err)),
 ) : ReporterEnvironment {
 
-    override val rootFolder = File("").absoluteFile
+    override val rootFolder: Path = Path.of("").toAbsolutePath()
 
     override fun printReport(message: String, severity: Severity) {
         val output = if (severity == ERROR) stderr else stdout

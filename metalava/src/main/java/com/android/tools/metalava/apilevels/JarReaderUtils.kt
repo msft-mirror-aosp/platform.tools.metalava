@@ -19,8 +19,7 @@ import com.android.tools.metalava.model.JAVA_ENUM_VALUES
 import com.android.tools.metalava.model.JAVA_ENUM_VALUE_OF
 import com.android.tools.metalava.model.JavaConstants
 import java.io.File
-import java.io.FileInputStream
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.Opcodes
 import org.objectweb.asm.Type
@@ -36,10 +35,9 @@ fun Api.readJar(
     require(useInternalNames) { "Cannot add jars to Api that does not use internal names" }
     // Update the Api for this version of the jar.
     updater.update(this)
-    val fis = FileInputStream(jar)
-    ZipInputStream(fis).use { zis ->
-        while (true) {
-            val entry = zis.nextEntry ?: break
+    val classNodes = mutableMapOf<String, ClassNode>()
+    ZipFile(jar).use { zip ->
+        for (entry in zip.entries()) {
             val entryName = entry.name
             if (!entryName.endsWith(JavaConstants.DOT_CLASS)) {
                 continue
@@ -49,51 +47,101 @@ fun Api.readJar(
             if (filter != null && !filter(entryName)) {
                 continue
             }
-            val bytes = zis.readBytes()
+            val bytes = zip.getInputStream(entry).use { it.readBytes() }
             val reader = ClassReader(bytes)
             val classNode = ClassNode(Opcodes.ASM5)
-            reader.accept(classNode, 0)
+            reader.accept(
+                classNode,
+                ClassReader.SKIP_CODE or ClassReader.SKIP_DEBUG or ClassReader.SKIP_FRAMES,
+            )
+            classNodes[classNode.name] = classNode
+        }
+    }
 
-            val classAccess = classNode.access
-            val isEnum = (classAccess and Opcodes.ACC_ENUM) != 0
+    for (classNode in classNodes.values) {
+        val classAccess = classNode.access
+        // Ignore package-private classes; their public members and interfaces will be inlined into
+        // any public subclasses below.
+        if ((classAccess and Opcodes.ACC_PUBLIC) == 0) {
+            continue
+        }
+        val isEnum = (classAccess and Opcodes.ACC_ENUM) != 0
 
-            val classDeprecated = isDeprecated(classAccess)
-            val theClass =
-                updateClass(
-                    classNode.name,
+        val classDeprecated = isEffectivelyDeprecated(classNode, classNodes)
+        val theClass =
+            updateClass(
+                classNode.name,
+                updater,
+                classDeprecated,
+                isEnum,
+            )
+
+        // Walk up the superclass chain, collecting any package-private superclasses in this jar
+        // until the nearest public superclass is reached.
+        var superName = classNode.superName
+        val hiddenSuperClasses = mutableListOf<ClassNode>()
+        while (superName != null) {
+            val superNode = classNodes[superName]
+            if (superNode != null && (superNode.access and Opcodes.ACC_PUBLIC) == 0) {
+                hiddenSuperClasses.add(superNode)
+                superName = superNode.superName
+            } else {
+                break
+            }
+        }
+
+        // super class
+        if (superName != null) {
+            theClass.updateSuperClass(superName, updater)
+        }
+
+        // interfaces
+        fun addPublicInterfaces(node: ClassNode, visited: MutableSet<String> = mutableSetOf()) {
+            for (interfaceName in node.interfaces) {
+                if (!visited.add(interfaceName)) continue
+                val interfaceNode = classNodes[interfaceName]
+                if (interfaceNode == null || (interfaceNode.access and Opcodes.ACC_PUBLIC) != 0) {
+                    theClass.updateInterface(interfaceName, updater)
+                } else {
+                    addPublicInterfaces(interfaceNode, visited)
+                }
+            }
+        }
+        addPublicInterfaces(classNode)
+        for (hiddenSuper in hiddenSuperClasses) {
+            addPublicInterfaces(hiddenSuper)
+        }
+
+        // fields
+        val seenFields = mutableSetOf<String>()
+        for (field in classNode.fields) {
+            val fieldNode = field as FieldNode
+            val access = fieldNode.access
+            if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                continue
+            }
+            if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
+                seenFields.add(fieldNode.name)
+                theClass.updateField(
+                    fieldNode.name,
                     updater,
-                    classDeprecated,
-                    isEnum,
+                    classDeprecated || isDeprecated(access),
                 )
-
-            theClass.updateHidden((classAccess and Opcodes.ACC_PUBLIC) == 0)
-
-            // super class
-            if (classNode.superName != null) {
-                theClass.updateSuperClass(classNode.superName, updater)
             }
-
-            // interfaces
-            for (interfaceName in classNode.interfaces) {
-                theClass.updateInterface(interfaceName, updater)
-            }
-
-            // fields
-            for (field in classNode.fields) {
+        }
+        val publicStaticFinal = Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
+        for (hiddenSuper in hiddenSuperClasses) {
+            for (field in hiddenSuper.fields) {
                 val fieldNode = field as FieldNode
                 val access = fieldNode.access
-                if (theClass.alwaysHidden) {
-                    // Only public constant (public static final) fields can be inherited into
-                    // subclasses from a hidden super class, so ignore any other fields.
-                    val publicStaticFinal =
-                        Opcodes.ACC_PUBLIC or Opcodes.ACC_STATIC or Opcodes.ACC_FINAL
-                    if ((access and publicStaticFinal) != publicStaticFinal) {
-                        continue
-                    }
-                } else if ((access and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                if ((access and publicStaticFinal) != publicStaticFinal) {
                     continue
                 }
-                if (!fieldNode.name.startsWith("this\$") && fieldNode.name != "\$VALUES") {
+                if (
+                    !fieldNode.name.startsWith("this\$") &&
+                        fieldNode.name != "\$VALUES" &&
+                        seenFields.add(fieldNode.name)
+                ) {
                     theClass.updateField(
                         fieldNode.name,
                         updater,
@@ -101,65 +149,110 @@ fun Api.readJar(
                     )
                 }
             }
+        }
 
-            // If this is an enum class then it will contain two methods added by the compiler, i.e.
-            //   public static E valueOf(String)
-            //   public static E[] values()
-            //
-            // Those methods are not recorded in signature files as there is no point in tracking
-            // their history separately from the class. So, they need to be ignored here.
-            //
-            // If needed, compute the description of the two enum methods to simplify comparison.
-            val (valueOfDesc, valuesDesc) =
-                if (isEnum) {
-                    val enumType = Type.getObjectType(classNode.name)
-                    "(Ljava/lang/String;)${enumType.descriptor}" to "()[$enumType"
-                } else null to null
+        // If this is an enum class then it will contain two methods added by the compiler, i.e.
+        //   public static E valueOf(String)
+        //   public static E[] values()
+        //
+        // Those methods are not recorded in signature files as there is no point in tracking
+        // their history separately from the class. So, they need to be ignored here.
+        //
+        // If needed, compute the description of the two enum methods to simplify comparison.
+        val (valueOfDesc, valuesDesc) =
+            if (isEnum) {
+                val enumType = Type.getObjectType(classNode.name)
+                "(Ljava/lang/String;)${enumType.descriptor}" to "()[$enumType"
+            } else null to null
 
-            // methods
-            for (method in classNode.methods) {
-                val methodNode = method as MethodNode
-                val methodAccess = methodNode.access
+        // methods
+        val seenMethods = mutableSetOf<String>()
+        for (method in classNode.methods) {
+            val methodNode = method as MethodNode
+            val methodAccess = methodNode.access
 
-                if (theClass.alwaysHidden) {
-                    // Only public, non-abstract methods can be inherited into subclasses from a
-                    // hidden super class, so ignore any other methods.
-                    if (
-                        (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
-                            (methodAccess and Opcodes.ACC_ABSTRACT) != 0
-                    ) {
-                        continue
-                    }
-                } else if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
-                    continue
-                }
-                val methodName = method.name
+            if ((methodAccess and (Opcodes.ACC_PUBLIC or Opcodes.ACC_PROTECTED)) == 0) {
+                continue
+            }
+            if ((methodAccess and (Opcodes.ACC_BRIDGE or Opcodes.ACC_SYNTHETIC)) != 0) {
+                continue
+            }
+            val methodName = method.name
 
-                // The class initializer is an implementation detail.
-                if (methodName == "<clinit>") {
-                    continue
-                }
+            // The class initializer is an implementation detail.
+            if (methodName == "<clinit>") {
+                continue
+            }
 
-                val methodDesc = methodNode.desc
-                // Ignore synthetic enum methods, i.e. valueOf(String) and values().
-                if (
-                    isEnum &&
-                        methodAccess and Opcodes.ACC_STATIC != 0 &&
-                        (methodName == JAVA_ENUM_VALUE_OF && methodDesc == valueOfDesc) ||
-                        (methodName == JAVA_ENUM_VALUES && methodDesc == valuesDesc)
-                ) {
-                    continue
-                }
+            val methodDesc = methodNode.desc
+            // Ignore synthetic enum methods, i.e. valueOf(String) and values().
+            if (
+                isEnum &&
+                    methodAccess and Opcodes.ACC_STATIC != 0 &&
+                    (methodName == JAVA_ENUM_VALUE_OF && methodDesc == valueOfDesc) ||
+                    (methodName == JAVA_ENUM_VALUES && methodDesc == valuesDesc)
+            ) {
+                continue
+            }
 
-                // Add the method.
+            // Add the method.
+            val element =
                 theClass.updateMethod(
                     methodName + methodDesc,
                     updater,
                     classDeprecated || isDeprecated(methodAccess),
                 )
+            seenMethods.add(element.name)
+        }
+        for (hiddenSuper in hiddenSuperClasses) {
+            for (method in hiddenSuper.methods) {
+                val methodNode = method as MethodNode
+                val methodAccess = methodNode.access
+
+                // Only public, non-abstract methods can be inherited into subclasses from a
+                // hidden super class, so ignore any other methods.
+                if (
+                    (methodAccess and Opcodes.ACC_PUBLIC) == 0 ||
+                        (methodAccess and Opcodes.ACC_ABSTRACT) != 0
+                ) {
+                    continue
+                }
+                if ((methodAccess and (Opcodes.ACC_BRIDGE or Opcodes.ACC_SYNTHETIC)) != 0) {
+                    continue
+                }
+                val methodName = method.name
+
+                // Constructors and class initializers are not inherited.
+                if (methodName == "<init>" || methodName == "<clinit>") {
+                    continue
+                }
+
+                val signature = theClass.correctMethodSignature(methodName + methodNode.desc)
+                if (seenMethods.add(signature)) {
+                    theClass.updateMethod(
+                        signature,
+                        updater,
+                        classDeprecated || isDeprecated(methodAccess),
+                    )
+                }
             }
         }
     }
+}
+
+private fun isEffectivelyDeprecated(
+    classNode: ClassNode,
+    classNodes: Map<String, ClassNode>,
+): Boolean {
+    var current: ClassNode? = classNode
+    while (current != null) {
+        if (isDeprecated(current.access)) {
+            return true
+        }
+        val lastDollar = current.name.lastIndexOf('$')
+        current = if (lastDollar != -1) classNodes[current.name.substring(0, lastDollar)] else null
+    }
+    return false
 }
 
 private fun isDeprecated(access: Int) = (access and Opcodes.ACC_DEPRECATED) != 0

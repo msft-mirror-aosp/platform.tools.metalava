@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
+import androidx.tracing.Tracer
 import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.DriverTest
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
@@ -23,14 +24,12 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.snapshot.EmittableDelegatingVisitor
 import com.android.tools.metalava.model.source.EnvironmentManager
-import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.ThrowingReporter
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
 import com.android.tools.metalava.testing.cacheIn
 import com.android.tools.metalava.testing.getAndroidJar
-import com.android.tools.metalava.testing.getNoopTracer
 import com.android.tools.metalava.testing.jarFromSources
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.signature
@@ -120,8 +119,6 @@ class ApiUpdateConsistencyTest : DriverTest() {
      */
     private fun versionedSourceApi(vararg sourceFiles: TestFile): VersionedApiFactory {
         return { version ->
-            val parser =
-                environmentManager.createSourceParser(Codebase.Config.NOOP, getNoopTracer())
             val sourceSet =
                 SourceSet.createFromSourcePath(
                     ThrowingReporter.INSTANCE,
@@ -132,14 +129,16 @@ class ApiUpdateConsistencyTest : DriverTest() {
                     getAndroidJar(30),
                 )
 
-            val inputs =
-                SourceParser.Inputs(
-                    sourceSet,
-                    "version $version",
-                    classPath,
+            val environment =
+                environmentManager.createEnvironment(
+                    reporter = ThrowingReporter.INSTANCE,
+                    tracer = Tracer.getStubTracer(),
+                    sourceSet = sourceSet,
+                    classPath = classPath,
                 )
+            val parser = environment.createSourceParser(Codebase.Config.NOOP)
 
-            val codebase = parser.parseSources(inputs)
+            val codebase = parser.parseSources("version $version")
 
             assertNotNull(codebase, message = "Codebase was not created")
 
@@ -429,6 +428,64 @@ class ApiUpdateConsistencyTest : DriverTest() {
                             <method name="valueOf(Ljava/lang/String;)Ltest/pkg/DeprecatedEnum;"/>
                             <method name="values()[Ltest/pkg/DeprecatedEnum;"/>
                             <field name="CONSTANT"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    @Test
+    fun `Test referenced super class in later package`() {
+        checkVersionedApiFactories(
+            versionedJarApi(
+                classFiles =
+                    setOf(
+                        "java/io/IOError.class",
+                        "java/lang/FunctionalInterface.class",
+                    ),
+            ),
+            versionedSignatureApi(
+                """
+                    // Signature format: 2.0
+                    package java.io {
+                      public class IOError extends Error {
+                        ctor public IOError(Throwable);
+                      }
+                    }
+                    package java.lang {
+                      public @interface FunctionalInterface {
+                      }
+                    }
+                """
+            ),
+            versionedSourceApi(
+                java(
+                    """
+                        package java.io;
+                        public class IOError extends Error {
+                            public IOError(Throwable cause) {super(cause);}
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package java.lang;
+                        public @interface FunctionalInterface {
+                        }
+                    """
+                ),
+            ),
+            expected =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="3">
+                        <class name="java/io/IOError" since="1">
+                            <extends name="java/lang/Error"/>
+                            <method name="&lt;init>(Ljava/lang/Throwable;)V"/>
+                        </class>
+                        <class name="java/lang/FunctionalInterface" since="1">
+                            <extends name="java/lang/Object"/>
+                            <implements name="java/lang/annotation/Annotation"/>
                         </class>
                     </api>
                 """,
