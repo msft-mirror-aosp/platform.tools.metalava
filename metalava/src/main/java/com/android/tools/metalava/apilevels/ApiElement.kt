@@ -142,6 +142,16 @@ open class ApiElement(val name: String) : ParentApiElement, Comparable<ApiElemen
     }
 
     /**
+     * Updates the [deprecatedIn] version of this element if it was not already deprecated in an
+     * earlier version.
+     */
+    fun updateDeprecatedIn(version: ApiVersion) {
+        if (deprecatedIn == null || deprecatedIn!! > version) {
+            deprecatedIn = version
+        }
+    }
+
+    /**
      * Analogous to update(), but for extensions sdk versions.
      *
      * @param extVersion an extension SDK version for which the API element existed

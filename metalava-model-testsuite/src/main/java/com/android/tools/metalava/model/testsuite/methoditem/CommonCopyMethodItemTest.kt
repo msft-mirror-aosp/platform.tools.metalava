@@ -62,6 +62,50 @@ class CommonCopyMethodItemTest : CommonCopyInheritableItemTest<MethodItem>() {
         )
     }
 
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `test duplicate maps type variables from target codebase`() {
+        val sourceFile =
+            java(
+                """
+                    package test.pkg;
+                    public class Source<T> {
+                        public T method(T t) { return t; }
+                    }
+                """
+            )
+        val targetFile =
+            java(
+                """
+                    package test.pkg;
+                    public class Target extends Source<String> {
+                    }
+                """
+            )
+        runCodebaseTest(
+            sourceFile,
+        ) {
+            val sourceClassItem = codebase.assertClass("test.pkg.Source")
+            val original = sourceClassItem.assertMethod("method", listOf("T"))
+
+            runCodebaseTest(
+                inputSet(
+                    sourceFile,
+                    targetFile,
+                ),
+            ) {
+                val targetClassItem = codebase.assertClass("test.pkg.Target")
+                val duplicate = original.duplicate(targetClassItem)
+
+                assertEquals("java.lang.String", duplicate.returnType().toTypeString())
+                assertEquals(
+                    "java.lang.String",
+                    duplicate.parameters().single().type().toTypeString(),
+                )
+            }
+        }
+    }
+
     @Test
     fun `test copy method from interface to class uses public visibility`() {
         runCopyTest(

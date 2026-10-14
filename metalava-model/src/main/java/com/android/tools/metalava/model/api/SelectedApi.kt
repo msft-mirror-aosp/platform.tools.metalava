@@ -61,22 +61,6 @@ sealed class SelectedApi {
     abstract val revert: Boolean
 
     /**
-     * The [ApiVariantSet] inherited from overridden methods of a [MethodItem].
-     *
-     * This is only ever non-empty for [MethodItem]s.
-     *
-     * **Why this is needed:** When a method belongs to an API surface (or no surface) but overrides
-     * a method in another API surface, the method must also be considered for emission or
-     * compatibility checking in the super method's API surface.
-     *
-     * **How it is set:** Initialized for [MethodItem]s in
-     * [MethodSourceSelectedApi.itemSpecificInitialization] by collecting variants from overridden
-     * super methods.
-     */
-    open val superMethodApiVariants: ApiVariantSet
-        get() = ApiVariantSet.EMPTY
-
-    /**
      * The [ApiVariantSet] for which this method is an elidable override.
      *
      * This is always empty by default except for [MethodItem]s.

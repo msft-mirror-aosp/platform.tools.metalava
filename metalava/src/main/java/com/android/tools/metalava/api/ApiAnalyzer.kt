@@ -409,8 +409,21 @@ class ApiAnalyzer(
                     if (
                         // If comments aren't read, don't try checking documentation
                         codebase.config.allowReadingComments &&
+
+                            // Only check items that are directly marked as deprecated (by a
+                            // @Deprecated annotation or @deprecated doc tag).
                             item.originallyDeprecated &&
+
+                            // If the containing class is already deprecated then its members and
+                            // nested classes are effectively deprecated too and the reason is
+                            // documented on the containing class, so do not require a redundant
+                            // @deprecated doc tag on each of them.
+                            item.containingClass()?.effectivelyDeprecated != true &&
+
+                            // Check whether the item's documentation (or inherited documentation
+                            // for an overriding method) contains a @deprecated doc tag.
                             !item.documentationContainsDeprecated() &&
+
                             // Don't warn about this in Kotlin; the Kotlin deprecation annotation
                             // includes deprecation messages (unlike java.lang.Deprecated which has
                             // no attributes). Instead, these are added to the documentation by the

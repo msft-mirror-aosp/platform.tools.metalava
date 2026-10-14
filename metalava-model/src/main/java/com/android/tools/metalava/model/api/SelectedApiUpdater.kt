@@ -24,6 +24,8 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
+import com.android.tools.metalava.model.api.flags.ApiFlag
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.api.surface.ApiVariantSet
@@ -108,21 +110,6 @@ class SelectedApiUpdater(
             return
         }
 
-        // If the parent needs to hide its children then mark this child as hidden and return
-        // immediately.
-        if (parent.areChildrenCompletelyHidden()) {
-            // Check if this item has a show annotation while the parent was explicitly hidden,
-            // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
-            checkParentIsVisible(item, parent)
-
-            // Propagate explicitlyHidden so that if this item is a nested class, its enclosing
-            // state is preserved for its own children.
-            selectedApi.explicitlyHidden = parent.explicitlyHidden
-
-            selectedApi.markAsHidden(revert = false)
-            return
-        }
-
         if (item.isAidlClassThatShouldBeHidden()) {
             selectedApi.markAsHidden(revert = false)
             return
@@ -130,6 +117,12 @@ class SelectedApiUpdater(
 
         // Mark selectedApi as accessible so that enclosed items can inherit accessibility from it.
         selectedApi.accessible = true
+
+        // Only track maxValidFlagAction on classes as only classes can enclose other items with
+        // @FlaggedApi annotations.
+        if (item is ClassItem) {
+            selectedApi.maxValidFlagAction = parent.maxValidFlagAction
+        }
 
         val enclosingApiVariants = parent.inheritableApiVariants
 
@@ -146,7 +139,14 @@ class SelectedApiUpdater(
         // whether one has been seen.
         var hide = false
 
+        // Indicates whether a removed annotation has been seen.
+        var removed = false
+
         var revert = false
+
+        // Any @FlaggedApi annotation found on the item. Checking is deferred until after
+        // determining whether the item is explicitly hidden.
+        var flaggedApiAnnotation: AnnotationItem? = null
 
         // Iterate over the annotations, checking to see if any match the surface rules.
         val annotations = item.modifiers.annotations()
@@ -180,40 +180,53 @@ class SelectedApiUpdater(
                         }
                     }
                     Effect.REMOVED -> {
-                        selectedApi.removed = true
+                        removed = true
                     }
                 }
             }
                 ?: annotationItem.apiFlag?.let { apiFlag ->
+                    // Save the @FlaggedApi annotation to check after verifying that the item is not
+                    // explicitly hidden.
+                    flaggedApiAnnotation = annotationItem
                     if (apiFlag.revert) {
                         revert = true
                     }
                 }
         }
 
-        if (!revert) {
-            if (item.containingClass()?.isMarkedForRevert() == true) {
-                revert = true
-            } else if (item is MethodItem) {
-                // If any of a method's super methods are part of a unstable API that needs to be
-                // reverted then treat the method as if it is too.
-                revert = item.superMethods().any { methodItem -> methodItem.isMarkedForRevert() }
-            }
-        }
+        // An item is explicitly hidden if no show rules matched and it has a hide annotation, a
+        // @hide doc tag, or its parent was explicitly hidden. Save this on selectedApi before
+        // returning early in parent.areChildrenCompletelyHidden() so nested classes propagate
+        // their explicitlyHidden state to their own children.
+        val explicitlyHidden =
+            itemApiVariants.isEmpty() && (hide || item.hasHideDocTag || parent.explicitlyHidden)
+        selectedApi.explicitlyHidden = explicitlyHidden
 
-        var revertedItem: SelectableItem? = null
-        if (revert) {
-            revertedItem = findRevertItem(item)
-            if (revertedItem == null) {
-                // If the item was hidden then neither the context item nor its enclosed items
-                // belong to any api variants.
-                selectedApi.markAsHidden(revert = true)
-                return
-            } else {
-                // The codebase contains items which are to be reverted to previously released
-                // items.
-                item.codebase.markContainsRevertedItem()
+        // If the parent needs to hide its children then mark this child as hidden and return
+        // immediately.
+        if (parent.areChildrenCompletelyHidden()) {
+            // Check if this item has a show annotation while the parent was explicitly hidden,
+            // reporting SHOWING_MEMBER_IN_HIDDEN_CLASS if so.
+            if (itemApiVariants.isNotEmpty()) {
+                checkParentIsVisible(item, parent)
             }
+
+            // If this item is not explicitly hidden (i.e. its parent was hidden because it was
+            // reverted and not in the previously released API), still check its @FlaggedApi
+            // annotation for invalid flag nesting against the reverted parent. Because the
+            // enclosing class is completely hidden from the API, this item cannot be in the
+            // previously released API either.
+            if (!explicitlyHidden && flaggedApiAnnotation != null) {
+                checkFlaggedApi(
+                    selectedApi,
+                    parent,
+                    flaggedApiAnnotation,
+                    mayBeInPreviouslyReleasedApi = false,
+                )
+            }
+
+            selectedApi.markAsHidden(revert = false)
+            return
         }
 
         // If any annotations matched then check for an overlap.
@@ -243,17 +256,9 @@ class SelectedApiUpdater(
         // Check to see if any show rules matched; if they had then they would have set
         // itemApiVariants to non-null.
         if (itemApiVariants.isEmpty()) {
-            // No show rules matched. Check to see if the context item should be hidden.
-
-            // If no hide annotations were found then check for @hide doc tag or inherited
-            // explicitly hidden.
-            if (!hide) {
-                hide = item.hasHideDocTag || parent.explicitlyHidden
-            }
-
-            if (hide) {
-                selectedApi.explicitlyHidden = true
-                // Mark the selectedApi as being hidden.
+            // No show rules matched. If the context item was explicitly hidden then mark it as
+            // hidden and return immediately.
+            if (explicitlyHidden) {
                 selectedApi.markAsHidden(revert = false)
 
                 // Return immediately to avoid falling through.
@@ -269,6 +274,68 @@ class SelectedApiUpdater(
                     ApiVariantSet.EMPTY
                 }
             inheritableApiVariants = enclosingApiVariants
+        }
+
+        // If the item has a removed annotation (e.g. @RemovedFromApi) and a @FlaggedApi
+        // annotation, only remove the item if the flag has been finalized. Otherwise (when no
+        // api flags are provided, or the flag is kept or reverted), keep the item in the API.
+        if (removed && flaggedApiAnnotation != null) {
+            if (flaggedApiAnnotation.apiFlag!!.action != ApiFlagAction.FINALIZE) {
+                removed = false
+                revert = false
+            }
+            flaggedApiAnnotation = null
+        }
+
+        // Check whether the item is marked for revert only after verifying that it is not
+        // explicitly hidden from the target API surface.
+        if (!revert) {
+            if (item.containingClass()?.isMarkedForRevert() == true) {
+                revert = true
+            } else if (item is MethodItem) {
+                // If any of a method's super methods are part of a unstable API that needs to be
+                // reverted then treat the method as if it is too.
+                revert = item.superMethods().any { methodItem -> methodItem.isMarkedForRevert() }
+            }
+        }
+
+        var revertedItem: SelectableItem? = null
+        if (revert) {
+            revertedItem = findRevertItem(item)
+            if (revertedItem == null) {
+                // The item is being completely hidden by revert rather than reverting to a
+                // previously released item, so check its @FlaggedApi annotation and record its
+                // reverted state for enclosed items. findRevertItem(item) has already checked
+                // previouslyReleasedCodebase and returned null.
+                if (flaggedApiAnnotation != null) {
+                    checkFlaggedApi(
+                        selectedApi,
+                        parent,
+                        flaggedApiAnnotation,
+                        mayBeInPreviouslyReleasedApi = false,
+                    )
+                }
+
+                // If the item was hidden then neither the context item nor its enclosed items
+                // belong to any api variants.
+                selectedApi.markAsHidden(revert = true)
+                return
+            } else {
+                // The codebase contains items which are to be reverted to previously released
+                // items. Because the item reverts to its previously released state, its
+                // @FlaggedApi annotation does not apply or restrict enclosed items.
+                item.codebase.markContainsRevertedItem()
+            }
+        } else if (flaggedApiAnnotation != null) {
+            // The item is neither explicitly hidden nor being reverted, so check its @FlaggedApi
+            // annotation. Unlike the reverted path above, previouslyReleasedCodebase has not yet
+            // been queried for this item.
+            checkFlaggedApi(
+                selectedApi,
+                parent,
+                flaggedApiAnnotation,
+                mayBeInPreviouslyReleasedApi = true,
+            )
         }
 
         // A file facade class does not belong to any API surfaces directly. Instead, it is only
@@ -287,9 +354,9 @@ class SelectedApiUpdater(
                 "$item must not contain multiple surfaces - ${itemApiVariants.formatFor(apiSurfaces)}"
             }
 
-            // If this item is not already removed but is enclosed within a removed parent or has a
+            // If this item has a removed annotation, is enclosed within a removed parent, or has a
             // doc tag of @removed then make it removed.
-            if (!selectedApi.removed && (parent.removed || item.hasRemovedDocTag)) {
+            if (removed || parent.removed || item.hasRemovedDocTag) {
                 selectedApi.removed = true
             }
 
@@ -445,6 +512,95 @@ class SelectedApiUpdater(
             }
     }
 
+    /**
+     * Check `@FlaggedApi` [annotation] on [selectedApi]'s item for invalid flag nesting.
+     *
+     * If [selectedApi]'s item is a [ClassItem], [annotation]'s flag has an [ApiFlagAction] other
+     * than [ApiFlagAction.FINALIZE], and the class was not in the previously released API, lowers
+     * [SourceSelectedApi.maxValidFlagAction] on [selectedApi] if necessary and saves [annotation]
+     * in [SourceSelectedApi.flaggedApiAnnotation] so it can be reported if an enclosed item has a
+     * conflicting (more permanent) `@FlaggedApi`.
+     *
+     * If [annotation]'s [ApiFlagAction] is more permanent than `parent.maxValidFlagAction`, reports
+     * [Issues.INVALID_FLAG_NESTING] on any unreported enclosing conflicting `@FlaggedApi`
+     * annotations as well as on [annotation].
+     *
+     * @param mayBeInPreviouslyReleasedApi `true` if the item has not yet been checked against
+     *   [previouslyReleasedCodebase] and might exist in the previously released API, or `false` if
+     *   the caller has already determined that the item is not in the previously released API (e.g.
+     *   because [findRevertItem] returned `null` or its enclosing class is completely hidden).
+     */
+    private fun checkFlaggedApi(
+        selectedApi: SourceSelectedApi<*>,
+        parent: SourceSelectedApi<*>,
+        annotation: AnnotationItem,
+        mayBeInPreviouslyReleasedApi: Boolean,
+    ) {
+        // Ignore PropertyItems as their annotations are duplicated from their accessors/backing
+        // fields.
+        val item = selectedApi.item
+        if (item is PropertyItem) return
+
+        val apiFlag = annotation.apiFlag!!
+        if (apiFlag === ApiFlag.KEEP_ALL) return
+        val action = apiFlag.action
+        // Only record a non-finalized @FlaggedApi on a class as restricting enclosed items if the
+        // class does not already exist in the previously released API. Only ClassItems can enclose
+        // other items with @FlaggedApi annotations, and if the class was already released, it will
+        // remain in the API even if the flag is later reverted, so enclosed items can safely be
+        // finalized. Avoid querying previouslyReleasedCodebase if the caller already knows the item
+        // is not in the previously released API.
+        if (
+            item is ClassItem &&
+                action != ApiFlagAction.FINALIZE &&
+                (!mayBeInPreviouslyReleasedApi ||
+                    previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null)
+        ) {
+            if (action < selectedApi.maxValidFlagAction) {
+                selectedApi.maxValidFlagAction = action
+            }
+            selectedApi.flaggedApiAnnotation = annotation
+        }
+
+        // If this flag's action does not exceed the maximum valid action allowed by enclosing items
+        // then the nesting is valid.
+        if (action <= parent.maxValidFlagAction) return
+
+        // Ensure all enclosing @FlaggedApi annotations in a conflicting state have been reported.
+        parent.reportConflictingOuterFlags(action)
+
+        reporter.report(
+            Issues.INVALID_FLAG_NESTING,
+            item,
+            "@FlaggedApi flag ${apiFlag.qualifiedName} is ${action.stateDescription} but is contained by a flag in a conflicting state",
+            annotation.fileLocation,
+        )
+    }
+
+    /**
+     * Report [Issues.INVALID_FLAG_NESTING] on this [SourceSelectedApi] and any enclosing ancestors
+     * whose `@FlaggedApi` annotation has a less permanent action than [nestedAction], if not
+     * already reported.
+     */
+    private fun SourceSelectedApi<*>.reportConflictingOuterFlags(nestedAction: ApiFlagAction) {
+        // Report outer conflicting ancestors first so errors are reported in outer-to-inner order.
+        if (parent.maxValidFlagAction < nestedAction) {
+            parent.reportConflictingOuterFlags(nestedAction)
+        }
+
+        val annotation = flaggedApiAnnotation ?: return
+        val apiFlag = annotation.apiFlag!!
+        if (apiFlag.action < nestedAction) {
+            flaggedApiAnnotation = null
+            reporter.report(
+                Issues.INVALID_FLAG_NESTING,
+                item,
+                "@FlaggedApi flag ${apiFlag.qualifiedName} is ${apiFlag.action.stateDescription} but contains flags in a conflicting state",
+                annotation.fileLocation,
+            )
+        }
+    }
+
     /** Check if this [SelectableItem] is marked to be reverted. */
     private fun SelectableItem.isMarkedForRevert(): Boolean {
         val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
@@ -484,6 +640,15 @@ class SelectedApiUpdater(
             }
     }
 }
+
+/** Description of this [ApiFlagAction] for use in [Issues.INVALID_FLAG_NESTING] messages. */
+private val ApiFlagAction.stateDescription: String
+    get() =
+        when (this) {
+            ApiFlagAction.REVERT -> "reverted"
+            ApiFlagAction.KEEP -> "not-finalized"
+            ApiFlagAction.FINALIZE -> "finalized"
+        }
 
 /**
  * Workaround: we're pulling in .aidl files from .jar files. These are marked @hide, but since we

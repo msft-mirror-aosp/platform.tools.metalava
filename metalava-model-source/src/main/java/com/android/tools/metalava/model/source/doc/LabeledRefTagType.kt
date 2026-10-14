@@ -23,9 +23,12 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.InvalidReferencableItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ReferencableMethodSet
+import com.android.tools.metalava.model.TypeComparator
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.TypeStringConfiguration
+import com.android.tools.metalava.model.parser.SharedTokenType
+import com.android.tools.metalava.model.parser.TokenStream
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.source.doc.CallableSourceReference.SourceParameter
@@ -59,7 +62,7 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
                 .substring(referenceStart, referenceEndExclusive)
                 // Normalize whitespace by replacing blocks of whitespace with a single space.
                 // Ensures consistent formatting irrespective of how it was formatted in the source.
-                .replace(SOME_WHITESPACE, " ")
+                .collapseSpaces()
 
         // Parse the source reference, reporting an error if it could not be done.
         val parsedReference = parseReference(sourceReference, context.docTypeParser)
@@ -126,45 +129,10 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
     }
 
     companion object {
-        /** Regex that matches one or more whitespace characters. */
-        private val SOME_WHITESPACE = Regex("""\s+""")
-
-        /** A simple, unqualified, java name. */
-        private const val SIMPLE = """(?:\p{javaJavaIdentifierStart}\p{javaJavaIdentifierPart}*)"""
-
         /**
-         * A member name.
+         * Parse [sourceReference] into a [ParsedReference], or `null` if it was not valid.
          *
-         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
-         */
-        private const val MEMBER = SIMPLE
-
-        /**
-         * A method name.
-         *
-         * An alias for [SIMPLE] to help clarify the meaning of [VALID_REFERENCE].
-         */
-        private const val METHOD = SIMPLE
-
-        /**
-         * A qualified name.
-         *
-         * Can be one of:
-         * * `<simple>`
-         * * `<qualified>.<simple>`
-         */
-        private const val QUALIFIED = """(?:$SIMPLE(?:\.$SIMPLE)*)"""
-
-        /** A list of parameters. */
-        private const val PARAMETERS = """(?:\([^)]*\))"""
-
-        /** A URI fragment, consists of most characters except `#` and white spaces. */
-        private const val FRAGMENT = """[^ #]+"""
-
-        /**
-         * A valid reference.
-         *
-         * Can be one of:
+         * Valid reference forms:
          * * `<qualified>`
          * * `<qualified>(<parameters>)`
          * * `<qualified>#<member>`
@@ -174,239 +142,169 @@ internal open class LabeledRefTagType(name: String, form: TagTypeForm) :
          * * `#<method>(<parameters>)`
          * * `##<uri-fragment>`
          *
-         * The following do not have their own pattern in the above list as they overlap with one of
+         * The following do not have their own form in the above list as they overlap with one of
          * the others:
          * * `<member>` - overlaps with `<qualified>`
          * * `<method>(<parameters>)` - overlaps with `<qualified>(<parameters>)`
          *
-         * This can also match an empty string and `(<parameters>)` but they are excluded by the
-         * [parseReference] method as that keeps the pattern as simple as possible.
+         * Outside `(<parameters>)`, all tokens must be contiguous with no intervening whitespace.
          */
-        private val VALID_REFERENCE =
-            Regex("""($QUALIFIED)?(#$MEMBER|(?:#$METHOD)?$PARAMETERS|##$FRAGMENT)?""")
-
-        /** The index of the qualified name group in [VALID_REFERENCE]. */
-        private const val QUALIFIED_INDEX = 1
-
-        /**
-         * The index of the relative name group in [VALID_REFERENCE], i.e. anything that can come
-         * after [QUALIFIED] in [VALID_REFERENCE].
-         */
-        private const val RELATIVE_INDEX = 2
-
-        /** Parse [sourceReference], to a [ParsedReference], or `null` if it was not valid. */
         internal fun parseReference(
             sourceReference: String,
-            docTypeParser: DocTypeParser
+            docTypeParser: DocTypeParser,
         ): ParsedReference? {
-            // Check some edge cases that are not caught by the pattrern.
-            if (sourceReference == "" || sourceReference[0] == '(') return null
+            if (sourceReference.isEmpty() || sourceReference[0].isWhitespace()) return null
 
-            // Apply the pattern and extract the qualified and relative parts.
-            val result = VALID_REFERENCE.matchEntire(sourceReference) ?: return null
-            val qualified = result.groups[QUALIFIED_INDEX]?.value
-            val relative = result.groups[RELATIVE_INDEX]?.value
+            val tokens = DocRefLexer(sourceReference).tokenize()
 
-            // Construct the appropriate [ParsedReference] instance, if possible.
-            val parsedReference =
-                when {
-                    relative == null -> {
-                        // qualified cannot be `null` as the only way for relative and qualified to
-                        // be `null` is if sourceReference is empty but that is rejected above.
-                        AmbiguousSourceReference(qualified!!)
+            // Parse optional leading `<qualified>` (`<simple>('.' <simple>)*`).
+            val qualified: String?
+            var expectedOffset = 0
+            if (tokens.peekType().canBeIdentifier) {
+                val firstToken = tokens.consume()
+                expectedOffset = firstToken.endOffset
+                while (
+                    tokens.peekType() == SharedTokenType.DOT &&
+                        tokens.peek().startOffset == expectedOffset
+                ) {
+                    val dotToken = tokens.consume()
+                    expectedOffset = dotToken.endOffset
+                    val segmentToken = tokens.peek()
+                    if (
+                        !segmentToken.type.canBeIdentifier ||
+                            segmentToken.startOffset != expectedOffset
+                    ) {
+                        return null
                     }
-                    relative[0] == '(' -> {
-                        // qualified cannot be `null` as the only way for relative to start with `(`
-                        // and qualified to be `null` is if sourceReference starts with '(' but that
-                        // is rejected above.
-                        val parameters = parseParameters(relative, docTypeParser)
-                        CallableSourceReference(qualified!!, parameters)
-                    }
-                    relative.last() == ')' -> {
-                        require(relative[0] == '#') {
-                            // This should never happen as the pattern will only match a trailing
-                            // ')' if there was a starting '('.
-                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have started with a #"
-                        }
-                        val index = relative.indexOf('(')
-                        require(index != -1) {
-                            // This should never happen as the pattern will only match a trailing
-                            // ')' if there was a starting '('.
-                            "internal error: inconsistency between reference pattern definition and use: relative '$relative' should have contained a ("
-                        }
-
-                        val methodName = relative.substring(1, index)
-                        val parameters = parseParameters(relative.substring(index), docTypeParser)
-
-                        CallableSourceReference(methodName, parameters).qualifyIfNeeded(qualified)
-                    }
-                    relative.startsWith("##") -> {
-                        UriFragmentSourceReference(relative.substring(2)).qualifyIfNeeded(qualified)
-                    }
-                    relative[0] == '#' -> {
-                        AmbiguousMemberSourceReference(relative.substring(1))
-                            .qualifyIfNeeded(qualified)
-                    }
-                    else ->
-                        error(
-                            "internal error: could not handle qualified='$qualified' and relative='$relative'"
-                        )
+                    tokens.consume()
+                    expectedOffset = segmentToken.endOffset
                 }
+                qualified = sourceReference.substring(firstToken.startOffset, expectedOffset)
+            } else {
+                qualified = null
+            }
 
-            return parsedReference
+            // Parse the relative suffix (if any) immediately following `<qualified>`.
+            val next = tokens.peek()
+            if (next.startOffset != expectedOffset) return null
+
+            return when (next.type) {
+                SharedTokenType.EOF -> {
+                    AmbiguousSourceReference(qualified ?: return null)
+                }
+                SharedTokenType.PAREN_OPEN -> {
+                    if (qualified == null) return null
+                    val parameters =
+                        parseParameters(tokens, sourceReference, docTypeParser) ?: return null
+                    CallableSourceReference(qualified, parameters)
+                }
+                DocRefTokenType.HASH -> {
+                    val hashToken = tokens.consume()
+                    val memberToken = tokens.peek()
+                    if (
+                        !memberToken.type.canBeIdentifier ||
+                            memberToken.startOffset != hashToken.endOffset
+                    ) {
+                        return null
+                    }
+                    tokens.consume()
+                    val memberName = memberToken.text(sourceReference)
+
+                    val afterMember = tokens.peek()
+                    if (afterMember.startOffset != memberToken.endOffset) return null
+
+                    when (afterMember.type) {
+                        SharedTokenType.EOF -> {
+                            AmbiguousMemberSourceReference(memberName).qualifyIfNeeded(qualified)
+                        }
+                        SharedTokenType.PAREN_OPEN -> {
+                            val parameters =
+                                parseParameters(tokens, sourceReference, docTypeParser)
+                                    ?: return null
+                            CallableSourceReference(memberName, parameters)
+                                .qualifyIfNeeded(qualified)
+                        }
+                        else -> null
+                    }
+                }
+                DocRefTokenType.URI_FRAGMENT -> {
+                    val fragmentToken = tokens.consume()
+                    val fragmentStart = fragmentToken.startOffset + 2
+                    if (
+                        fragmentToken.endOffset <= fragmentStart ||
+                            tokens.peekType() != SharedTokenType.EOF ||
+                            fragmentToken.endOffset != sourceReference.length
+                    ) {
+                        return null
+                    }
+                    val fragment = sourceReference.substring(fragmentStart, fragmentToken.endOffset)
+                    UriFragmentSourceReference(fragment).qualifyIfNeeded(qualified)
+                }
+                else -> null
+            }
         }
 
         /**
-         * Parse [parametersWithParentheses] into a list of [SourceParameter] objects, separating
-         * the parameter names and types.
+         * Parse a parenthesized parameter list from [tokens] into a list of [SourceParameter]
+         * objects, separating the parameter names and types, or `null` if the parameter list is
+         * malformed or not followed immediately by the end of [sourceText].
          */
         private fun parseParameters(
-            parametersWithParentheses: String,
-            docTypeParser: DocTypeParser
-        ): List<SourceParameter> {
-            require(
-                parametersWithParentheses.first() == '(' && parametersWithParentheses.last() == ')'
-            ) {
-                "internal error: parameters should start with `(` and end with `)` but was '$parametersWithParentheses'"
+            tokens: TokenStream,
+            sourceText: String,
+            docTypeParser: DocTypeParser,
+        ): List<SourceParameter>? {
+            if (tokens.peekType() != SharedTokenType.PAREN_OPEN) return null
+            tokens.consume()
+
+            if (tokens.peekType() == SharedTokenType.PAREN_CLOSE) {
+                val closeParen = tokens.consume()
+                if (
+                    tokens.peekType() != SharedTokenType.EOF ||
+                        closeParen.endOffset != sourceText.length
+                ) {
+                    return null
+                }
+                return emptyList()
             }
 
-            var startInclusive = 1
-            return buildList {
+            val parameters = buildList {
                 while (true) {
-                    // Get the next parameter, if any. Exiting the loop if there was none.
-                    val (parameter, endExclusive) =
-                        parametersWithParentheses.nextParameter(startInclusive, docTypeParser)
-                            ?: break
-
-                    // Add the parameter to the list.
-                    add(parameter)
-
-                    // Move onto the next parameter.
-                    startInclusive = endExclusive + 1
-                }
-            }
-        }
-
-        /**
-         * Get the next parameter from this [String] starting from [startInclusive].
-         *
-         * If there is no next parameter then this returns `null`. Otherwise, it returns the
-         * [SourceParameter] for it and the index of the character (',' or ')') immediately
-         * following the parameter.
-         */
-        fun String.nextParameter(
-            startInclusive: Int,
-            docTypeParser: DocTypeParser
-        ): Pair<SourceParameter, Int>? {
-            var inTypeArgumentList = 0
-            for (index in startInclusive until length) {
-                val c = this[index]
-
-                // Track whether inside a type argument list as a ',' inside that does not end the
-                // parameter.
-                if (c == '<') {
-                    inTypeArgumentList += 1
-                    continue
-                } else if (c == '>') {
-                    inTypeArgumentList -= 1
-                    continue
-                } else if (inTypeArgumentList > 0) {
-                    continue
-                }
-
-                // Check for the end of the parameter.
-                if (c == ',' || c == ')') {
-                    // This is the end of the parameter.
-
-                    // Trim any leading whitespace from the start of the parameter.
-                    val parameterStartInclusive = skipForwardsOverLeadingWhitespace(startInclusive)
-                    if (parameterStartInclusive == index) {
-                        // There is no parameter.
+                    val nextType = tokens.peekType()
+                    if (
+                        nextType == SharedTokenType.PAREN_CLOSE ||
+                            nextType == SharedTokenType.COMMA ||
+                            nextType == SharedTokenType.EOF
+                    ) {
                         return null
                     }
 
-                    // Trim any trailing whitespace from the end.
-                    val parameterEndExclusive = skipBackwardsOverTrailingWhitespace(index - 1) + 1
-
-                    // See if the parameter ends with a name.
-                    val nameStartInclusive =
-                        skipBackwardsOverParameterName(
-                            parameterEndExclusive - 1,
-                            parameterStartInclusive
-                        )
-
-                    val parameter =
-                        if (nameStartInclusive > parameterStartInclusive) {
-                            val typeEndExclusive =
-                                skipBackwardsOverTrailingWhitespace(nameStartInclusive - 1) + 1
-                            val typeString = substring(parameterStartInclusive, typeEndExclusive)
-                            val name = substring(nameStartInclusive, parameterEndExclusive)
-                            val parsedType = docTypeParser.parse(typeString)
-                            SourceParameter(parsedType, name)
+                    val parsedType = docTypeParser.parseFromStream(tokens, sourceText)
+                    val name =
+                        if (tokens.peekType().canBeIdentifier) {
+                            tokens.consume().text(sourceText)
                         } else {
-                            val typeString =
-                                substring(parameterStartInclusive, parameterEndExclusive)
-                            val parsedType = docTypeParser.parse(typeString)
-                            SourceParameter(parsedType)
+                            null
                         }
+                    add(SourceParameter(parsedType, name))
 
-                    return parameter to index
+                    if (tokens.peekType() == SharedTokenType.COMMA) {
+                        tokens.consume()
+                    } else {
+                        break
+                    }
                 }
             }
 
-            return null
-        }
-
-        /**
-         * Starting with the character at position [endInclusive] and searching backwards, return
-         * the position of the beginning of a parameter name, or -1 if none could be found.
-         */
-        internal fun CharSequence.skipBackwardsOverParameterName(
-            endInclusive: Int,
-            toInclusive: Int
-        ): Int {
-            var end = endInclusive
-            while (end >= toInclusive) {
-                val c = this[end]
-                // Skip back over anything that could be part of a parameter name.
-                if (!c.isJavaIdentifierPart()) {
-                    // Check to see if anything that looked like a parameter (i.e. a java identifier
-                    // of length > 0) was found. If it was not then there is no parameter.
-                    if (end == endInclusive) {
-                        return -1
-                    }
-
-                    // An identifier was found at the end of the type which could be a parameter so
-                    // check if it is.
-
-                    // If it was preceded by something that is the end of an array or generic type
-                    // then it must be a parameter.
-                    if (c == ']' || c == '>') {
-                        return end + 1
-                    }
-
-                    // If it is a whitespace then the identifier at the end of the parameter could
-                    // be a parameter name but first check to make sure that it is not part of a
-                    // qualified type name.
-                    if (c.isWhitespace()) {
-                        // Skip backwards over any whitespace.
-                        val lastIndex = skipBackwardsOverTrailingWhitespace(end - 1)
-
-                        // If the character is '.' then the identifier is part of a qualified type
-                        // name, otherwise it is a parameter name.
-                        if (this[lastIndex] != '.') {
-                            return end + 1
-                        }
-                    }
-
-                    // No parameter was found.
-                    return -1
-                }
-                end -= 1
+            if (tokens.peekType() != SharedTokenType.PAREN_CLOSE) return null
+            val closeParen = tokens.consume()
+            if (
+                tokens.peekType() != SharedTokenType.EOF ||
+                    closeParen.endOffset != sourceText.length
+            ) {
+                return null
             }
-
-            // Reached the beginning and no parameter was found.
-            return -1
+            return parameters
         }
     }
 }
@@ -689,6 +587,18 @@ internal data class CallableSourceReference(
         val name: String? = null,
     ) {
         override fun toString() = if (name == null) type.toString() else "$name: $type"
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (other !is SourceParameter) return false
+            return name == other.name && TypeComparator.IGNORE_NULLABILITY.compare(type, other.type)
+        }
+
+        override fun hashCode(): Int {
+            var result = name?.hashCode() ?: 0
+            result = 31 * result + TypeComparator.IGNORE_NULLABILITY.hash(type)
+            return result
+        }
     }
 
     companion object {

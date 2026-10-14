@@ -35,7 +35,6 @@ import com.android.tools.metalava.model.item.DefaultCodebaseFactory
 import com.android.tools.metalava.model.item.DefaultItemFactory
 import com.android.tools.metalava.model.item.PackageInfo
 import com.android.tools.metalava.model.utils.splitIntoOptionalQualifierAndSimpleName
-import com.android.tools.metalava.reporter.FileLocation
 import java.io.File
 import java.net.URLClassLoader
 import java.util.jar.JarFile
@@ -172,7 +171,6 @@ internal class ClassLoaderBasedCodebaseAssembler(
 
         val packageItem = codebase.findOrCreatePackage(packageName)
         return itemFactory.createClassItem(
-            fileLocation = FileLocation.UNKNOWN,
             modifiers = createImmutableModifiers(VisibilityLevel.PACKAGE_PRIVATE),
             classKind = classKind,
             containingClass = null,

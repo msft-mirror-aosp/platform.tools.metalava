@@ -24,7 +24,7 @@ java_library_host {
     ],
 }
 
-// Make the version.properties file available for `metalava-main` in `metalava`
+// Make the version.properties file available for `metalava-core` in `metalava`
 // directory.
 filegroup {
     name: "metalava-version",

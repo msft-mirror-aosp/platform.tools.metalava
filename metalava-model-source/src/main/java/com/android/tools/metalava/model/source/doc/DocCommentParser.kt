@@ -145,8 +145,7 @@ internal object DocCommentParser {
                     reporter.report(
                         Issues.INVALID_TAG_FORM,
                         "Cannot use '$tagTypeName' as a block tag",
-                        text.lineOffsetFor(position),
-                        text.characterOffsetFor(position),
+                        position,
                     )
                 }
 
@@ -156,8 +155,7 @@ internal object DocCommentParser {
                         reporter.report(
                             error.issue,
                             error.message,
-                            text.lineOffsetFor(position),
-                            text.characterOffsetFor(position),
+                            position,
                         )
                     }
                 }
@@ -265,13 +263,15 @@ fun String.characterOffsetFor(index: Int): Int {
 }
 
 /**
- * Starting with the character at position [startInclusive] and searching forwards, return the
- * position of the first non-whitespace character.
+ * Starting with the character at position [startInclusive] and searching forwards up to
+ * [endExclusive], return the position of the first non-whitespace character.
  */
-internal fun CharSequence.skipForwardsOverLeadingWhitespace(startInclusive: Int): Int {
-    val length = this.length
+internal fun CharSequence.skipForwardsOverLeadingWhitespace(
+    startInclusive: Int,
+    endExclusive: Int = this.length,
+): Int {
     var index = startInclusive
-    while (index < length && this[index].isWhitespace()) {
+    while (index < endExclusive && this[index].isWhitespace()) {
         index += 1
     }
     return index

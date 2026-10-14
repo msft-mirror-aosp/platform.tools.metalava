@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
+import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.item.CodebaseAssembler
@@ -81,7 +82,12 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
      */
     private fun gatherPackageJavadoc(sourceSet: SourceSet): PackageDocs {
         val packages = mutableMapOf<String, MutablePackageDoc>()
-        val sortedSourceRoots = sourceSet.sourcePath.sortedBy { -it.path.length }
+        val sortedSourceRoots by
+            lazy(LazyThreadSafetyMode.NONE) {
+                sourceSet.sourcePath
+                    .ifEmpty { SourceSet.extractRoots(codebase.reporter, sourceSet.sources) }
+                    .sortedBy { -it.path.length }
+            }
         for (file in sourceSet.sources) {
             val documentationFile =
                 when (file.name) {
@@ -97,14 +103,20 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
             // Figure out the package: if there is a java file in the same directory, get the
             // package
             // name from the java file. Otherwise, guess from the directory path + source roots.
-            // NOTE: This causes metalava to read files other than the ones explicitly passed to it.
+            // NOTE: When sourceSet.sourcePath is not empty, this causes metalava to read files
+            // other than the ones explicitly passed to it.
+            val parentDir = file.parentFile
+            val dirFiles =
+                if (sourceSet.sourcePath.isEmpty()) {
+                    sourceSet.sources.asSequence().filter { it.parentFile == parentDir }
+                } else {
+                    parentDir?.listFiles()?.asSequence().orEmpty()
+                }
             var pkg =
-                file.parentFile
-                    ?.listFiles()
-                    ?.filter { it.name.endsWith(DOT_JAVA) }
-                    ?.asSequence()
-                    ?.map { findPackage(it) }
-                    ?.firstOrNull()
+                dirFiles
+                    .filter { it.name.endsWith(DOT_JAVA) }
+                    .mapNotNull { findPackage(it) }
+                    .firstOrNull()
             if (pkg == null) {
                 // Strip the longest prefix source root.
                 val prefix = sortedSourceRoots.firstOrNull { file.startsWith(it) }?.path
@@ -130,13 +142,16 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         return PackageDocs(packages)
     }
 
-    /** Create and track [PackageItem]s for every entry in [packageDocs]. */
-    fun createInitialPackages(sourceSet: SourceSet) {
+    /**
+     * Create and track [PackageItem]s for every entry in [packageDocs] that matches [apiPackages].
+     */
+    fun createInitialPackages(sourceSet: SourceSet, apiPackages: PackageFilter?) {
         // Make the packageDocs available when creating the packages below.
         this.packageDocs = gatherPackageJavadoc(sourceSet)
 
-        // Create packages for all the documentation packages.
+        // Create packages for all the documentation packages that match apiPackages.
         for (packageName in packageDocs.packageNames) {
+            if (apiPackages != null && !apiPackages.matches(packageName)) continue
             codebase.findOrCreatePackage(packageName)
         }
 

@@ -303,6 +303,45 @@ class ApiAnalyzerTest : DriverTest() {
     }
 
     @Test
+    fun `Test that DeprecationMismatch is not reported when containing class is deprecated`() {
+        check(
+            expectedIssues = "",
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+
+                            /** @deprecated Use something else. */
+                            @Deprecated
+                            public class DeprecatedClass {
+                                @Deprecated
+                                public DeprecatedClass() {}
+
+                                @Deprecated
+                                public int field;
+
+                                @Deprecated
+                                public void method() {}
+
+                                @Deprecated
+                                public static class NestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+
+                                public static class UndeprecatedNestedClass {
+                                    @Deprecated
+                                    public void nestedMethod() {}
+                                }
+                            }
+                        """
+                    ),
+                ),
+        )
+    }
+
+    @Test
     fun `Test inheriting methods from hidden class preserves deprecated status`() {
         check(
             sourceFiles =

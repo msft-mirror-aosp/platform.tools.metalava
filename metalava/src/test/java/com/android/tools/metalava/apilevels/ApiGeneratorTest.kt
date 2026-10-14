@@ -1636,11 +1636,13 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="getChars(II[CI)V"/>
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="getChars(II[CI)V"/>
                         </class>
@@ -1710,6 +1712,114 @@ class ApiGeneratorTest : DriverTest() {
                             <method name="publicFinalMethod()V"/>
                             <method name="publicMethod()V"/>
                             <method name="publicStaticMethod()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a hidden superclass implements a superinterface of an interface
+     * implemented by the public subclass, the redundant superinterface is removed from
+     * `api-versions.xml`.
+     */
+    @Test
+    fun `Inheriting redundant superinterface from a hidden super class`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public interface SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public interface SubInterface extends SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    class HiddenSuper implements SuperInterface {}
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends HiddenSuper implements SubInterface {
+                        public Foo() {}
+                    }
+                """
+            ),
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package java.lang {
+                      public class Object {
+                        ctor public Object();
+                      }
+                    }
+                    package test.pkg {
+                      public class Foo implements test.pkg.SubInterface test.pkg.SuperInterface {
+                        ctor public Foo();
+                      }
+                      public interface SubInterface extends test.pkg.SuperInterface {
+                      }
+                      public interface SuperInterface {
+                      }
+                    }
+                """,
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo implements test.pkg.SubInterface, test.pkg.SuperInterface {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface SubInterface extends test.pkg.SuperInterface {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public interface SuperInterface {
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SubInterface"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/SubInterface" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/SuperInterface"/>
+                        </class>
+                        <class name="test/pkg/SuperInterface" since="1.0">
+                            <extends name="java/lang/Object"/>
                         </class>
                     </api>
                 """,
@@ -1982,6 +2092,7 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuffer" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="append(C)Ltest/pkg/StringBuffer;"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuffer;"/>
@@ -1992,6 +2103,7 @@ class ApiGeneratorTest : DriverTest() {
                         </class>
                         <class name="test/pkg/StringBuilder" since="1.0">
                             <extends name="java/lang/Object"/>
+                            <implements name="test/pkg/CharSequence"/>
                             <method name="&lt;init>()V"/>
                             <method name="append(C)Ltest/pkg/StringBuilder;"/>
                             <method name="append(Ljava/lang/String;)Ltest/pkg/StringBuilder;"/>
@@ -1999,6 +2111,449 @@ class ApiGeneratorTest : DriverTest() {
                             <method name="getChars(II[CI)V"/>
                             <method name="reverse()Ltest/pkg/StringBuilder;"/>
                             <method name="setLength(I)V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a method is moved up to a superclass and deprecated in a later version,
+     * the subclass method's `deprecated` attribute is updated to match.
+     */
+    @Test
+    fun `Method moved up to a super class and deprecated in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                                /** @deprecated */
+                                @Deprecated
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @deprecated
+                             * @apiSince 2
+                             * @deprecatedSince 2
+                             */
+                            @Deprecated
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" deprecated="2.0"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" since="2.0" deprecated="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a superclass method is removed in a later version, a subclass method that
+     * is still present in the later version is not removed as an override.
+     */
+    @Test
+    fun `Method removed from super class in a later version is retained on subclass`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                        public void foo() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        @Override
+                        public void foo() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Super {
+                                public Super() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Foo extends Super {
+                                public Foo() {}
+                                public void foo() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V" removed="2.0"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when an enclosing class is deprecated in bytecode, its inner classes and their
+     * members also inherit the deprecation status.
+     */
+    @Test
+    fun `Enclosing class deprecation propagates to inner classes in jar`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    /** @deprecated */
+                    @Deprecated
+                    public class Outer {
+                        public Outer() {}
+                        public static class Inner {
+                            public Inner() {}
+                            public void foo() {}
+                        }
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /**
+                             * @deprecated
+                             * @apiSince 1
+                             * @deprecatedSince 1
+                             */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            @Deprecated
+                            public class Outer {
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public Outer() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * @apiSince 1
+                             * @deprecatedSince 1
+                             */
+                            @Deprecated
+                            public static class Inner {
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public Inner() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 1 */
+                            @Deprecated
+                            public void foo() { throw new RuntimeException("Stub!"); }
+                            }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Outer" since="1.0" deprecated="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Outer${'$'}Inner" since="1.0" deprecated="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="foo()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that synthetic bridge methods generated by the compiler in bytecode (e.g. for a
+     * public method overriding a package-private superclass method with a narrower return type) are
+     * ignored when reading jars.
+     */
+    @Test
+    fun `Bridge methods in jar are ignored`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    public class Super {
+                        public Super() {}
+                        Object makeCopy() { return this; }
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Foo extends Super {
+                        public Foo() {}
+                        @Override
+                        public Foo makeCopy() { return this; }
+                    }
+                """
+            ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Foo extends test.pkg.Super {
+                            /** @apiSince 1 */
+                            public Foo() { throw new RuntimeException("Stub!"); }
+                            /**
+                             * {@inheritDoc}
+                             * @apiSince 1
+                             */
+                            public test.pkg.Foo makeCopy() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Super {
+                            /** @apiSince 1 */
+                            public Super() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/Foo" since="1.0">
+                            <extends name="test/pkg/Super"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="makeCopy()Ltest/pkg/Foo;"/>
+                        </class>
+                        <class name="test/pkg/Super" since="1.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                        </class>
+                    </api>
+                """,
+        )
+    }
+
+    /**
+     * Verifies that when a superclass is package-private in an earlier version and becomes public
+     * in a later version, its public methods and nearest public superclass are inlined into public
+     * subclasses in the earlier version, and its `<extends>` transition is recorded in the later
+     * version.
+     */
+    @Test
+    fun `Package private super class becomes public in a later version`() {
+        checkConsistencyBetweenHistoricalAndLatestCode(
+            java(
+                """
+                    package test.pkg;
+                    class BaseObj {
+                        public void destroy() {}
+                    }
+                """
+            ),
+            java(
+                """
+                    package test.pkg;
+                    public class Program extends BaseObj {
+                        public Program() {}
+                    }
+                """
+            ),
+            currentVersionSourceFiles =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class BaseObj {
+                                public BaseObj() {}
+                                public void destroy() {}
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public class Program extends BaseObj {
+                                public Program() {}
+                            }
+                        """
+                    ),
+                ),
+            expectedStubs =
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 2 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class BaseObj {
+                            /** @apiSince 2 */
+                            public BaseObj() { throw new RuntimeException("Stub!"); }
+                            /** @apiSince 2 */
+                            public void destroy() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            /** @apiSince 1 */
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Program extends test.pkg.BaseObj {
+                            /** @apiSince 1 */
+                            public Program() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    ),
+                ),
+            expectedApiVersionsXml =
+                """
+                    <?xml version="1.0" encoding="utf-8"?>
+                    <api version="4" min="1.0">
+                        <class name="java/lang/Object" since="2.0">
+                            <method name="&lt;init>()V"/>
+                        </class>
+                        <class name="test/pkg/BaseObj" since="2.0">
+                            <extends name="java/lang/Object"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="destroy()V"/>
+                        </class>
+                        <class name="test/pkg/Program" since="1.0">
+                            <extends name="java/lang/Object" removed="2.0"/>
+                            <extends name="test/pkg/BaseObj" since="2.0"/>
+                            <method name="&lt;init>()V"/>
+                            <method name="destroy()V"/>
                         </class>
                     </api>
                 """,
