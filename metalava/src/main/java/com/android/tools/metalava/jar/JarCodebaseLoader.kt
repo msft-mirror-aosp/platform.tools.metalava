@@ -133,7 +133,9 @@ private constructor(
             disableStderrDumping: Boolean,
             tracer: Tracer,
             reporter: Reporter,
-            sourceModelProvider: SourceModelProvider = SourceModelProvider.getImplementation("psi"),
+            sourceModelProvider: SourceModelProvider =
+                SourceModelProvider.implementations.singleOrNull()
+                    ?: SourceModelProvider.getImplementation("turbine"),
             addAdditionalOverrides: Boolean = false,
         ): StandaloneJarCodebaseLoader {
 
