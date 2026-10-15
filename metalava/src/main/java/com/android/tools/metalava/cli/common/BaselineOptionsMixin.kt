@@ -17,7 +17,7 @@
 package com.android.tools.metalava.cli.common
 
 import com.android.tools.metalava.reporter.Baseline
-import com.github.ajalt.clikt.core.GroupableOption
+import com.github.ajalt.clikt.core.CliktCommand
 import com.github.ajalt.clikt.core.ParameterHolder
 import com.github.ajalt.clikt.parameters.groups.OptionGroup
 import com.github.ajalt.clikt.parameters.options.option
@@ -26,27 +26,24 @@ import java.io.File
 /**
  * Manages options needed to create a [Baseline] object.
  *
- * Ideally, this would just be a plain [OptionGroup] that is added to another [OptionGroup] that
- * needs a [Baseline]. Unfortunately, Clikt does not support [OptionGroup]s inside of [OptionGroup]s
- * so instead this just adds the options to the [containingGroup].
+ * Ideally, this would just be a plain [OptionGroup] that is added to a [CliktCommand] or another
+ * [OptionGroup] that needs a [Baseline]. Unfortunately, Clikt does not support [OptionGroup]s
+ * inside of [OptionGroup]s so instead this just adds the options to the [containingParameterHolder]
+ * (which can be either a [CliktCommand] or an [OptionGroup]).
  *
- * @param containingGroup the [OptionGroup] to which this will add options.
+ * @param containingParameterHolder the [ParameterHolder] (e.g. [CliktCommand] or [OptionGroup]) to
+ *   which this will add options.
  */
 class BaselineOptionsMixin(
-    private val containingGroup: OptionGroup,
+    containingParameterHolder: ParameterHolder,
     baselineOptionName: String,
     updateBaselineOptionName: String,
     issueType: String,
-) : ParameterHolder {
-
-    override fun registerOption(option: GroupableOption) {
-        // Register the option with the actual [OptionGroup].
-        containingGroup.registerOption(option)
-    }
+    private val description: String,
+) : ParameterHolder by containingParameterHolder {
 
     private val baselineFile by
-        containingGroup
-            .option(
+        option(
                 baselineOptionName,
                 help =
                     """
@@ -61,8 +58,7 @@ class BaselineOptionsMixin(
             .allowStructuredOptionName()
 
     private val updateBaselineFile by
-        containingGroup
-            .option(
+        option(
                 updateBaselineOptionName,
                 help =
                     """
@@ -82,12 +78,23 @@ class BaselineOptionsMixin(
     fun computeBaseline(
         executionEnvironment: ExecutionEnvironment,
         defaultBaselineFileProvider: () -> File? = { null },
-        description: String,
         commonBaselineOptions: ComputedCommonBaselineOptions,
+    ): Baseline? =
+        computeBaseline(
+            executionEnvironment = executionEnvironment,
+            defaultBaselineFileProvider = defaultBaselineFileProvider,
+            baselineConfig = commonBaselineOptions.baselineConfig,
+        )
+
+    /** Returns a [Baseline] based on the provided options, if one exists. */
+    fun computeBaseline(
+        executionEnvironment: ExecutionEnvironment,
+        defaultBaselineFileProvider: () -> File? = { null },
+        baselineConfig: Baseline.Config,
     ): Baseline? {
         return Baseline.Builder()
             .apply {
-                this.description = description
+                this.description = this@BaselineOptionsMixin.description
                 file = baselineFile ?: defaultBaselineFileProvider()
                 updateFile = updateBaselineFile
                 headerComment =
@@ -95,6 +102,6 @@ class BaselineOptionsMixin(
                         "// See tools/metalava/API-LINT.md for how to update this file.\n\n"
                     else ""
             }
-            .build(commonBaselineOptions.baselineConfig)
+            .build(baselineConfig)
     }
 }
