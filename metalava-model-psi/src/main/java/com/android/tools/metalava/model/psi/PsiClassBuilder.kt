@@ -183,7 +183,7 @@ internal class PsiClassBuilder(
                 psiClass,
             )
         val (superClassType, interfaceTypes) =
-            computeSuperTypes(psiClass, classKind, classTypeItemFactory)
+            computeSuperTypes(psiClass, classKind, containingClassItem, classTypeItemFactory)
 
         // The sorted permits list.
         val permitTypes =
@@ -482,6 +482,7 @@ internal class PsiClassBuilder(
     private fun computeSuperTypes(
         psiClass: PsiClass,
         classKind: ClassKind,
+        containingClassItem: ClassItem?,
         classTypeItemFactory: PsiTypeItemFactory
     ): Pair<ClassTypeItem?, List<ClassTypeItem>> {
 
@@ -510,13 +511,15 @@ internal class PsiClassBuilder(
 
         // Construct the super class type if needed and available.
         val superClassType =
-            if (classKind != ClassKind.INTERFACE) {
+            if (classKind.allowsExplicitSuperClass) {
                 val superClassPsiType = psiClass.superClassType as? PsiType
                 superClassPsiType?.let { superClassType ->
                     val ktTypeRef = superClassType.ktTypeReference()
                     classTypeItemFactory.getSuperClassType(PsiTypeInfo(superClassType, ktTypeRef))
                 }
-            } else null
+            } else {
+                classKind.implicitSuperClassType(psiClass.classQualifiedName, containingClassItem)
+            }
 
         // Get the interfaces from the appropriate list.
         val interfaces =

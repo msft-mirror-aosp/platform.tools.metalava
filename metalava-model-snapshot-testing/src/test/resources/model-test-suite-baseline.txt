@@ -10,11 +10,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[psi,kotlin]
   unknown annotation class with named attribute - string value[psi,kotlin]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
-  Test enum class super class[psi,java]
-  Test enum class super class[psi,kotlin]
-  Test enum class super class[text]
-
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin]
 
@@ -24,10 +19,6 @@ com.android.tools.metalava.model.testsuite.codebase.CommonCodebaseTest
 
 com.android.tools.metalava.model.testsuite.fielditem.CommonFieldItemTest
   Test implicit nullability of constant field initialized from @NonNull method[turbine]
-
-com.android.tools.metalava.model.testsuite.jar.CommonJarSupportTest
-  Test load jar - enum super class[psi,java]
-  Test load jar - enum super class[psi,kotlin]
 
 com.android.tools.metalava.model.testsuite.methoditem.CommonMethodModifierTest
   Test final method in final class[text]

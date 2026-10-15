@@ -430,7 +430,14 @@ internal class SignatureFileCodebaseBuilder(
             typeItemFactory,
         ) = resolveDeclaredClassType(currentPackage, fullName, typeParameters, sourcePosition)
 
-        var superClassType = createSuperClassType(classKind, superClassTypeString, typeItemFactory)
+        var superClassType =
+            createSuperClassType(
+                classKind,
+                qualifiedClassName,
+                outerClass,
+                superClassTypeString,
+                typeItemFactory,
+            )
         val interfaceTypes = createInterfaceTypes(classKind, interfaceTypeStrings, typeItemFactory)
         val permitTypes = createPermitTypes(permitTypeStrings, typeItemFactory)
 
@@ -543,13 +550,15 @@ internal class SignatureFileCodebaseBuilder(
      */
     private fun createSuperClassType(
         classKind: ClassKind,
+        qualifiedName: String,
+        outerClass: ClassItem?,
         superClassTypeString: TypeString?,
         typeItemFactory: TextTypeItemFactory,
     ): ClassTypeItem? {
         if (superClassTypeString != null) {
             return typeItemFactory.getSuperClassType(superClassTypeString)
         }
-        return classKind.implicitSuperClassType
+        return classKind.implicitSuperClassType(qualifiedName, outerClass)
     }
 
     /**

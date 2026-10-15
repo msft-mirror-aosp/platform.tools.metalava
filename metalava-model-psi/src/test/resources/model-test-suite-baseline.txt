@@ -4,14 +4,6 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[kotlin]
   unknown annotation class with named attribute - string value[kotlin]
 
-com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
-  Test enum class super class[java]
-  Test enum class super class[kotlin]
-
-com.android.tools.metalava.model.testsuite.jar.CommonJarSupportTest
-  Test load jar - enum super class[java]
-  Test load jar - enum super class[kotlin]
-
 com.android.tools.metalava.model.testsuite.parameteritem.CommonParameterKindTest
   Kind for parameters on function with all kinds of parameters[kotlin]
 
