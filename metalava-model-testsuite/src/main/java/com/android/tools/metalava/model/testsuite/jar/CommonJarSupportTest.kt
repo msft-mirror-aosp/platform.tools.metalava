@@ -60,7 +60,15 @@ class CommonJarSupportTest : BaseModelTest() {
                                 int attribute();
                             }
                         """
-                    )
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            public enum FooEnum {
+                                VALUE
+                            }
+                        """
+                    ),
                 )
                 .cacheIn(testFileCacheRule)
     }
@@ -134,6 +142,20 @@ class CommonJarSupportTest : BaseModelTest() {
             val parameter = method.parameters().single()
             assertEquals(true, parameter.isVarArgs(), message = "isVarArgs")
             assertEquals("int...", parameter.type().testTypeString(), message = "type")
+        }
+    }
+
+    @RequiresCapabilities(Capability.LOAD_JAR)
+    @Test
+    fun `Test load jar - enum super class`() {
+        runJarSupportTest {
+            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
+
+            val enumClass = codebase.assertClass("test.pkg.FooEnum")
+            assertEquals(
+                "java.lang.Enum<test.pkg.FooEnum>",
+                enumClass.superClassType()?.testTypeString(),
+            )
         }
     }
 }
