@@ -48,9 +48,7 @@ class BaselineOptionsMixin(
                 help =
                     """
                         An optional baseline file that contains a list of known $issueType issues
-                        which should be ignored. If this does not exist and
-                        $updateBaselineOptionName is not specified then it will be created and
-                        populated with all the known $issueType issues.
+                        which should be ignored.
                     """
                         .trimIndent(),
             )
@@ -63,11 +61,15 @@ class BaselineOptionsMixin(
                 help =
                     """
                         An optional file into which a list of the latest $issueType issues found
-                        will be written. If $baselineOptionName is specified then any issues listed
-                        in there will be copied into this file; that minimizes the amount of churn
-                        in the baseline file when updating by not removing legacy issues that have
-                        been fixed. If $ARG_DELETE_EMPTY_BASELINES is specified and this baseline is
-                        empty then the file will be deleted.
+                        will be written. If $baselineOptionName is specified and is a different
+                        file then any issues listed in there will be copied into this file; that
+                        minimizes the amount of churn in the baseline file when updating by not
+                        removing legacy issues that have been fixed, and any unbaselined issues
+                        will still be reported as errors. If $updateBaselineOptionName and
+                        $baselineOptionName refer to the same file then the baseline will be
+                        updated in place from scratch and no issues will be reported as errors. If
+                        $ARG_DELETE_EMPTY_BASELINES is specified and this baseline is empty then
+                        the file will be deleted.
                     """
                         .trimIndent(),
             )
