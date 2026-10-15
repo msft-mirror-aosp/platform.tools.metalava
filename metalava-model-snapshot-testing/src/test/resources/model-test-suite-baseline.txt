@@ -10,6 +10,11 @@ com.android.tools.metalava.model.testsuite.annotationitem.CommonAnnotationItemTe
   unknown annotation class with named attribute - array value[psi,kotlin]
   unknown annotation class with named attribute - string value[psi,kotlin]
 
+com.android.tools.metalava.model.testsuite.classitem.CommonEnumTest
+  Test enum class super class[psi,java]
+  Test enum class super class[psi,kotlin]
+  Test enum class super class[text]
+
 com.android.tools.metalava.model.testsuite.classitem.CommonValueClassTest
   Usage of value class with type parameter[psi,kotlin]
 
