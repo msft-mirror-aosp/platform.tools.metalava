@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite.jar
 
 import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.testing.RequiresCapabilities
+import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
 import com.android.tools.metalava.testing.TestFileCache
 import com.android.tools.metalava.testing.TestFileCacheRule
@@ -42,6 +43,7 @@ class CommonJarSupportTest : BaseModelTest() {
                             package test.pkg;
                             public class Test {
                                 private Test() {}
+                                public void varargMethod(int... values) {}
                                 public class Nested {
                                     private Nested() {}
                                     public class DoublyNested {
@@ -119,6 +121,19 @@ class CommonJarSupportTest : BaseModelTest() {
             // the attributes added.
             val annotation = codebase.assertClass("test.pkg.Anno")
             assertEquals(emptyList(), annotation.properties())
+        }
+    }
+
+    @RequiresCapabilities(Capability.LOAD_JAR)
+    @Test
+    fun `Test load jar - vararg parameter`() {
+        runJarSupportTest {
+            val codebase = jarSupport.loadFromJar(testJar.toFile(), emptyList())
+
+            val method = codebase.assertClass("test.pkg.Test").methods().single()
+            val parameter = method.parameters().single()
+            assertEquals(true, parameter.isVarArgs(), message = "isVarArgs")
+            assertEquals("int...", parameter.type().testTypeString(), message = "type")
         }
     }
 }
