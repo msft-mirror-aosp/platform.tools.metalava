@@ -16,11 +16,18 @@
 
 package com.android.tools.metalava.cli.compatibility
 
+import com.android.tools.metalava.ARG_BASELINE
+import com.android.tools.metalava.ARG_UPDATE_BASELINE
+import com.android.tools.metalava.PROGRAM_NAME
+import com.android.tools.metalava.cli.common.BaselineOptionsMixin
 import com.android.tools.metalava.cli.common.DefaultSignatureFileLoader
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaSubCommand
+import com.android.tools.metalava.cli.common.commonOptions
 import com.android.tools.metalava.cli.common.executionEnvironment
 import com.android.tools.metalava.cli.common.existingFile
+import com.android.tools.metalava.cli.common.registerPostCommandAction
+import com.android.tools.metalava.cli.common.stdout
 import com.android.tools.metalava.cli.common.tracer
 import com.android.tools.metalava.cli.compatibility.CheckRequest.CheckType
 import com.android.tools.metalava.compatibility.CompatibilityCheck
@@ -29,6 +36,7 @@ import com.android.tools.metalava.model.annotation.DefaultAnnotationManager
 import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.model.text.SignatureFile
+import com.android.tools.metalava.reporter.Baseline
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.IssueConfiguration
 import com.android.tools.metalava.trace
@@ -65,6 +73,15 @@ class CheckCompatibilityCommand :
             .existingFile()
             .multiple(required = true)
 
+    private val baselineOptionsMixin =
+        BaselineOptionsMixin(
+            containingParameterHolder = this,
+            baselineOptionName = ARG_BASELINE,
+            updateBaselineOptionName = ARG_UPDATE_BASELINE,
+            issueType = "compatibility",
+            description = "compatibility",
+        )
+
     /** The list of signature files defining the current API to check for compatibility. */
     private val sourceFiles by
         argument(
@@ -82,10 +99,37 @@ class CheckCompatibilityCommand :
 
     override fun run() {
         val issueConfiguration = IssueConfiguration()
+        val baseline =
+            baselineOptionsMixin.computeBaseline(
+                executionEnvironment = executionEnvironment,
+                baselineConfig =
+                    Baseline.Config(
+                        issueConfiguration = issueConfiguration,
+                        deleteEmptyBaselines = false,
+                        sourcePath = emptyList(),
+                        rootFolder = executionEnvironment.reporterEnvironment.rootFolder,
+                    ),
+            )
+
+        // Make sure to flush out the baseline file.
+        registerPostCommandAction {
+            baseline?.let {
+                if (commonOptions.verbosity.verbose) {
+                    it.dumpStats(stdout)
+                }
+                if (it.close()) {
+                    if (!commonOptions.verbosity.quiet) {
+                        stdout.println("$PROGRAM_NAME wrote updated baseline to ${it.updateFile}")
+                    }
+                }
+            }
+        }
+
         val reporter =
             DefaultReporter(
                 environment = executionEnvironment.reporterEnvironment,
                 issueConfiguration = issueConfiguration,
+                baseline = baseline,
             )
 
         try {
