@@ -566,6 +566,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { containingCallable ->
                         createParameters(
                             containingCallable,
+                            method.access(),
                             decl?.params(),
                             parameters,
                             methodTypeItemFactory,
@@ -585,6 +586,7 @@ internal class TurbineClassBuilder(
 
     private fun createParameters(
         containingCallable: CallableItem,
+        callableAccess: Int,
         parameterDecls: List<VarDecl>?,
         parameters: List<ParamInfo>,
         typeItemFactory: TurbineTypeItemFactory,
@@ -599,12 +601,21 @@ internal class TurbineClassBuilder(
         val ignoreSynthetic = containingCallable is ConstructorItem
         return buildList {
             var parameterIndex = 0
-            for (parameter in parameters) {
+            for ((idx, parameter) in parameters.withIndex()) {
                 if (ignoreSynthetic && parameter.synthetic()) continue
+                // Bytecode does not store the varargs flag on the parameter, it stores it on the
+                // method, so if the callable has the varargs flag set then make sure it is also set
+                // on the last parameter.
+                val flags =
+                    if (idx == parameters.lastIndex) {
+                        parameter.access() or (callableAccess and TurbineFlag.ACC_VARARGS)
+                    } else {
+                        parameter.access()
+                    }
                 val parametermodifiers =
                     createModifiers(
                             ModifierContext.forItemKind(ItemKind.PARAMETER),
-                            parameter.access(),
+                            flags,
                             parameter.annotations(),
                         )
                         .toImmutable()
@@ -725,6 +736,7 @@ internal class TurbineClassBuilder(
                     parameterItemsFactory = { constructorItem ->
                         createParameters(
                             constructorItem,
+                            constructor.access(),
                             decl?.params(),
                             constructorParameters,
                             constructorTypeItemFactory,
