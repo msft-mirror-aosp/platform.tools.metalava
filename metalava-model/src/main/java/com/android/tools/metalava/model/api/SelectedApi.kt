@@ -135,9 +135,6 @@ sealed class SelectedApi {
             // Get the ApiSurfaceSelector that is used by the AnnotationManager.
             val annotationManager = config.annotationManager
             val apiSurfaceSelector = annotationManager.apiSurfaceSelector
-            val previouslyReleasedCodebaseProvider = {
-                annotationManager.previouslyReleasedCodebase
-            }
 
             // Create an updater that will be captured by the factory below and will be used by all
             // SelectedApi instances in the Codebase that uses tha factory.
@@ -145,7 +142,7 @@ sealed class SelectedApi {
                 SelectedApiUpdater(
                     config.reporter,
                     apiSurfaceSelector,
-                    previouslyReleasedCodebaseProvider,
+                    config.previouslyReleasedCodebaseProvider,
                 )
             return { item -> createFromSource(selectedApiUpdater, item) }
         }

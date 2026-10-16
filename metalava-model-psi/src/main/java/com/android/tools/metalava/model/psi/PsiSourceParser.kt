@@ -56,6 +56,10 @@ internal class PsiSourceParser(
             apiPackages = null,
             compiledSourceJar = null,
             includeKotlinInCodebase = true,
+            // A ClassPathResolver is used when resolving references from a signature file, possibly
+            // for the previously released API, so it must not have a reference to the previously
+            // released API itself.
+            codebaseConfig = codebaseConfig.copy(previouslyReleasedCodebaseProvider = { null }),
         )
 
     override fun processSources(
@@ -96,6 +100,7 @@ internal class PsiSourceParser(
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
         includeKotlinInCodebase: Boolean,
+        codebaseConfig: Codebase.Config = this.codebaseConfig,
     ): PsiBasedCodebase {
         val environment = psiEnvironment.uastEnvironment
 

@@ -241,6 +241,11 @@ abstract class BaseModelTest :
 
         /** Whether to include additional overrides when matching method signatures. */
         val addAdditionalOverrides: Boolean = false,
+
+        /**
+         * The optional previously released [Codebase] to check against when reverting flagged APIs.
+         */
+        val previouslyReleasedCodebase: Codebase? = null,
     ) {
         /** The [RecordingReporter] used by the test. */
         val recordingReporter =
@@ -276,6 +281,7 @@ abstract class BaseModelTest :
                     apiFlags = apiFlags,
                     apiSurfaces = apiSurfaceRules.apiSurfaces,
                     reporter = recordingReporter,
+                    previouslyReleasedCodebaseProvider = { previouslyReleasedCodebase },
                 )
     }
 

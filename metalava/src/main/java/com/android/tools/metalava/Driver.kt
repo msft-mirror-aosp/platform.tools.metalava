@@ -225,7 +225,7 @@ class Driver(
         )
     }
 
-    private val codebaseConfig by
+    private val codebaseConfig: Codebase.Config by
         lazy(LazyThreadSafetyMode.NONE) {
             Codebase.Config(
                 allowReadingComments = sourceOptions.allowReadingComments,
@@ -233,6 +233,11 @@ class Driver(
                 apiFlags = apiFlags,
                 apiSurfaces = apiSelectionOptions.apiSurfaces,
                 reporter = reporter,
+                previouslyReleasedCodebaseProvider = {
+                    compatibilityCheckOptions.previouslyReleasedApi?.load {
+                        signatureFileCache.load(it)
+                    }
+                },
 
                 // Pass whether API surfaces are configured in a config file. This determines
                 // whether the `@hide` Javadoc tag is ignored for hiding elements.
