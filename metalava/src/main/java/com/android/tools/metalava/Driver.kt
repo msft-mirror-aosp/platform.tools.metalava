@@ -734,36 +734,6 @@ class Driver(
     private fun generateApiHistoryFromOptions(
         codebase: Codebase,
     ) {
-        val androidConfigCodeFragmentProvider: () -> CodebaseFragment = {
-            var codebaseFragment =
-                CodebaseFragment.create(codebase) { delegatedVisitor ->
-                    FilteringApiVisitor(
-                        delegate = delegatedVisitor,
-                        apiFilters =
-                            ApiFilters(
-                                reference =
-                                    ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main),
-                                emit = ApiSurfacePredicate.wholeCoreApi(codebase.apiSurfaces.main)
-                            ),
-                    )
-                }
-
-            // If reverting some changes then create a snapshot that combines the items from the
-            // sources for any un-reverted changes and items from the previously released API for
-            // any reverted changes.
-            if (codebaseFragment.codebase.containsRevertedItem) {
-                // Allow references to any of the ClassItems in the original Codebase. This should
-                // not be a problem for api-versions.xml files as they only refer to them by name
-                // and do not care about their contents.
-                codebaseFragment =
-                    codebaseFragment.snapshotIncludingRevertedItems(
-                        referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
-                    )
-            }
-
-            codebaseFragment
-        }
-
         // Provide a CodebaseFragment from the sources that will be included in the generated
         // version history.
         val signatureFileConfigCodeFragmentProvider: () -> CodebaseFragment = {
@@ -779,21 +749,6 @@ class Driver(
         }
 
         val apiGenerator = ApiGenerator(tracer)
-        apiLevelsGenerationOptions
-            .forAndroidConfig(
-                // Do not use a cache here as each file loaded is only loaded once and the created
-                // Codebase is discarded immediately after use so caching just uses memory for no
-                // performance benefit.
-                signatureFileLoader,
-                apiSelectionOptions.apiSurfaces,
-                androidConfigCodeFragmentProvider,
-            )
-            ?.let { config ->
-                tracer.trace("generateApiHistory XML descriptor file") {
-                    apiGenerator.generateApiHistory(config)
-                }
-            }
-
         apiLevelsGenerationOptions
             .fromSignatureFilesConfig(
                 // Do not use a cache here as each file loaded is only loaded once and the created

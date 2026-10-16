@@ -53,7 +53,7 @@ import java.io.File
 private const val ARG_OUTPUT_FILE = "--output-file"
 private const val ARG_PATTERN = "--pattern"
 private const val ARG_HISTORICAL_FILES = "--historical-files"
-private const val ARG_HISTORICAL_VERSIONS = "--historical-versions"
+const val ARG_HISTORICAL_VERSIONS = "--historical-versions"
 private const val ARG_CURRENT_VERSION = "--current-version"
 private const val ARG_CURRENT_FILES = "--current-files"
 private const val ARG_SDK_EXTENSION_VERSIONS = "--sdk-extension-versions"

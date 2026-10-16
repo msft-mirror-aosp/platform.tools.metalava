@@ -30,71 +30,14 @@ Api Levels Generation:
 
   Options controlling the API levels file, e.g. `api-versions.xml` file.
 
-  --generate-api-levels <xmlfile>            Reads android.jar SDK files and generates an XML file recording the API
-                                             level for each class, method and field. if --api-version-for-sources is
-                                             provided, sources will also be included in the file with the api level
-                                             --api-version-for-sources
   --api-version-for-sources <api-version>    Sets the API version of unfinalized apis in the current source code. This
                                              supports a single integer level, `major.minor`, `major.minor.patch` and
                                              `major.minor.patch-quality` formats. Where `major`, `minor` and `patch` are
                                              all non-negative integers and `quality` is an alphanumeric string.
-  --remove-missing-class-references-in-api-levels
-                                             Removes references to missing classes when generating the API levels XML
-                                             file. This can happen when generating the XML file for the non-updatable
-                                             portions of the module-lib sdk, as those non-updatable portions can
-                                             reference classes that are part of an updatable apex.
-  --api-version-range <api-version>:<api-version>
-                                             The optional range of historical versions that can be included in the API
-                                             version history. The `from` and `to` parts of the range are separated by a
-                                             `:` and are both inclusive. See --api-version-for-sources for acceptable
-                                             `<api-version>`s.
-
-                                             If unspecified, version history will default to include every historical
-                                             version.
-  --sdk-extension-version-range <api-version>:<api-version>
-                                             The optional range of historical sdk extensions versions that can be
-                                             included in the API version history. The `from` and `to` parts of the range
-                                             are separated by a `:` and are both inclusive. See
-                                             --api-version-for-sources for acceptable `<api-version>`s.
-
-                                             If unspecified then allow every historical version.
   --api-version-signature-pattern <historical-api-pattern>
                                              Pattern to use to locate signature files. Typically ends with `.txt`.
 
                                              See `metalava help historical-api-patterns` for more information.
-  --sdk-extensions-info <sdk-info-file>      Points to map of extension SDK APIs to include, if any. The file is a plain
-                                             text file and describes, per extension SDK, what APIs from that extension
-                                             to include in the file created via --generate-api-levels. The format of
-                                             each line is one of the following: \"<module-name> <pattern> <ext-name>
-                                             [<ext-name> [...]]\", where <module-name> is the name of the mainline
-                                             module this line refers to, <pattern> is a common Java name prefix of the
-                                             APIs this line refers to, and <ext-name> is a list of extension SDK names
-                                             in which these SDKs first appeared, or \"<ext-name> <ext-id> <type>\",
-                                             where <ext-name> is the name of an SDK, <ext-id> its numerical ID and
-                                             <type> is one of \"platform\" (the Android platform SDK), \"platform-ext\"
-                                             (an extension to the Android platform SDK), \"standalone\" (a separate
-                                             SDK). Fields are separated by whitespace. A mainline module may be listed
-                                             multiple times. The special pattern \"*\" refers to all APIs in the given
-                                             mainline module. Lines beginning with # are comments.
-
-                                             If specified then the --api-version-signature-pattern must include at least
-                                             one pattern that uses `{version:extension}` and `{module}` placeholders and
-                                             that pattern must match at least one file.
-  --api-version-for-sdk-extension <api-version>
-                                             SDK extension APIs can be added between SDK versions and they do not become
-                                             available in an SDK version until the next SDK version is released.
-                                             However, when generating an API history it is required that every API is in
-                                             an API version, even those added as part of an SDK extension.
-
-                                             If an SDK extension is being prepared for inclusion in an SDK version then
-                                             this should be the SDK version. If an SDK extension is being prepared
-                                             between SDK versions than this should be a magic version number that
-                                             indicates that it the newly added SDK extension APIs are not yet present in
-                                             any SDK version.
-
-                                             In the latter case the --api-version-label should be used when generating
-                                             documentation from that `api-versions.xml` file to give the magic version a
-                                             meaningful name in the documentation.
   --generate-api-version-history <output-file>
                                              Reads API signature files and generates a JSON or XML file depending on the
                                              extension, which must be one of `json` or `xml` respectively. The JSON file
