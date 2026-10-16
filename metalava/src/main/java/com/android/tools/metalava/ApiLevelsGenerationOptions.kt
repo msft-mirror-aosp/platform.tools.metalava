@@ -42,10 +42,6 @@ import java.io.File
 
 const val ARG_API_VERSION_FOR_SOURCES = "--api-version-for-sources"
 
-const val ARG_API_VERSION_FOR_SDK_EXTENSION = "--api-version-for-sdk-extension"
-
-const val ARG_SDK_INFO_FILE = "--sdk-extensions-info"
-
 const val ARG_API_VERSION_SIGNATURE_PATTERN = "--api-version-signature-pattern"
 
 // JSON API version related arguments
@@ -55,16 +51,6 @@ const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 /** Convert an option value to an [ApiVersion]. */
 internal fun OptionWithValues<String?, String, String>.apiVersion() = convert {
     ApiVersion.fromString(it)
-}
-
-/** Convert an option value to a [ClosedRange] of [ApiVersion]. */
-internal fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
-    val parts = text.split(':')
-    if (parts.size != 2) {
-        error("Must be of the form <version>:<version> but found '$text'")
-    }
-    val (from, to) = parts
-    ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
 }
 
 class ApiLevelsGenerationOptions :

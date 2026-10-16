@@ -17,10 +17,10 @@
 package com.android.tools.metalava.apilevels
 
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_CONFIG_FILE
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.KnownConfigFiles
+import com.android.tools.metalava.cli.signature.ARG_API_VERSION_FOR_SDK_EXTENSION
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

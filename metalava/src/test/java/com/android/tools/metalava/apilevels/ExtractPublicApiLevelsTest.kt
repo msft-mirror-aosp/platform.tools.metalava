@@ -16,7 +16,7 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
+import com.android.tools.metalava.cli.signature.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
 import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals

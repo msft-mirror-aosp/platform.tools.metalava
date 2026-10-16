@@ -17,9 +17,7 @@
 package com.android.tools.metalava.cli.signature
 
 import com.android.tools.metalava.ARG_API_SURFACE
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SDK_EXTENSION
 import com.android.tools.metalava.ARG_CONFIG_FILE
-import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.CONFIG_FILE_OPTIONS_HELP
 import com.android.tools.metalava.KnownConfigFiles
 import com.android.tools.metalava.apilevels.VersionedApi
