@@ -26,6 +26,7 @@ import com.android.tools.metalava.apiVersion
 import com.android.tools.metalava.apiVersionRange
 import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiHistoryUpdater
+import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
@@ -269,6 +270,9 @@ class ApiHistoryCommand :
             default = MissingClassAction.REPORT,
         )
 
+    /** The [GenerateApiHistoryConfig] created by [run], exposed for testing. */
+    internal lateinit var config: GenerateApiHistoryConfig
+
     override fun run() {
         val useInternalNames =
             when (val extension = outputFile.extension) {
@@ -310,7 +314,7 @@ class ApiHistoryCommand :
             files: List<MatchedPatternFile>,
         ) = VersionedSignatureApi(signatureFileLoader, files.map { it.file }, updater)
 
-        val config =
+        config =
             createGenerateApiHistoryConfig(
                 outputFile = outputFile,
                 currentDir = fileForPathInner("."),
