@@ -16,7 +16,6 @@
 package com.android.tools.metalava
 
 import androidx.tracing.Tracer
-import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.api.AnnotationsMerger
 import com.android.tools.metalava.api.ApiAnalyzer
@@ -53,7 +52,6 @@ import com.android.tools.metalava.cli.signature.migration.SignatureReformatComma
 import com.android.tools.metalava.cli.surface.MultiSurfaceCommand
 import com.android.tools.metalava.cli.surface.SingleSurfaceCommand
 import com.android.tools.metalava.compatibility.CompatibilityCheck
-import com.android.tools.metalava.jar.JarCodebaseLoader
 import com.android.tools.metalava.lint.ApiLint
 import com.android.tools.metalava.lint.FlaggedApiLint
 import com.android.tools.metalava.lint.MultiplatformLint
@@ -552,8 +550,6 @@ class Driver(
                 SignatureFile.fromFiles(sources),
                 classPathResolver,
             )
-        } else if (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)) {
-            return tracer.trace("loadFromJarFile") { loadFromJarFile(sources[0]) }
         } else if (sources.isNotEmpty() || sourceOptions.sourcePath.isNotEmpty()) {
             return tracer.trace("loadFromSources") { loadFromSources() }
         }
@@ -908,16 +904,6 @@ class Driver(
         tracer.trace("analyzer.performChecks") { analyzer.performChecks() }
 
         return codebase
-    }
-
-    fun loadFromJarFile(apiJar: File): Codebase {
-        val jarCodebaseLoader =
-            JarCodebaseLoader.createForSourceParser(
-                tracer,
-                reporter,
-                sourceParser,
-            )
-        return jarCodebaseLoader.loadFromJarFile(apiJar, apiAnalyzerConfig)
     }
 
     private fun extractAnnotations(outputFile: File, codebase: Codebase) {

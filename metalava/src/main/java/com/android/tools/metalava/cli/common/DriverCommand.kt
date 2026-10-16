@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.cli.common
 
-import com.android.SdkConstants.DOT_JAR
 import com.android.SdkConstants.DOT_TXT
 import com.android.tools.metalava.ApiLevelsGenerationOptions
 import com.android.tools.metalava.ApiSelectionOptions
@@ -100,11 +99,7 @@ abstract class DriverCommand(
         val sourceSet =
             tracer.trace("createSourceSet") {
                 val sources = sourceOptions.sourceFiles
-                if (
-                    sources.isNotEmpty() &&
-                        (sources[0].path.endsWith(DOT_TXT) ||
-                            (sources.size == 1 && sources[0].path.endsWith(DOT_JAR)))
-                ) {
+                if (sources.isNotEmpty() && sources[0].path.endsWith(DOT_TXT)) {
                     SourceSet.empty()
                 } else if (sources.isEmpty()) {
                     if (sourceOptions.sourcePath.isEmpty()) {
