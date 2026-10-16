@@ -40,7 +40,6 @@ import com.android.tools.metalava.model.AnnotationRetention
 import com.android.tools.metalava.model.AnnotationTarget
 import com.android.tools.metalava.model.BaseAnnotationManager
 import com.android.tools.metalava.model.ClassItem
-import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_PREFIX
@@ -90,11 +89,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
          * typedef annotation and [typedefMode] is not [TypedefMode.NONE].
          */
         val annotationClassPredicate: FilterPredicate = MatchAllPredicate,
-
-        /**
-         * Provider of an optional [Codebase] object that will be used when reverting flagged APIs.
-         */
-        val previouslyReleasedCodebaseProvider: () -> Codebase? = { null },
 
         /**
          * The set of available [ApiFlag]s.
@@ -471,13 +465,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
         }
         return modifiers.hasAnnotation(AnnotationItem::isSuppressCompatibilityAnnotation)
     }
-
-    /**
-     * Local cache of the previously released codebase to avoid calling the provider for every
-     * affected item.
-     */
-    override val previouslyReleasedCodebase by
-        lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
 
     override val typedefMode: TypedefMode = config.typedefMode
 

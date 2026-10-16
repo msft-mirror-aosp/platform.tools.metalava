@@ -212,11 +212,6 @@ class Driver(
                 // Treat an annotation class as part of the API if it belongs to the core API of
                 // this surface or any surface that it includes.
                 annotationClassPredicate = ApiSurfacePredicate.wholeCoreApi(apiSurface),
-                previouslyReleasedCodebaseProvider = {
-                    compatibilityCheckOptions.previouslyReleasedApi?.load {
-                        signatureFileCache.load(it)
-                    }
-                },
                 apiFlags = apiFlags,
                 annotationClassTargets =
                     configFileOptions.config.annotationClasses?.toAnnotationClassTargets()
