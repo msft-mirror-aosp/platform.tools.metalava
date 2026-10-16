@@ -16,12 +16,9 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.ARG_API_VERSION_FOR_SOURCES
-import com.android.tools.metalava.ARG_API_VERSION_SIGNATURE_PATTERN
-import com.android.tools.metalava.ARG_GENERATE_API_LEVELS
 import com.android.tools.metalava.ARG_SDK_INFO_FILE
 import com.android.tools.metalava.doc.getApiLookup
-import com.android.tools.metalava.testing.java
+import com.android.tools.metalava.testing.signature
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -33,32 +30,46 @@ class ExtractPublicApiLevelsTest : ApiGeneratorIntegrationTestBase() {
     @Test
     fun `Extract API levels`() {
         val currentVersion = 35
+        val extensionSignaturePattern =
+            "${extensionSdkJars.path}/{version:extension}/public/api/{module}.txt"
 
-        check(
-            extraArguments =
-                arrayOf(
-                    ARG_GENERATE_API_LEVELS,
+        commandTest {
+            val currentFile =
+                signature(
+                        "current.txt",
+                        """
+                            // Signature format: 2.0
+                            package android.pkg {
+                              public class MyTest {
+                                ctor public MyTest();
+                              }
+                            }
+                        """
+                    )
+                    .createFile(temporaryFolder.root)
+
+            args +=
+                listOf(
+                    "api-history",
+                    "--output-file",
                     outputPath,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
+                    "--pattern",
                     androidPublicSignaturePattern,
-                    ARG_API_VERSION_SIGNATURE_PATTERN,
-                    "${extensionSdkJars.path}/{version:extension}/public/api/{module}.txt",
+                    "--pattern",
+                    extensionSignaturePattern,
+                    "--historical-files",
+                    findHistoricalFiles(
+                        androidPublicSignaturePattern,
+                        extensionSignaturePattern,
+                    ),
                     ARG_SDK_INFO_FILE,
                     createSdkExtensionInfoFile().path,
-                    ARG_API_VERSION_FOR_SOURCES,
-                    currentVersion.toString()
-                ),
-            sourceFiles =
-                arrayOf(
-                    java(
-                        """
-                    package android.pkg;
-                    public class MyTest {
-                    }
-                    """
-                    )
+                    "--current-version",
+                    currentVersion.toString(),
+                    "--current-files",
+                    currentFile.path,
                 )
-        )
+        }
 
         assertTrue(output.isFile)
 

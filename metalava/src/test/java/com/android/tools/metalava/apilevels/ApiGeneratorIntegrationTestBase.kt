@@ -16,7 +16,9 @@
 
 package com.android.tools.metalava.apilevels
 
-import com.android.tools.metalava.DriverTest
+import com.android.tools.metalava.cli.common.BaseCommandTest
+import com.android.tools.metalava.cli.signature.ApiHistoryCommand
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import java.io.File
 import java.util.regex.Pattern
 import org.junit.Assert
@@ -24,10 +26,31 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 
-abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
+abstract class ApiGeneratorIntegrationTestBase :
+    BaseCommandTest<ApiHistoryCommand>({ ApiHistoryCommand() }) {
 
     val androidPublicSignaturePattern =
         "${platformJars.path}/{version:level}/public/api/android.txt"
+
+    protected fun findHistoricalFiles(vararg patterns: String): String {
+        val surfaces =
+            ApiSurfaces.build {
+                createSurface("public")
+                createSurface("system", "public", isMain = true)
+                createSurface("module-lib", "system")
+                createSurface("system-server", "module-lib")
+                createSurface("test", "system")
+            }
+        val patternNode = PatternNode.parsePatterns(patterns.toList())
+        return patternNode
+            .scan(
+                PatternNode.ScanConfig(
+                    dir = File("."),
+                    apiSurfaceByName = surfaces.byName,
+                )
+            )
+            .joinToString(File.pathSeparator) { it.file.path }
+    }
 
     protected fun createSdkExtensionInfoFile(): File {
         val file = File.createTempFile("filter", "txt")
@@ -93,7 +116,7 @@ abstract class ApiGeneratorIntegrationTestBase : DriverTest() {
     companion object {
         internal val platformJars by
             lazy(LazyThreadSafetyMode.NONE) {
-                File("../../../prebuilts/sdk").apply {
+                File("../../../prebuilts/sdk").canonicalFile.apply {
                     if (!isDirectory) {
                         Assert.fail("prebuilts for platform jars not found: $this")
                     }
