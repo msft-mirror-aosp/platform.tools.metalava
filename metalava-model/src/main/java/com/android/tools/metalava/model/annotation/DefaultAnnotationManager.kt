@@ -55,7 +55,6 @@ import com.android.tools.metalava.model.NO_ANNOTATION_TARGETS
 import com.android.tools.metalava.model.RECENTLY_NONNULL
 import com.android.tools.metalava.model.RECENTLY_NULLABLE
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
-import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypedefMode
 import com.android.tools.metalava.model.annotation.DefaultAnnotationManager.Config
 import com.android.tools.metalava.model.api.ApiSurfaceSelector
@@ -479,11 +478,6 @@ class DefaultAnnotationManager(private val config: Config = Config()) : BaseAnno
      */
     override val previouslyReleasedCodebase by
         lazy(LazyThreadSafetyMode.NONE) { config.previouslyReleasedCodebaseProvider() }
-
-    /** Finds the corresponding item in the previously released API, if available. */
-    override fun findPreviouslyReleasedItem(item: SelectableItem): SelectableItem? {
-        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
-    }
 
     override val typedefMode: TypedefMode = config.typedefMode
 
