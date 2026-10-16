@@ -401,9 +401,7 @@ class ModifierListWriter(
                     }
                 }
 
-                val previousItem =
-                    item.codebase.config.annotationManager.findPreviouslyReleasedItem(item)
-                if (previousItem != null) {
+                if (item.selectedApi.wasPreviouslyReleased()) {
                     annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
                 }
             }

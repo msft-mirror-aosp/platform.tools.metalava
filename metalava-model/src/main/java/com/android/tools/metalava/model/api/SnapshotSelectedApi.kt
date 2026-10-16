@@ -41,6 +41,11 @@ internal class SnapshotSelectedApi : SelectedApi() {
     override val revertItem: SelectableItem?
         get() = null
 
+    /** Whether the snapshotted item was part of the previously released API. */
+    private var wasPreviouslyReleased: Boolean = false
+
+    override fun wasPreviouslyReleased(): Boolean = wasPreviouslyReleased
+
     override fun initialize() {}
 
     override fun addItemApiVariant(value: ApiVariant) {
@@ -52,5 +57,6 @@ internal class SnapshotSelectedApi : SelectedApi() {
         contentApiVariants = original.contentApiVariants
         superClassApiVariants = original.superClassApiVariants
         elidableApiVariants = original.elidableApiVariants
+        wasPreviouslyReleased = original.wasPreviouslyReleased()
     }
 }

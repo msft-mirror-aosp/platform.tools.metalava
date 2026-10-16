@@ -159,6 +159,13 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
     override fun hasRemovedAnnotation() = removed
 
+    /** Cached result of [wasPreviouslyReleased], or `null` if it has not yet been computed. */
+    private var wasPreviouslyReleased: Boolean? = null
+
+    override fun wasPreviouslyReleased(): Boolean =
+        wasPreviouslyReleased
+            ?: selectedApiUpdater.wasPreviouslyReleased(item).also { wasPreviouslyReleased = it }
+
     final override fun initialize() {
         // Initialize the parent first.
         parent =
@@ -230,6 +237,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         removed = other.removed
         revert = other.revert
         revertItem = other.revertItem
+        wasPreviouslyReleased = other.wasPreviouslyReleased
         explicitlyHidden = other.explicitlyHidden
     }
 

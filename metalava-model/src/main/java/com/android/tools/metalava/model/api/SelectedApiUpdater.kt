@@ -553,8 +553,7 @@ class SelectedApiUpdater(
         if (
             item is ClassItem &&
                 action != ApiFlagAction.FINALIZE &&
-                (!mayBeInPreviouslyReleasedApi ||
-                    previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } == null)
+                (!mayBeInPreviouslyReleasedApi || !selectedApi.wasPreviouslyReleased())
         ) {
             if (action < selectedApi.maxValidFlagAction) {
                 selectedApi.maxValidFlagAction = action
@@ -605,6 +604,11 @@ class SelectedApiUpdater(
     private fun SelectableItem.isMarkedForRevert(): Boolean {
         val sourceSelectedApi = selectedApi as SourceSelectedApi<*>
         return sourceSelectedApi.revert
+    }
+
+    /** Checks to see whether [item] has a corresponding item in the previously released API. */
+    internal fun wasPreviouslyReleased(item: SelectableItem): Boolean {
+        return previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) } != null
     }
 
     companion object {

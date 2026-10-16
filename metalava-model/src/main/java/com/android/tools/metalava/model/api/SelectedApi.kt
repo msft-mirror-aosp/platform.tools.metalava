@@ -78,6 +78,12 @@ sealed class SelectedApi {
     open fun hasRemovedAnnotation(): Boolean = false
 
     /**
+     * Checks to see whether the associated [SelectableItem] was part of the previously released
+     * API.
+     */
+    open fun wasPreviouslyReleased(): Boolean = false
+
+    /**
      * Initialize this instance.
      *
      * This is called after this has been created and assigned to
