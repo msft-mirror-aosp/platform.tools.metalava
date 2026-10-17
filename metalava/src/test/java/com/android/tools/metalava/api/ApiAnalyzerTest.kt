@@ -1022,4 +1022,50 @@ class ApiAnalyzerTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Non-emitted source-path class in emitted package is not traversed for hidden propagation`() {
+        check(
+            showAnnotations = arrayOf("android.annotation.SystemApi"),
+            additionalSourcePathFiles =
+                arrayOf(
+                    java(
+                        """
+                            package b.pkg;
+                            import android.annotation.SystemApi;
+                            public class SuperClass {
+                                /** @hide */
+                                @SystemApi
+                                public void internalHelper() {}
+                            }
+                        """
+                    ),
+                ),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package a.pkg;
+                            public class Child extends b.pkg.SuperClass {
+                            }
+                        """
+                    ),
+                    java(
+                        """
+                            package b.pkg;
+                            public class OtherEmitted {
+                            }
+                        """
+                    ),
+                    systemApiSource,
+                ),
+            // TODO(b/574796509): b.pkg.SuperClass is on the source path (emit = false), not in the
+            //  command-line sources, so propagateHiddenRemovedAndDocOnly() should not traverse its
+            //  members or report HiddenShowAnnotation on internalHelper().
+            expectedIssues =
+                """
+                    ADDITIONAL-SOURCE-PATH/b/pkg/SuperClass.java:6: warning: @android.annotation.SystemApi APIs must not be marked @hide: method b.pkg.SuperClass.internalHelper() (ErrorWhenNew) [HiddenShowAnnotation]
+                """,
+        )
+    }
 }
