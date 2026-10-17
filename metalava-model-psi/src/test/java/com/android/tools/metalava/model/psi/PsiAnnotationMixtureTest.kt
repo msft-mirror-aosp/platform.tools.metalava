@@ -27,7 +27,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class PsiAnnotationMixtureTest : BaseModelTest() {
     companion object {
@@ -188,10 +188,9 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
         ) {
             codebase.assertClass("b.pkg.Nullable", expectedEmit = false)
 
-            // TODO(b/574796509): b.pkg.Nullable.Helper is not emitted, so
-            //  correctIncorrectlyAppliedAnnotations() should not traverse its methods or resolve
-            //  c.pkg.DeclAnno.
-            assertNotNull(codebase.findPackage("c.pkg"))
+            // b.pkg.Nullable.Helper is not emitted, so correctIncorrectlyAppliedAnnotations()
+            // should not traverse its methods or resolve c.pkg.DeclAnno.
+            assertNull(codebase.findPackage("c.pkg"))
         }
     }
 }

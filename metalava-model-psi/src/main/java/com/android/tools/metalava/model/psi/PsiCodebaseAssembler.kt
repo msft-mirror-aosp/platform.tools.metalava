@@ -402,6 +402,14 @@ internal class PsiCodebaseAssembler(
     fun correctIncorrectlyAppliedAnnotations() {
         // Iterate over all the classes in all the packages.
         for (classItem in codebase.getPackages().allClasses()) {
+            // `codebase.getPackages().allClasses()` includes non-emitted classes from the
+            // classpath or source path that were resolved during earlier stages of codebase
+            // initialization (such as companion object field resolution in PsiValueFactory or
+            // nullness annotation resolution in copyTypeUseOnlyNullnessAnnotationsToItems).
+            // Skip non-emitted classes so that their methods and return types are not traversed or
+            // modified.
+            if (!classItem.emit) continue
+
             // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
             // type use and declaration annotations so does not have the problem of incorrectly
             // applied annotations.
