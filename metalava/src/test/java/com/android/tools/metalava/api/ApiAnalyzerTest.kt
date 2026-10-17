@@ -1059,13 +1059,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                     systemApiSource,
                 ),
-            // TODO(b/574796509): b.pkg.SuperClass is on the source path (emit = false), not in the
-            //  command-line sources, so propagateHiddenRemovedAndDocOnly() should not traverse its
-            //  members or report HiddenShowAnnotation on internalHelper().
-            expectedIssues =
-                """
-                    ADDITIONAL-SOURCE-PATH/b/pkg/SuperClass.java:6: warning: @android.annotation.SystemApi APIs must not be marked @hide: method b.pkg.SuperClass.internalHelper() (ErrorWhenNew) [HiddenShowAnnotation]
-                """,
+            expectedIssues = "",
         )
     }
 }

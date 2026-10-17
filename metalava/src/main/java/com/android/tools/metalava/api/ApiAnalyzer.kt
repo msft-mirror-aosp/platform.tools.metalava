@@ -276,6 +276,14 @@ class ApiAnalyzer(
                     // RecordComponentItems need to be checked to see if they are hidden.
                     visitRecordComponentItems = true,
                 ) {
+                // BaseItemVisitor skips packages with emit = false, but visits all classes in an
+                // emitted package regardless of ClassItem.emit. If a non-emitted class (e.g. from
+                // the source path or classpath) in an emitted package has already been resolved,
+                // skip it so that its members and record components are not traversed, selectedApi
+                // is not unnecessarily initialized on them, and issues are not reported on
+                // non-emitted classes.
+                override fun skip(item: SelectableItem) = !item.emit
+
                 override fun visitSelectableItem(item: SelectableItem) {
                     // Make sure that the SelectedApi has been initialized for all items.
                     item.selectedApi
