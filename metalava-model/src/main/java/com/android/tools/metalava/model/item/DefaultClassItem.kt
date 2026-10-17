@@ -88,10 +88,45 @@ internal class DefaultClassItem(
 
     private val fullName: String
 
+    /** Whether this top-level class has been added to [containingPackage]. */
+    private var addedToPackage = false
+
+    /**
+     * Add the top-level class (either this class or its outermost containing class) to
+     * [containingPackage] if it has not already been added.
+     *
+     * Only classes with [ClassOrigin.COMMAND_LINE] (or outer stub/classpath classes that contain a
+     * nested [ClassOrigin.COMMAND_LINE] class, e.g. in partial signature files) should appear in
+     * [PackageItem.topLevelClasses] and [PackageItem.allClasses]. Classes resolved on demand from
+     * the classpath ([ClassOrigin.CLASS_PATH]) or source path ([ClassOrigin.SOURCE_PATH]) are still
+     * registered in [DefaultCodebase] for lookup by name, but are left off the package class list
+     * so they are not traversed by package visitors.
+     */
+    private fun addTopLevelClassToPackage() {
+        var topClass = this
+        while (topClass.containingClass != null) {
+            topClass = topClass.containingClass as DefaultClassItem
+        }
+        if (!topClass.addedToPackage) {
+            topClass.addedToPackage = true
+            (containingPackage as DefaultPackageItem).addTopClass(topClass)
+        }
+    }
+
     override var origin: ClassOrigin = origin
         set(value) {
             ensureNotFrozen()
-            field = value
+            if (field != value) {
+                field = value
+                // A class initially resolved with ClassOrigin.CLASS_PATH (e.g. when loading a
+                // codebase from a jar in AbstractSourceParser.loadFromJarFile, or when merging an
+                // --api-path signature file with a command-line signature file in ClassMerger) may
+                // be promoted to ClassOrigin.COMMAND_LINE after creation; ensure its top-level
+                // class is added to the package when promoted.
+                if (value == ClassOrigin.COMMAND_LINE) {
+                    addTopLevelClassToPackage()
+                }
+            }
         }
 
     override var permitTypes: List<ClassTypeItem> = permitTypes
@@ -115,8 +150,12 @@ internal class DefaultClassItem(
                 containingPackage.emit = true
             }
 
+            // Only add the top-level class to the package if this class came from the command line.
+            if (origin == ClassOrigin.COMMAND_LINE) {
+                addTopLevelClassToPackage()
+            }
+
             if (containingClass == null) {
-                (containingPackage as DefaultPackageItem).addTopClass(classItem)
                 fullName = simpleName
             } else {
                 (containingClass as DefaultClassItem).addNestedClass(classItem)

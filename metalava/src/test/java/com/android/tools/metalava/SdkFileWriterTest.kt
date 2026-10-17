@@ -253,7 +253,6 @@ class SdkFileWriterTest : DriverTest() {
                 ),
             sdkWidgets =
                 """
-                    Wandroid.view.View java.lang.Object
                     Wandroid.widget.MyButton android.view.View java.lang.Object
                 """,
         )
