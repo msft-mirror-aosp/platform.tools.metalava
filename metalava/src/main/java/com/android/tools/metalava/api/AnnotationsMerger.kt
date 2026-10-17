@@ -27,18 +27,6 @@ import com.android.SdkConstants.LT_ENTITY
 import com.android.SdkConstants.QUOT_ENTITY
 import com.android.SdkConstants.TYPE_DEF_FLAG_ATTRIBUTE
 import com.android.SdkConstants.TYPE_DEF_VALUE_ATTRIBUTE
-import com.android.tools.lint.annotations.Extractor.ANDROID_INT_DEF
-import com.android.tools.lint.annotations.Extractor.ANDROID_NOTNULL
-import com.android.tools.lint.annotations.Extractor.ANDROID_NULLABLE
-import com.android.tools.lint.annotations.Extractor.ANDROID_STRING_DEF
-import com.android.tools.lint.annotations.Extractor.ATTR_PURE
-import com.android.tools.lint.annotations.Extractor.ATTR_VAL
-import com.android.tools.lint.annotations.Extractor.IDEA_CONTRACT
-import com.android.tools.lint.annotations.Extractor.IDEA_MAGIC
-import com.android.tools.lint.annotations.Extractor.IDEA_NOTNULL
-import com.android.tools.lint.annotations.Extractor.IDEA_NULLABLE
-import com.android.tools.lint.annotations.Extractor.SUPPORT_NOTNULL
-import com.android.tools.lint.annotations.Extractor.SUPPORT_NULLABLE
 import com.android.tools.lint.detector.api.getChildren
 import com.android.tools.metalava.CodebaseComparator
 import com.android.tools.metalava.ComparisonVisitor
@@ -49,6 +37,10 @@ import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
 import com.android.tools.metalava.model.ANDROIDX_STRING_DEF
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_INT_DEF
+import com.android.tools.metalava.model.ANDROID_NONNULL
+import com.android.tools.metalava.model.ANDROID_NULLABLE
+import com.android.tools.metalava.model.ANDROID_STRING_DEF
 import com.android.tools.metalava.model.AnnotationAttribute
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ClassItem
@@ -722,7 +714,7 @@ class AnnotationsMerger(
 
     private fun isNonNull(name: String): Boolean {
         return name == IDEA_NOTNULL ||
-            name == ANDROID_NOTNULL ||
+            name == ANDROID_NONNULL ||
             name == ANDROIDX_NONNULL ||
             name == SUPPORT_NOTNULL
     }
@@ -850,5 +842,13 @@ class AnnotationsMerger(
 
     companion object {
         private const val ANNOTATION_VALUE_TRUE = "true"
+        private const val ATTR_PURE = "pure"
+        private const val ATTR_VAL = "val"
+        private const val IDEA_CONTRACT = "org.jetbrains.annotations.Contract"
+        private const val IDEA_MAGIC = "org.intellij.lang.annotations.MagicConstant"
+        private const val IDEA_NOTNULL = "org.jetbrains.annotations.NotNull"
+        private const val IDEA_NULLABLE = "org.jetbrains.annotations.Nullable"
+        private const val SUPPORT_NOTNULL = "android.support.annotation.NonNull"
+        private const val SUPPORT_NULLABLE = "android.support.annotation.Nullable"
     }
 }

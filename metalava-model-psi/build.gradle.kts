@@ -31,7 +31,6 @@ dependencies {
     implementation(libs.androidToolsExternalIntellijCore)
     implementation(libs.androidLintApi)
     implementation(libs.androidLintChecks)
-    implementation(libs.androidLintGradle)
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
     implementation(libs.asm)

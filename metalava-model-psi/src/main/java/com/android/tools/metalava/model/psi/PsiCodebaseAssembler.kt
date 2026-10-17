@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.psi
 
 import androidx.tracing.Tracer
 import com.android.tools.lint.UastEnvironment
-import com.android.tools.lint.annotations.Extractor
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.ClassItem
@@ -41,6 +40,7 @@ import com.android.tools.metalava.model.source.SourcePackageInfo
 import com.android.tools.metalava.model.source.SourceSet
 import com.android.tools.metalava.reporter.Issues
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.JavaRecursiveElementVisitor
 import com.intellij.psi.PsiClass
@@ -51,10 +51,12 @@ import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiImportStatement
 import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiPackage
 import com.intellij.psi.PsiTypeParameter
 import com.intellij.psi.javadoc.PsiDocComment
 import com.intellij.psi.search.GlobalSearchScope
+import java.io.File
 import org.jetbrains.kotlin.asJava.classes.KtLightClassForFacade
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
@@ -317,6 +319,14 @@ internal class PsiCodebaseAssembler(
         return listPackages(rootPackage).toSet()
     }
 
+    private fun createUnitsForFiles(project: Project, files: List<File>): List<PsiFile> {
+        val fileSystem = StandardFileSystems.local()
+        val manager = PsiManager.getInstance(project)
+        return files.mapNotNull { file ->
+            fileSystem.findFileByPath(file.path)?.let { manager.findFile(it) }
+        }
+    }
+
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
@@ -324,7 +334,7 @@ internal class PsiCodebaseAssembler(
         tracer: Tracer,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
-        val psiFiles = Extractor.createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
+        val psiFiles = createUnitsForFiles(uastEnvironment.ideaProject, sourceSet.sources)
 
         // Get the `PsiClass`es from the `PsiFile`s.
         val psiClasses =
