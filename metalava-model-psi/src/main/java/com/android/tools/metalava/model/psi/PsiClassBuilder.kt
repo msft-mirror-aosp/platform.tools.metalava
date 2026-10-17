@@ -36,7 +36,7 @@ import com.android.tools.metalava.model.ModifierContext
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.ParameterKind
-import com.android.tools.metalava.model.PropertyItem
+import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SkeletonClassItem
 import com.android.tools.metalava.model.SkeletonTypeParameterItem
 import com.android.tools.metalava.model.SourceLanguage
@@ -241,10 +241,6 @@ internal class PsiClassBuilder(
                     },
             )
 
-        if (classKind == ClassKind.RECORD) {
-            createRecordComponents(classItem, psiClass.recordComponents, classTypeItemFactory)
-        }
-
         // Add methods, constructors, fields.
         addMembersToClassItem(
             classItem = classItem,
@@ -271,11 +267,7 @@ internal class PsiClassBuilder(
         return classItem
     }
 
-    /**
-     * Create the [PropertyItem]s used to model record components.
-     *
-     * Must be called before creating any other members of [classItem].
-     */
+    /** Create the [RecordComponentItem]s used to model record components. */
     private fun createRecordComponents(
         classItem: ClassItem,
         components: Array<PsiRecordComponent>,
