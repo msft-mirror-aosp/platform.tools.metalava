@@ -15,8 +15,6 @@
  */
 package com.android.tools.metalava.apilevels
 
-import com.google.common.collect.Iterables
-
 /**
  * Represents a class or an interface and its methods/fields. This is used to write the simplified
  * XML file containing all the public API.
@@ -182,7 +180,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         interfaceElement: ApiElement,
         allClasses: Map<String, ApiClass>
     ): Boolean {
-        for (parent in Iterables.concat(interfaces, superClasses)) {
+        for (parent in interfaces.asSequence() + superClasses.asSequence()) {
             if (parent.introducedNotLaterThan(interfaceElement)) {
                 val cls = allClasses[parent.name]
                 if (cls != null && cls.implementsInterface(interfaceElement, allClasses)) {
@@ -251,9 +249,9 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
         allClasses: Map<String, ApiClass>
     ): Boolean {
         // Check this class' parents.
-        for (parent in Iterables.concat(superClasses, interfaces)) {
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
             // Only check the parent if it was a parent class at the introduction of the method.
-            if (parent!!.introducedNotLaterThan(method)) {
+            if (parent.introducedNotLaterThan(method)) {
                 val cls = allClasses[parent.name]
                 if (cls != null && cls.isOverride(method, allClasses)) {
                     return true
@@ -276,7 +274,7 @@ class ApiClass(name: String, private val isEnum: Boolean) : ApiElement(name) {
             return null
         }
         var bestMatch: ApiElement? = null
-        for (parent in Iterables.concat(superClasses, interfaces)) {
+        for (parent in superClasses.asSequence() + interfaces.asSequence()) {
             val cls = allClasses[parent.name] ?: continue
             val localMethod = cls.mMethods[method.name]
             if (localMethod != null) {
