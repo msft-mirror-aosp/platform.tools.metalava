@@ -333,28 +333,21 @@ internal class PsiClassBuilder(
         psiFields: List<PsiField>,
         classTypeItemFactory: PsiTypeItemFactory,
     ) {
-        // create methods
+        addConstructorsToClassItem(classItem, psiMethods, classTypeItemFactory)
+        addMethodsToClassItem(classItem, psiMethods, classTypeItemFactory)
+        addFieldsToClassItem(classItem, psiFields, classTypeItemFactory)
+    }
+
+    /** Adds the constructors from [psiMethods] to [classItem]. */
+    private fun addConstructorsToClassItem(
+        classItem: SkeletonClassItem,
+        psiMethods: List<PsiMethod>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
         for (psiMethod in psiMethods) {
-            // Skip fake UAST constructors and methods, which can't be used from java source.
-            // If this condition is updated, the one in KaCodebaseAssembler determining which
-            // methods to create needs to be updated too.
-            if (
-                (psiMethod is UastFakeSourceLightMethod ||
-                    psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
-            ) {
-                continue
-            }
-
-            // Composable APIs will have a different signature in bytecode than in source. The
-            // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
-            // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
-            if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) continue
-
-            // Items annotated with PublishedApi can only be used externally from bytecode. The
-            // bytecode version of the method will be added by KotlinBytecodeApis.
-            if (psiMethod.hasAnnotation(KOTLIN_PUBLISHED_API)) continue
-
             if (psiMethod.isConstructor) {
+                if (shouldSkipExecutable(psiMethod)) continue
+
                 val constructor = createConstructor(classItem, psiMethod, classTypeItemFactory)
 
                 // There will be a private version of a constructor that takes a value class
@@ -365,7 +358,28 @@ internal class PsiClassBuilder(
                 }
 
                 classItem.addConstructor(constructor)
-            } else {
+            }
+        }
+
+        val constructors = classItem.constructors()
+        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
+        if (hasImplicitDefaultConstructor) {
+            assert(constructors.isEmpty())
+            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
+        }
+    }
+
+    /** Adds the non-constructor methods from [psiMethods] to [classItem]. */
+    private fun addMethodsToClassItem(
+        classItem: SkeletonClassItem,
+        psiMethods: List<PsiMethod>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
+        // create methods
+        for (psiMethod in psiMethods) {
+            if (!psiMethod.isConstructor) {
+                if (shouldSkipExecutable(psiMethod)) continue
+
                 // Property accessors can't be resolved from kotlin, direct access is used instead.
                 val targetLanguages =
                     if (
@@ -423,13 +437,14 @@ internal class PsiClassBuilder(
                 }
             }
         }
+    }
 
-        val constructors = classItem.constructors()
-        val hasImplicitDefaultConstructor = hasImplicitDefaultConstructor(classItem)
-        if (hasImplicitDefaultConstructor) {
-            assert(constructors.isEmpty())
-            classItem.addConstructor(classItem.createImplicitDefaultConstructor())
-        }
+    /** Adds the fields from [psiFields] to [classItem]. */
+    private fun addFieldsToClassItem(
+        classItem: SkeletonClassItem,
+        psiFields: List<PsiField>,
+        classTypeItemFactory: PsiTypeItemFactory,
+    ) {
         if (psiFields.isNotEmpty()) {
             for (psiField in psiFields) {
                 createField(classItem, psiField, classTypeItemFactory)?.let { fieldItem ->
@@ -437,6 +452,30 @@ internal class PsiClassBuilder(
                 }
             }
         }
+    }
+
+    /** Whether [psiMethod] (a method or constructor) should be skipped when populating members. */
+    private fun shouldSkipExecutable(psiMethod: PsiMethod): Boolean {
+        // Skip fake UAST constructors and methods, which can't be used from java source.
+        // If this condition is updated, the one in KaCodebaseAssembler determining which
+        // methods to create needs to be updated too.
+        if (
+            (psiMethod is UastFakeSourceLightMethod ||
+                psiMethod is KotlinUMethodWithFakeLightDelegateBase<*>)
+        ) {
+            return true
+        }
+
+        // Composable APIs will have a different signature in bytecode than in source. The
+        // source signature will be generated as kotlin-only by KaCodebaseAssembler and the
+        // bytecode signature will be generated as bytecode-only by KotlinBytecodeApis.
+        if (psiMethod.hasAnnotation(ANDROIDX_COMPOSABLE)) return true
+
+        // Items annotated with PublishedApi can only be used externally from bytecode. The
+        // bytecode version of the method will be added by KotlinBytecodeApis.
+        if (psiMethod.hasAnnotation(KOTLIN_PUBLISHED_API)) return true
+
+        return false
     }
 
     /**
