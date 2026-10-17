@@ -71,6 +71,11 @@ internal class DefaultClassItem(
     optionalAliasedType: TypeItem?,
     override val isMultiFileClass: Boolean = false,
     recordComponentItemsFactory: RecordComponentItemsFactory? = null,
+    /**
+     * Optional initializer that lazily populates [constructors], [methods], [fields], and
+     * [properties] on demand; cleared once all member kinds have been initialized.
+     */
+    private var memberInitializer: ClassMemberInitializer? = null,
 ) :
     DefaultSelectableItem(
         codebase = codebase,
@@ -296,13 +301,39 @@ internal class DefaultClassItem(
         }
     }
 
+    /**
+     * Ensure that all member kinds in [kind] have been initialized if [memberInitializer] is
+     * present, discarding [memberInitializer] once all member kinds have been initialized.
+     */
+    private fun ensureInitialized(kind: ClassMemberMask) {
+        val initializer = memberInitializer ?: return
+        // Temporarily unfreeze the class while initializing members so that a class frozen before
+        // its members were accessed (e.g. when frozen as a supertype of a frozen subclass) can
+        // still populate its members via addConstructor/addMethod/addField/addProperty.
+        val wasFrozen = frozen
+        frozen = false
+        try {
+            if (initializer.ensureInitialized(this, kind)) {
+                // Clear the initializer reference once all member kinds have been initialized so
+                // any state it captures can be garbage-collected.
+                memberInitializer = null
+            }
+        } finally {
+            frozen = wasFrozen
+        }
+    }
+
     /** The mutable list of [ConstructorItem] that backs [constructors]. */
     private val mutableConstructors = mutableListOf<ConstructorItem>()
 
-    override fun constructors(): List<ConstructorItem> = mutableConstructors
+    override fun constructors(): List<ConstructorItem> {
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
+        return mutableConstructors
+    }
 
     override fun addConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
         mutableConstructors += constructor
     }
 
@@ -324,6 +355,7 @@ internal class DefaultClassItem(
 
     override fun replaceOrAddConstructor(constructor: ConstructorItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.CONSTRUCTORS)
         replaceOrAddItem(constructor, mutableConstructors)
     }
 
@@ -339,15 +371,20 @@ internal class DefaultClassItem(
     /** The mutable list of [MethodItem] that backs [methods]. */
     private val mutableMethods = mutableListOf<MethodItem>()
 
-    override fun methods(): List<MethodItem> = mutableMethods
+    override fun methods(): List<MethodItem> {
+        ensureInitialized(ClassMemberMask.METHODS)
+        return mutableMethods
+    }
 
     override fun addMethod(method: MethodItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.METHODS)
         mutableMethods += method
     }
 
     override fun replaceOrAddMethod(method: MethodItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.METHODS)
         replaceOrAddItem(method, mutableMethods)
     }
 
@@ -356,28 +393,38 @@ internal class DefaultClassItem(
 
     override fun addField(field: FieldItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.FIELDS)
         mutableFields += field
     }
 
     override fun replaceOrAddField(field: FieldItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.FIELDS)
         replaceOrAddItem(field, mutableFields)
     }
 
-    override fun fields(): List<FieldItem> = mutableFields
+    override fun fields(): List<FieldItem> {
+        ensureInitialized(ClassMemberMask.FIELDS)
+        return mutableFields
+    }
 
     /** The mutable list of [PropertyItem] that backs [properties]. */
     private val mutableProperties = mutableListOf<PropertyItem>()
 
-    override fun properties(): List<PropertyItem> = mutableProperties
+    override fun properties(): List<PropertyItem> {
+        ensureInitialized(ClassMemberMask.PROPERTIES)
+        return mutableProperties
+    }
 
     override fun addProperty(property: PropertyItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.PROPERTIES)
         mutableProperties += property
     }
 
     override fun replaceOrAddProperty(property: PropertyItem) {
         ensureNotFrozen()
+        ensureInitialized(ClassMemberMask.PROPERTIES)
         replaceOrAddItem(property, mutableProperties)
     }
 
