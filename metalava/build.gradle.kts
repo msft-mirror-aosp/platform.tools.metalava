@@ -28,6 +28,8 @@ application {
 
 configurations {
     compileClasspath {
+        // Prevent metalava from using sdklib classes pulled in by indirect dependencies.
+        exclude(group = "com.android.tools", module = "sdklib")
         // Prevent metalava from using Guava classes pulled in by indirect dependencies.
         exclude(group = "com.google.guava")
     }
@@ -43,7 +45,6 @@ dependencies {
     implementation(libs.androidLintGradle)
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
-    implementation(libs.androidToolsSdklib)
     implementation(libs.clikt)
     implementation(libs.asm)
     implementation(libs.asmTree)

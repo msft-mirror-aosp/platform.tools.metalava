@@ -12,7 +12,6 @@ androidLintGradle = { module = "com.android.tools.lint:lint-gradle", version.ref
 androidLintTests = { module = "com.android.tools.lint:lint-tests", version.ref = "androidLint" }
 androidToolsCommon = { module = "com.android.tools:common", version.ref = "androidLint" }
 androidToolsSdkCommon = { module = "com.android.tools:sdk-common", version.ref = "androidLint" }
-androidToolsSdklib = { module = "com.android.tools:sdklib", version.ref = "androidLint" }
 androidToolsExternalUast = { module = "com.android.tools.external.org-jetbrains:uast", version.ref = "androidLint" }
 androidToolsExternalKotlinCompiler = { module = "com.android.tools.external.com-intellij:kotlin-compiler", version.ref = "androidLint" }
 androidToolsExternalIntellijCore = { module = "com.android.tools.external.com-intellij:intellij-core", version.ref = "androidLint" }

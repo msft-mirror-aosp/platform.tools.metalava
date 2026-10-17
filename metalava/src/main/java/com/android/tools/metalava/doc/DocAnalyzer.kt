@@ -1019,7 +1019,7 @@ fun getApiLookup(
     val prev = System.getProperty(xmlPathProperty)
     try {
         System.setProperty(xmlPathProperty, xmlFile.path)
-        return ApiLookup.get(client, null) ?: error("ApiLookup creation failed")
+        @Suppress("DEPRECATION") return ApiLookup.get(client) ?: error("ApiLookup creation failed")
     } finally {
         if (prev != null) {
             System.setProperty(xmlPathProperty, xmlFile.path)
