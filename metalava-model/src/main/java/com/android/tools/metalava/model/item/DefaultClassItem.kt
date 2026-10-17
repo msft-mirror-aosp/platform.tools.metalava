@@ -311,7 +311,6 @@ internal class DefaultClassItem(
      * [item]. Otherwise, adds [item] to the end of [mutableItems].
      */
     private fun <I : Item> replaceOrAddItem(item: I, mutableItems: MutableList<I>) {
-        ensureNotFrozen()
         val iterator = mutableItems.listIterator()
         while (iterator.hasNext()) {
             val existing = iterator.next()
@@ -324,6 +323,7 @@ internal class DefaultClassItem(
     }
 
     override fun replaceOrAddConstructor(constructor: ConstructorItem) {
+        ensureNotFrozen()
         replaceOrAddItem(constructor, mutableConstructors)
     }
 
@@ -347,6 +347,7 @@ internal class DefaultClassItem(
     }
 
     override fun replaceOrAddMethod(method: MethodItem) {
+        ensureNotFrozen()
         replaceOrAddItem(method, mutableMethods)
     }
 
@@ -359,6 +360,7 @@ internal class DefaultClassItem(
     }
 
     override fun replaceOrAddField(field: FieldItem) {
+        ensureNotFrozen()
         replaceOrAddItem(field, mutableFields)
     }
 
@@ -375,6 +377,7 @@ internal class DefaultClassItem(
     }
 
     override fun replaceOrAddProperty(property: PropertyItem) {
+        ensureNotFrozen()
         replaceOrAddItem(property, mutableProperties)
     }
 
