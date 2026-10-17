@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.SignatureFile
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import org.junit.Test
 
 class StubConstructorManagerTest : Assertions {
@@ -81,11 +82,8 @@ class StubConstructorManagerTest : Assertions {
             manager.optionalStubConstructor(superClass),
         )
 
-        // TODO(b/574796509): UnrelatedClass is not emitted and no emitted class extends it, so
-        //  StubConstructorManager should not visit it or compute its stub constructor.
-        assertEquals(
-            unrelatedClass.constructors().single(),
-            manager.optionalStubConstructor(unrelatedClass),
-        )
+        // UnrelatedClass is not emitted and no emitted class extends it, so StubConstructorManager
+        // should not visit it or compute its stub constructor.
+        assertNull(manager.optionalStubConstructor(unrelatedClass))
     }
 }
