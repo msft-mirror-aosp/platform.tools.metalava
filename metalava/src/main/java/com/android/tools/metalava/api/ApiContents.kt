@@ -40,11 +40,8 @@ internal class ApiContents(
     private val codebase: Codebase,
 ) :
     BaseItemVisitor(
-        // Preserve class nesting as otherwise this requires that PackageItem visit method is called
-        // to flatten the classes. This does not visit packages because that could cause
-        // ConcurrentModificationException issues as this may cause additional ClassItems to be
-        // added to
-        // the PackageItem that is being visited.
+        // Preserve class nesting so that visiting a top-level ClassItem also visits its nested
+        // classes, and skipping an outer class skips its nested classes.
         preserveClassNesting = true,
 
         // Parameter items are already visited by [visitCallable].
@@ -86,12 +83,8 @@ internal class ApiContents(
      * classes that were visited.
      */
     private fun computeTransitiveClosure(): Set<ClassItem> {
-        // Create a list containing all top level classes to avoid a ConcurrentModificationException
-        // when visiting.
-        val allTopLevelClasses = codebase.getPackages().allTopLevelClasses().toList()
-
-        // Iterate over the list of classes.
-        for (classItem in allTopLevelClasses) {
+        // Iterate over all the top level classes.
+        for (classItem in codebase.getPackages().allTopLevelClasses()) {
             // Check the class reference.
             classItem.accept(this)
         }
