@@ -73,7 +73,6 @@ import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.xml.parseDocument
-import com.google.common.io.Closeables
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -200,27 +199,20 @@ class AnnotationsMerger(
     private fun mergeFromJar(jar: File) {
         // Reads in an existing annotations jar and merges in entries found there
         // with the annotations analyzed from source.
-        var zis: JarInputStream? = null
         try {
-            val fis = FileInputStream(jar)
-            zis = JarInputStream(fis)
-            var entry: ZipEntry? = zis.nextEntry
-            while (entry != null) {
-                if (entry.name.endsWith(".xml")) {
-                    val bytes = zis.readBytes()
-                    val xml = String(bytes, UTF_8)
-                    mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
+            JarInputStream(FileInputStream(jar)).use { zis ->
+                var entry: ZipEntry? = zis.nextEntry
+                while (entry != null) {
+                    if (entry.name.endsWith(".xml")) {
+                        val bytes = zis.readBytes()
+                        val xml = String(bytes, UTF_8)
+                        mergeQualifierAnnotationsFromXml(jar.path + ": " + entry, xml)
+                    }
+                    entry = zis.nextEntry
                 }
-                entry = zis.nextEntry
             }
         } catch (e: IOException) {
             reportError("I/O problem during transform: $e")
-        } finally {
-            try {
-                Closeables.close(zis, true /* swallowIOException */)
-            } catch (e: IOException) {
-                // cannot happen
-            }
         }
     }
 

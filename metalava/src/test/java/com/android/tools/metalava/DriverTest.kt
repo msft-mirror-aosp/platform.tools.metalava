@@ -92,7 +92,6 @@ import com.android.tools.metalava.testing.KnownSourceFiles
 import com.android.tools.metalava.testing.createFiles
 import com.android.tools.metalava.testing.xml
 import com.android.utils.SdkUtils
-import com.google.common.io.Closeables
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileNotFoundException
@@ -1341,14 +1340,11 @@ abstract class DriverTest :
                         "/annotations.xml"
                 )
                 .toURL()
-        val stream = url.openStream()
-        try {
+        url.openStream().use { stream ->
             val bytes = stream.readBytes()
             assertNotNull(bytes)
             val xml = String(bytes, UTF_8).replace("\r\n", "\n")
             assertEquals(expected.trimIndent().trim(), xml.trimIndent().trim())
-        } finally {
-            Closeables.closeQuietly(stream)
         }
     }
 
