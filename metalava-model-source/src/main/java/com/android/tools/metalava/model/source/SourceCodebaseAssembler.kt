@@ -26,6 +26,7 @@ import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.PackageItem
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.SourceFile
 import com.android.tools.metalava.model.item.CodebaseAssembler
 import com.android.tools.metalava.model.item.DefaultCodebaseAssembler
@@ -255,6 +256,14 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                     //  correctly.
                     visitRecordComponentItems = true,
                 ) {
+                // BaseItemVisitor skips packages with emit = false, but visits all classes in an
+                // emitted package regardless of ClassItem.emit. Non-emitted classes (e.g. from the
+                // source path or classpath, including custom nullness annotation classes resolved
+                // while checking isNullnessAnnotation() on earlier items) may be resolved into an
+                // emitted package before that package is visited. Skip non-emitted items so that
+                // their nested classes and members are not traversed or modified.
+                override fun skip(item: SelectableItem) = !item.emit
+
                 override fun visitItem(item: Item) {
                     if (item is ClassItem || item is PackageItem) return
                     val type = item.type() ?: return

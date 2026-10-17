@@ -2349,10 +2349,9 @@ class CommonAnnotationItemTest : BaseModelTest() {
             assertFalse(nullableClass.emit)
             val helperMethod = nullableClass.methods().single()
 
-            // TODO(b/574796509): b.pkg.Nullable is not emitted, so
-            //  copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
-            //  @c.pkg.Nullable onto helperMethod().
-            assertEquals(listOf("c.pkg.Nullable"), helperMethod.annotationNames())
+            // b.pkg.Nullable is not emitted, so copyTypeUseOnlyNullnessAnnotationsToItems() should
+            // not traverse its methods or copy @c.pkg.Nullable onto helperMethod().
+            assertEquals(emptyList(), helperMethod.annotationNames())
         }
     }
 }
