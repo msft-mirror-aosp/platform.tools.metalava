@@ -38,7 +38,6 @@ java_library_host {
         "metalava-model-text",
         "metalava-reporter",
 
-        "prebuilts-metalava-asm",
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
         "prebuilts-metalava-lint",

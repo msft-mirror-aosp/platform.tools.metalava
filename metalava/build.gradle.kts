@@ -32,6 +32,8 @@ configurations {
         exclude(group = "com.android.tools", module = "sdklib")
         // Prevent metalava from using Guava classes pulled in by indirect dependencies.
         exclude(group = "com.google.guava")
+        // Prevent metalava from using ASM classes pulled in by indirect dependencies.
+        exclude(group = "org.ow2.asm")
     }
 }
 
@@ -46,8 +48,6 @@ dependencies {
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
     implementation(libs.clikt)
-    implementation(libs.asm)
-    implementation(libs.asmTree)
     implementation(libs.gson)
     implementation(libs.tracingWire)
 

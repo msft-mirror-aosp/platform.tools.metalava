@@ -34,6 +34,7 @@ dependencies {
     implementation(libs.androidLintGradle)
     implementation(libs.androidLint)
     implementation(libs.androidToolsCommon)
+    implementation(libs.asm)
     implementation(libs.kotlinMetadataJvm)
     implementation(libs.tracing)
 
