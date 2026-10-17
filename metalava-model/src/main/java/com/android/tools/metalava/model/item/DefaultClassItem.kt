@@ -378,11 +378,24 @@ internal class DefaultClassItem(
         replaceOrAddItem(property, mutableProperties)
     }
 
-    override val recordComponents =
-        if (classKind == ClassKind.RECORD && recordComponentItemsFactory != null) {
-            RecordComponents.create(recordComponentItemsFactory(this))
-        } else {
-            RecordComponents.EMPTY
+    /**
+     * Factory used to lazily initialize [cachedRecordComponents] on first access to
+     * [recordComponents]; cleared once used.
+     */
+    private var recordComponentItemsFactory: RecordComponentItemsFactory? =
+        if (classKind == ClassKind.RECORD) recordComponentItemsFactory else null
+
+    /** Must only be used by [recordComponents] to cache its result. */
+    private var cachedRecordComponents: RecordComponents = RecordComponents.EMPTY
+
+    override val recordComponents: RecordComponents
+        get() {
+            recordComponentItemsFactory?.let { factory ->
+                // Clear the factory reference so any state it captures can be garbage-collected.
+                recordComponentItemsFactory = null
+                cachedRecordComponents = RecordComponents.create(factory(this))
+            }
+            return cachedRecordComponents
         }
 
     /** The mutable list of nested [ClassItem] that backs [nestedClasses]. */
