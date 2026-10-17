@@ -26,6 +26,13 @@ application {
     applicationDefaultJvmArgs = listOf("-ea", "-Xms2g", "-Xmx4g")
 }
 
+configurations {
+    compileClasspath {
+        // Prevent metalava from using Guava classes pulled in by indirect dependencies.
+        exclude(group = "com.google.guava")
+    }
+}
+
 dependencies {
     implementation(project(":metalava-model"))
     implementation(project(":metalava-model-source"))

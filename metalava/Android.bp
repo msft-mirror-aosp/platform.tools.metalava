@@ -41,7 +41,6 @@ java_library_host {
         "prebuilts-metalava-asm",
         "prebuilts-metalava-clikt",
         "prebuilts-metalava-gson",
-        "prebuilts-metalava-guava",
         "prebuilts-metalava-lint",
         "prebuilts-metalava-sdklib",
         "prebuilts-metalava-tracing",

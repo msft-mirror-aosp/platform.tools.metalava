@@ -35,6 +35,7 @@ java_library_host {
     ],
     static_libs: [
         "kotlin_metadata_jvm",
+        "prebuilts-metalava-guava",
         "prebuilts-metalava-psi",
     ],
 }
