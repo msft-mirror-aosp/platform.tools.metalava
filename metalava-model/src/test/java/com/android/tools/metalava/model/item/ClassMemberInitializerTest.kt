@@ -117,14 +117,21 @@ class ClassMemberInitializerTest {
                 superClassType = null,
                 interfaceTypes = emptyList(),
                 memberInitializer = initializer,
-            )
+            ) as DefaultClassItem
 
+        val initialMask =
+            ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
         // Nothing initialized before access.
         assertEquals(emptyList(), initializedMasks)
+        assertEquals(initialMask, classItem.uninitializedMembers)
 
         // Accessing fields() initializes only FIELDS.
         assertEquals(0, classItem.fields().size)
         assertEquals(listOf(ClassMemberMask.FIELDS), initializedMasks)
+        assertEquals(
+            ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS,
+            classItem.uninitializedMembers,
+        )
 
         // Accessing fields() again does not call initializeMembers again.
         assertEquals(0, classItem.fields().size)
@@ -138,6 +145,7 @@ class ClassMemberInitializerTest {
             listOf(ClassMemberMask.FIELDS, ClassMemberMask.CONSTRUCTORS),
             initializedMasks,
         )
+        assertEquals(ClassMemberMask.METHODS, classItem.uninitializedMembers)
 
         assertThrows(IllegalStateException::class.java) {
             classItem.addConstructor(
@@ -154,6 +162,7 @@ class ClassMemberInitializerTest {
             ),
             initializedMasks,
         )
+        assertEquals(ClassMemberMask.NONE, classItem.uninitializedMembers)
     }
 
     @Test

@@ -301,6 +301,10 @@ internal class DefaultClassItem(
         }
     }
 
+    /** The mask of member kinds that have not yet been initialized on this class. */
+    val uninitializedMembers: ClassMemberMask
+        get() = memberInitializer?.uninitializedMembers ?: ClassMemberMask.NONE
+
     /**
      * Ensure that all member kinds in [kind] have been initialized if [memberInitializer] is
      * present, discarding [memberInitializer] once all member kinds have been initialized.

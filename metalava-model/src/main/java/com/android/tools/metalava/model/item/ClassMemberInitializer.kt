@@ -45,6 +45,9 @@ value class ClassMemberMask(val bits: Int) {
         ClassMemberMask(bits and other.bits.inv())
 
     companion object {
+        /** Mask representing no class member kinds. */
+        val NONE = ClassMemberMask(0)
+
         /** Mask representing [ClassItem.constructors]. */
         val CONSTRUCTORS = ClassMemberMask(1 shl 0)
 
@@ -71,8 +74,12 @@ value class ClassMemberMask(val bits: Int) {
  * @param uninitializedMembers the initial mask of member kinds that still need to be initialized.
  */
 abstract class ClassMemberInitializer(
-    private var uninitializedMembers: ClassMemberMask,
+    uninitializedMembers: ClassMemberMask,
 ) {
+    /** The mask of member kinds that still need to be initialized. */
+    var uninitializedMembers: ClassMemberMask = uninitializedMembers
+        private set
+
     /**
      * Ensure that all member kinds in [requested] have been initialized on [classItem].
      *
