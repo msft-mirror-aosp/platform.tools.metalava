@@ -27,6 +27,7 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class PsiAnnotationMixtureTest : BaseModelTest() {
@@ -191,6 +192,44 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
             // b.pkg.Nullable.Helper is not emitted, so correctIncorrectlyAppliedAnnotations()
             // should not traverse its methods or resolve c.pkg.DeclAnno.
             assertNull(codebase.findPackage("c.pkg"))
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `correctIncorrectlyAppliedAnnotations skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public <T> @b.pkg.DeclAnno String genericMethod() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.METHOD)
+                                public @interface DeclAnno {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            // TODO(b/574796509): a.pkg.PackagePrivateFoo does not have API visibility, so
+            //  correctIncorrectlyAppliedAnnotations() should not traverse its methods or resolve
+            //  b.pkg.DeclAnno.
+            assertNotNull(codebase.findPackage("b.pkg"))
         }
     }
 }
