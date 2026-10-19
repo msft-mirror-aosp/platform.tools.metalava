@@ -52,6 +52,8 @@ import com.android.tools.metalava.model.addDefaultRetentionPolicyAnnotation
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.isNonNullAnnotation
 import com.android.tools.metalava.model.isRetention
+import com.android.tools.metalava.model.item.ClassMemberInitializer
+import com.android.tools.metalava.model.item.ClassMemberMask
 import com.android.tools.metalava.model.type.MethodFingerprint
 import com.android.tools.metalava.model.type.TypeParameterListAndFactory
 import com.android.tools.metalava.model.value.OptionalValueProvider
@@ -207,6 +209,10 @@ internal class PsiClassBuilder(
                 TargetLanguageSet.ALL
             }
 
+        // Only populate members eagerly for classes specified on the command line; classes resolved
+        // from the classpath or source path will populate their members lazily on demand.
+        val createEagerly = origin == ClassOrigin.COMMAND_LINE
+
         val classItem =
             itemFactory.createClassItem(
                 fileLocationSource = PsiFileLocation.fileLocationSource(psiClass),
@@ -239,15 +245,20 @@ internal class PsiClassBuilder(
                     else {
                         null
                     },
+                memberInitializer =
+                    if (createEagerly) null else LazyMemberInitializer(classTypeItemFactory),
             )
 
-        // Add methods, constructors, fields.
-        addMembersToClassItem(
-            classItem = classItem,
-            psiMethods = psiClass.methods.toList(),
-            psiFields = psiClass.fields.toList(),
-            classTypeItemFactory = classTypeItemFactory,
-        )
+        if (createEagerly) {
+            // Add methods, constructors, fields. Classes from COMMAND_LINE have their Kotlin
+            // properties populated from Kotlin source declarations in KaCodebaseAssembler.
+            addMembersToClassItem(
+                classItem = classItem,
+                psiMethods = psiClass.methods.toList(),
+                psiFields = psiClass.fields.toList(),
+                classTypeItemFactory = classTypeItemFactory,
+            )
+        }
 
         // This actually gets all nested classes not just inner, i.e. non-static nested,
         // classes.
@@ -265,6 +276,46 @@ internal class PsiClassBuilder(
             )
         }
         return classItem
+    }
+
+    /**
+     * Lazily populates constructors, methods, fields, and properties of a
+     * non-[ClassOrigin.COMMAND_LINE] class on demand.
+     *
+     * @param classTypeItemFactory the [PsiTypeItemFactory] scoped to the class being initialized.
+     */
+    private inner class LazyMemberInitializer(
+        private val classTypeItemFactory: PsiTypeItemFactory,
+    ) : ClassMemberInitializer(ClassMemberMask.ALL) {
+        override fun initializeMembers(
+            classItem: SkeletonClassItem,
+            mask: ClassMemberMask,
+        ) {
+            if (ClassMemberMask.CONSTRUCTORS in mask) {
+                addConstructorsToClassItem(
+                    classItem = classItem,
+                    psiMethods = psiClass.methods.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.METHODS in mask) {
+                addMethodsToClassItem(
+                    classItem = classItem,
+                    psiMethods = psiClass.methods.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.FIELDS in mask) {
+                addFieldsToClassItem(
+                    classItem = classItem,
+                    psiFields = psiClass.fields.asList(),
+                    classTypeItemFactory = classTypeItemFactory,
+                )
+            }
+            if (ClassMemberMask.PROPERTIES in mask) {
+                addPropertiesToClassFromClasspath(classItem)
+            }
+        }
     }
 
     /** Create the [RecordComponentItem]s used to model record components. */

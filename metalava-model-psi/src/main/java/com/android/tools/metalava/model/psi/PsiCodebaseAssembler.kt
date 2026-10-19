@@ -295,9 +295,6 @@ internal class PsiCodebaseAssembler(
                 )
             }
 
-        // Add any Kotlin properties to the class.
-        addPropertiesToClassFromClasspath(createdClassItem)
-
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
             // The created class item was what was requested so just return it.
