@@ -476,9 +476,11 @@ private constructor(
         val classItem =
             if (addingToPsiCodebase) {
                 // When adding Kotlin-only elements to a PsiBasedCodebase, don't create any new
-                // classes. Some classes won't have been generated in the psi assembly because they
-                // don't have API visibility, so they shouldn't be created here.
-                codebase.findClassInCodebase(className) ?: return null
+                // classes. Skip classes that don't have API visibility so that their members and
+                // nested classes are not traversed.
+                val found = codebase.findClassInCodebase(className) ?: return null
+                if (!found.modifiers.hasApiVisibility()) return null
+                found
             } else {
                 findOrCreateClass(classifierSymbol, containingPackage, containingClass, className)
             }

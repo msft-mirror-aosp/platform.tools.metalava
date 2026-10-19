@@ -404,10 +404,9 @@ class PsiPropertyItemTest : BaseModelTest() {
                     ),
             )
         ) {
-            // TODO(b/574796509): a.pkg.InternalFoo does not have API visibility, so
-            //  KaCodebaseAssembler should not process its properties or resolve
-            //  b.pkg.PropertyAnno.
-            assertNotNull(codebase.findPackage("b.pkg"))
+            // a.pkg.InternalFoo does not have API visibility, so KaCodebaseAssembler should not
+            // process its properties or resolve b.pkg.PropertyAnno.
+            assertEquals(null, codebase.findPackage("b.pkg"))
         }
     }
 }
