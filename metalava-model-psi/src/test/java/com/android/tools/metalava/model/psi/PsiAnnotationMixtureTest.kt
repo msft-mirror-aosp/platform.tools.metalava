@@ -27,7 +27,6 @@ import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class PsiAnnotationMixtureTest : BaseModelTest() {
@@ -226,10 +225,10 @@ class PsiAnnotationMixtureTest : BaseModelTest() {
                     annotationManager = noOpAnnotationManager,
                 ),
         ) {
-            // TODO(b/574796509): a.pkg.PackagePrivateFoo does not have API visibility, so
-            //  correctIncorrectlyAppliedAnnotations() should not traverse its methods or resolve
-            //  b.pkg.DeclAnno.
-            assertNotNull(codebase.findPackage("b.pkg"))
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // correctIncorrectlyAppliedAnnotations() should not traverse its methods or resolve
+            // b.pkg.DeclAnno.
+            assertNull(codebase.findPackage("b.pkg"))
         }
     }
 }

@@ -401,23 +401,28 @@ internal class PsiCodebaseAssembler(
      * non-type use annotations from the type.
      */
     fun correctIncorrectlyAppliedAnnotations() {
-        // Iterate over all the classes in all the packages.
-        for (classItem in codebase.getPackages().allClasses()) {
-            // `codebase.getPackages().allClasses()` includes non-emitted classes from the
-            // classpath or source path that were resolved during earlier stages of codebase
-            // initialization (such as companion object field resolution in PsiValueFactory or
-            // nullness annotation resolution in copyTypeUseOnlyNullnessAnnotationsToItems).
-            // Skip non-emitted classes so that their methods and return types are not traversed or
-            // modified.
-            if (!classItem.emit) continue
+        for (pkg in codebase.getPackages().packages) {
+            if (!pkg.emit) continue
+            for (classItem in pkg.topLevelClasses()) {
+                correctIncorrectlyAppliedAnnotations(classItem)
+            }
+        }
+    }
 
-            // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
-            // type use and declaration annotations so does not have the problem of incorrectly
-            // applied annotations.
-            if (classItem.sourceLanguage == SourceLanguage.KOTLIN) continue
+    private fun correctIncorrectlyAppliedAnnotations(classItem: ClassItem) {
+        // Skip non-emitted classes and classes without API visibility (e.g. private,
+        // package-private, or non-@PublishedApi internal) so that their nested classes, methods,
+        // and return types are not traversed or modified.
+        if (!classItem.emit || !classItem.modifiers.hasApiVisibility()) return
 
-            // Iterate over all the methods in each class.
+        // Ignore any Kotlin classes as Kotlin syntax unambiguously differentiates between
+        // type use and declaration annotations so does not have the problem of incorrectly
+        // applied annotations.
+        if (classItem.sourceLanguage != SourceLanguage.KOTLIN) {
+            // Iterate over all the methods in the class.
             for (methodItem in classItem.methods()) {
+                if (!methodItem.modifiers.hasApiVisibility()) continue
+
                 // Ignore methods that have no type parameters.
                 if (methodItem.typeParameterList.isEmpty()) continue
 
@@ -435,6 +440,10 @@ internal class PsiCodebaseAssembler(
                     methodItem.setType(newReturnType)
                 }
             }
+        }
+
+        for (nestedClass in classItem.nestedClasses()) {
+            correctIncorrectlyAppliedAnnotations(nestedClass)
         }
     }
 
