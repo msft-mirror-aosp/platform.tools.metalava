@@ -1091,13 +1091,7 @@ class ApiAnalyzerTest : DriverTest() {
                     ),
                 ),
             javaLanguageLevel = "16",
-            // TODO(b/574796509): test.pkg.PackagePrivateRecord does not have API visibility, so
-            //  propagateHiddenRemovedAndDocOnly() should not traverse its record components or
-            //  report HidingRecordComponent on component a.
-            expectedIssues =
-                """
-                    src/test/pkg/PackagePrivateRecord.java:2: error: Cannot hide record component test.pkg.PackagePrivateRecord.a as record components are an indivisible part of a record class [HidingRecordComponent]
-                """,
+            expectedIssues = "",
         )
     }
 }
