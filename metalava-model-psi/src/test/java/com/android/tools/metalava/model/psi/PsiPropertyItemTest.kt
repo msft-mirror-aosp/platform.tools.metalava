@@ -377,4 +377,37 @@ class PsiPropertyItemTest : BaseModelTest() {
             )
         }
     }
+
+    @Test
+    fun `KaCodebaseAssembler skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                kotlin(
+                    """
+                        package a.pkg
+
+                        internal class InternalFoo(
+                            @property:b.pkg.PropertyAnno val prop: Int,
+                        )
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        kotlin(
+                            """
+                                package b.pkg
+
+                                @Target(AnnotationTarget.PROPERTY)
+                                annotation class PropertyAnno
+                            """
+                        ),
+                    ),
+            )
+        ) {
+            // TODO(b/574796509): a.pkg.InternalFoo does not have API visibility, so
+            //  KaCodebaseAssembler should not process its properties or resolve
+            //  b.pkg.PropertyAnno.
+            assertNotNull(codebase.findPackage("b.pkg"))
+        }
+    }
 }
