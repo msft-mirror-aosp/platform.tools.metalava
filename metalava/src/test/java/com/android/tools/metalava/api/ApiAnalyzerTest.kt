@@ -1062,4 +1062,42 @@ class ApiAnalyzerTest : DriverTest() {
             expectedIssues = "",
         )
     }
+
+    @Test
+    fun `Inaccessible command-line class is not traversed for hidden propagation`() {
+        check(
+            hideAnnotations = arrayOf("android.annotation.Hide", "test.pkg.HideComponent"),
+            sourceFiles =
+                arrayOf(
+                    hideAnnotation,
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.Hide;
+                            import java.lang.annotation.ElementType;
+                            import java.lang.annotation.Target;
+
+                            @Target(ElementType.RECORD_COMPONENT)
+                            @Hide
+                            public @interface HideComponent {}
+                        """
+                    ),
+                    java(
+                        """
+                            package test.pkg;
+                            record PackagePrivateRecord(@HideComponent int a) {
+                            }
+                        """
+                    ),
+                ),
+            javaLanguageLevel = "16",
+            // TODO(b/574796509): test.pkg.PackagePrivateRecord does not have API visibility, so
+            //  propagateHiddenRemovedAndDocOnly() should not traverse its record components or
+            //  report HidingRecordComponent on component a.
+            expectedIssues =
+                """
+                    src/test/pkg/PackagePrivateRecord.java:2: error: Cannot hide record component test.pkg.PackagePrivateRecord.a as record components are an indivisible part of a record class [HidingRecordComponent]
+                """,
+        )
+    }
 }
