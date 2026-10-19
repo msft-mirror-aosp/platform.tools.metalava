@@ -24,7 +24,9 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
 import com.android.tools.metalava.model.item.ClassMemberMask
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
+import com.android.tools.metalava.model.testing.RequiresCapabilities
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
 import com.android.tools.metalava.model.testsuite.BaseModelTest
@@ -1787,6 +1789,11 @@ class CommonClassItemTest : BaseModelTest() {
         }
     }
 
+    // Requires Capability.HIDDEN_ITEMS because this test inspects inaccessible (hidden) classes
+    // and verifies that their members are initialized lazily on demand; snapshot testing (which
+    // excludes HIDDEN_ITEMS) visits every class and member when constructing the snapshot codebase
+    // and populates all snapshot ClassItem members eagerly.
+    @RequiresCapabilities(Capability.HIDDEN_ITEMS)
     @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
     @Test
     fun `Test deferred member initialization for inaccessible command line classes`() {
@@ -1887,10 +1894,31 @@ class CommonClassItemTest : BaseModelTest() {
                 codebase.assertClass("test.pkg.InaccessibleOuter.PublicInInaccessible")
             assertFalse(publicInInaccessible.hasApiVisibility())
 
-            // TODO(b/574796509): Inaccessible command-line classes should defer member creation
-            //  on demand instead of initializing members eagerly.
+            val javaMembers =
+                ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS or ClassMemberMask.FIELDS
             for (inaccessibleClass in
                 listOf(privateNested, inaccessibleOuter, publicInInaccessible)) {
+                assertEquals(javaMembers, inaccessibleClass.uninitializedMembers and javaMembers)
+
+                assertEquals(listOf("field"), inaccessibleClass.fields().map { it.name() })
+                assertEquals(
+                    ClassMemberMask.CONSTRUCTORS or ClassMemberMask.METHODS,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                assertTrue(inaccessibleClass.methods().any { it.name() == "method" })
+                assertEquals(
+                    ClassMemberMask.CONSTRUCTORS,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                assertEquals(1, inaccessibleClass.constructors().size)
+                assertEquals(
+                    ClassMemberMask.NONE,
+                    inaccessibleClass.uninitializedMembers and javaMembers,
+                )
+
+                inaccessibleClass.properties()
                 assertEquals(ClassMemberMask.NONE, inaccessibleClass.uninitializedMembers)
             }
         }

@@ -182,9 +182,13 @@ internal class TurbineClassBuilder(
                 }
                 .sortedWith(TypeItem.qualifiedComparator)
 
-        // Only populate members eagerly for classes specified on the command line; classes resolved
-        // from the classpath or source path will populate their members lazily on demand.
-        val createEagerly = origin == ClassOrigin.COMMAND_LINE
+        // Only populate members eagerly for classes specified on the command line that have API
+        // visibility; classes resolved from the classpath or source path, or command line classes
+        // without API visibility, will populate their members lazily on demand.
+        val createEagerly =
+            origin == ClassOrigin.COMMAND_LINE &&
+                modifiers.hasApiVisibility() &&
+                containingClassItem?.hasApiVisibility() != false
 
         val classItem =
             itemFactory.createClassItem(
