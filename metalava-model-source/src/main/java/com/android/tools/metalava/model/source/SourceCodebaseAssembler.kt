@@ -252,6 +252,7 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
         codebase.accept(
             object :
                 BaseItemVisitor(
+                    preserveClassNesting = true,
                     // TODO(b/482390286): Remove once record components handles type use annotations
                     //  correctly.
                     visitRecordComponentItems = true,
@@ -260,9 +261,11 @@ abstract class SourceCodebaseAssembler : DefaultCodebaseAssembler() {
                 // emitted package regardless of ClassItem.emit. Non-emitted classes (e.g. from the
                 // source path or classpath, including custom nullness annotation classes resolved
                 // while checking isNullnessAnnotation() on earlier items) may be resolved into an
-                // emitted package before that package is visited. Skip non-emitted items so that
-                // their nested classes and members are not traversed or modified.
-                override fun skip(item: SelectableItem) = !item.emit
+                // emitted package before that package is visited. Skip non-emitted items and items
+                // without API visibility (e.g. private, package-private, or non-@PublishedApi
+                // internal) so that their nested classes and members are not traversed or modified.
+                override fun skip(item: SelectableItem) =
+                    !item.emit || !item.modifiers.hasApiVisibility()
 
                 override fun visitItem(item: Item) {
                     if (item is ClassItem || item is PackageItem) return

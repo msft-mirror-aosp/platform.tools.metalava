@@ -2388,10 +2388,10 @@ class CommonAnnotationItemTest : BaseModelTest() {
         ) {
             val barMethod = codebase.assertClass("a.pkg.PackagePrivateFoo").methods().single()
 
-            // TODO(b/574796509): a.pkg.PackagePrivateFoo does not have API visibility, so
-            //  copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
-            //  @b.pkg.Nullable onto bar().
-            assertEquals(listOf("b.pkg.Nullable"), barMethod.annotationNames())
+            // a.pkg.PackagePrivateFoo does not have API visibility, so
+            // copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
+            // @b.pkg.Nullable onto bar().
+            assertEquals(emptyList(), barMethod.annotationNames())
         }
     }
 }
