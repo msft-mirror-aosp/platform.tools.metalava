@@ -669,10 +669,7 @@ class CommonPublishedApiTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
             assertThat(fooClass.hasApiVisibility()).isFalse()
-            // TODO(b/574796509): KotlinBytecodeApis should not add bytecode methods to
-            //  inaccessible classes.
-            assertThat(fooClass.methods().map { it.name() })
-                .containsExactly("getFoo-RVb1_dM", "setFoo-Vxmw0xk")
+            assertThat(fooClass.methods()).isEmpty()
         }
     }
 
