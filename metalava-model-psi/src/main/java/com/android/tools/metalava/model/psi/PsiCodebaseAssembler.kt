@@ -296,7 +296,7 @@ internal class PsiCodebaseAssembler(
             }
 
         // Add any Kotlin properties to the class.
-        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(createdClassItem)
+        addPropertiesToClassFromClasspath(createdClassItem)
 
         // Select the class item to return.
         return if (missingPsiClass == psiClass) {
@@ -307,6 +307,10 @@ internal class PsiCodebaseAssembler(
             // containing class was created.
             psiCodebase.findClass(psiClass)!!
         }
+    }
+
+    override fun addPropertiesToClassFromClasspath(classItem: SkeletonClassItem) {
+        kaCodebaseAssembler?.addPropertiesToClassFromClasspath(classItem)
     }
 
     /** Lists all packages in the psi project. */
