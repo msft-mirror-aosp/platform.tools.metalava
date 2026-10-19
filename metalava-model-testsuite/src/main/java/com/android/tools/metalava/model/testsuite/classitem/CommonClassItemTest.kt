@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterItem
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.item.ClassMemberMask
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.testTypeString
@@ -36,6 +37,7 @@ import com.android.tools.metalava.testing.kotlin
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -1782,6 +1784,115 @@ class CommonClassItemTest : BaseModelTest() {
                 "MAIN_SRC/api.txt:3",
                 removeTestSpecificDirectories(testClass.fileLocation.toString())
             )
+        }
+    }
+
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test deferred member initialization for inaccessible command line classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package test.pkg;
+
+                        public class PublicClass {
+                            public int field = 1;
+                            public PublicClass() {}
+                            public void method() {}
+
+                            public static class PublicNested {
+                                public int field = 1;
+                                public PublicNested() {}
+                                public void method() {}
+                            }
+
+                            private static class PrivateNested {
+                                public int field = 1;
+                                public PrivateNested() {}
+                                public void method() {}
+                            }
+                        }
+                    """
+                ),
+                java(
+                    """
+                        package test.pkg;
+
+                        class InaccessibleOuter {
+                            public int field = 1;
+                            public InaccessibleOuter() {}
+                            public void method() {}
+
+                            public static class PublicInInaccessible {
+                                public int field = 1;
+                                public PublicInInaccessible() {}
+                                public void method() {}
+                            }
+                        }
+                    """
+                ),
+            ),
+            inputSet(
+                kotlin(
+                    """
+                        package test.pkg
+
+                        class PublicClass {
+                            val field: Int = 1
+                            fun method() {}
+
+                            class PublicNested {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+
+                            private class PrivateNested {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+                        }
+
+                        internal class InaccessibleOuter {
+                            val field: Int = 1
+                            fun method() {}
+
+                            class PublicInInaccessible {
+                                val field: Int = 1
+                                fun method() {}
+                            }
+                        }
+                    """
+                ),
+            ),
+        ) {
+            // Accessible command-line classes have their members initialized eagerly.
+            val publicClass = codebase.assertClass("test.pkg.PublicClass")
+            assertTrue(publicClass.hasApiVisibility())
+            assertEquals(ClassMemberMask.NONE, publicClass.uninitializedMembers)
+
+            val publicNested = codebase.assertClass("test.pkg.PublicClass.PublicNested")
+            assertTrue(publicNested.hasApiVisibility())
+            assertEquals(ClassMemberMask.NONE, publicNested.uninitializedMembers)
+
+            // Inaccessible command-line classes (including public classes nested inside an
+            // inaccessible outer class) do not have API visibility.
+            val privateNested = codebase.assertClass("test.pkg.PublicClass.PrivateNested")
+            assertFalse(privateNested.hasApiVisibility())
+
+            val inaccessibleOuter = codebase.assertClass("test.pkg.InaccessibleOuter")
+            assertFalse(inaccessibleOuter.hasApiVisibility())
+
+            val publicInInaccessible =
+                codebase.assertClass("test.pkg.InaccessibleOuter.PublicInInaccessible")
+            assertFalse(publicInInaccessible.hasApiVisibility())
+
+            // TODO(b/574796509): Inaccessible command-line classes should defer member creation
+            //  on demand instead of initializing members eagerly.
+            for (inaccessibleClass in
+                listOf(privateNested, inaccessibleOuter, publicInInaccessible)) {
+                assertEquals(ClassMemberMask.NONE, inaccessibleClass.uninitializedMembers)
+            }
         }
     }
 }
