@@ -2354,4 +2354,44 @@ class CommonAnnotationItemTest : BaseModelTest() {
             assertEquals(emptyList(), helperMethod.annotationNames())
         }
     }
+
+    @SupportedInputFormats(InputFormat.JAVA)
+    @Test
+    fun `copyTypeUseOnlyNullnessAnnotationsToItems skips inaccessible classes`() {
+        runCodebaseTest(
+            inputSet(
+                java(
+                    """
+                        package a.pkg;
+                        class PackagePrivateFoo {
+                            public String @b.pkg.Nullable [] bar() { return null; }
+                        }
+                    """
+                ),
+                sourcePathFiles =
+                    listOf(
+                        java(
+                            """
+                                package b.pkg;
+                                import java.lang.annotation.ElementType;
+                                import java.lang.annotation.Target;
+                                @Target(ElementType.TYPE_USE)
+                                public @interface Nullable {}
+                            """
+                        ),
+                    ),
+            ),
+            testFixture =
+                TestFixture(
+                    annotationManager = noOpAnnotationManager,
+                ),
+        ) {
+            val barMethod = codebase.assertClass("a.pkg.PackagePrivateFoo").methods().single()
+
+            // TODO(b/574796509): a.pkg.PackagePrivateFoo does not have API visibility, so
+            //  copyTypeUseOnlyNullnessAnnotationsToItems() should not traverse its methods or copy
+            //  @b.pkg.Nullable onto bar().
+            assertEquals(listOf("b.pkg.Nullable"), barMethod.annotationNames())
+        }
+    }
 }
