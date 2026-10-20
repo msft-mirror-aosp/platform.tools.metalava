@@ -170,6 +170,21 @@ internal class JavaStubWriter(
     }
 
     private fun appendModifiers(item: Item) {
+        val annotations =
+            if (item is SelectableItem) {
+                modifySelectableItemAnnotations(item)
+            } else {
+                item.modifiers.annotations()
+            }
+
+        modifierListWriter.write(item, annotations)
+    }
+
+    /**
+     * Returns the list of [AnnotationItem]s to write for [item], adjusted for stub-specific
+     * `@FlaggedApi` and `@RequiresFlag` handling.
+     */
+    private fun modifySelectableItemAnnotations(item: SelectableItem): List<AnnotationItem> {
         val modifierList = item.modifiers
         var annotations = modifierList.annotations()
 
@@ -198,7 +213,7 @@ internal class JavaStubWriter(
 
         // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),
         // and remove @FlaggedApi if the item was part of a previously released API.
-        if (item is SelectableItem && (modifierList.isPublic() || modifierList.isProtected())) {
+        if (modifierList.isPublic() || modifierList.isProtected()) {
             if (annotations.findFlaggedApiAnnotation() == null) {
                 var containingClassItem: ClassItem? = item.containingClass()
                 while (containingClassItem != null) {
@@ -217,7 +232,7 @@ internal class JavaStubWriter(
             }
         }
 
-        modifierListWriter.write(item, annotations)
+        return annotations
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {
