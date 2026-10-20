@@ -132,7 +132,7 @@ val testPrebuiltsSdkExt3 =
     )
 
 project.tasks.register("test-sdk-extensions-info.xml", Copy::class) {
-    from("src/testdata/prebuilts-sdk-test/sdk-extensions-info.xml")
+    from("src/testdata/prebuilts/sdk/sdk-extensions-info.xml")
     into(testPrebuiltsSdkDir)
 }
 
