@@ -362,6 +362,7 @@ class ApiLevelsGenerationOptionsTest :
                 dir("1") {
                     dir("public") {
                         emptyFile("foo.txt")
+                        emptyFile("foo-removed.txt")
                         emptyFile("bar.txt")
                     }
                     dir("system") { emptyFile("foo.txt") }
@@ -369,6 +370,7 @@ class ApiLevelsGenerationOptionsTest :
                 dir("2") {
                     dir("public") {
                         emptyFile("foo.txt")
+                        emptyFile("foo-incompatibilities.txt")
                         emptyFile("bar.txt")
                         emptyFile("baz.txt")
                     }
@@ -389,6 +391,10 @@ class ApiLevelsGenerationOptionsTest :
             "30",
             ARG_GENERATE_API_LEVELS,
             apiVersionsXml.path,
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "!**/*-incompatibilities.txt",
+            ARG_API_VERSION_SIGNATURE_PATTERN,
+            "!**/*-removed.txt",
             ARG_API_VERSION_SIGNATURE_PATTERN,
             "$root/{version:major.minor?}/{surface}/api.txt",
             ARG_API_VERSION_SIGNATURE_PATTERN,

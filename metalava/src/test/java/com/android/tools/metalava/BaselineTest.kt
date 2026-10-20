@@ -246,4 +246,30 @@ class BaselineTest : DriverTest() {
                 """
         )
     }
+
+    @Test
+    fun `Check baseline from signature file`() {
+        check(
+            format = FileFormat.V2,
+            signatureSource =
+                """
+                // Signature format: 2.0
+                package test.pkg {
+                  public class Foo {
+                    field public int field = 1;
+                  }
+                }
+                """,
+            baselineTestInfo =
+                BaselineTestInfo(
+                    inputContents = "",
+                    expectedOutputContents =
+                        """
+                            // Baseline format: 1.0
+                            SignatureFileError: load-api.txt:
+                                Field field in class test.pkg.Foo has a value of `1` but is not `static` and `final`; ignoring value
+                        """,
+                ),
+        )
+    }
 }

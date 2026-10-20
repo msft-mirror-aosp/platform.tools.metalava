@@ -18,9 +18,11 @@ package com.android.tools.metalava
 
 import com.android.tools.metalava.cli.common.MetalavaCliException
 import com.android.tools.metalava.cli.common.MetalavaOptionGroup
+import com.android.tools.metalava.cli.common.cliError
 import com.android.tools.metalava.cli.common.existingFile
 import com.android.tools.metalava.config.Config
 import com.android.tools.metalava.config.ConfigParser
+import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 
@@ -64,4 +66,33 @@ class ConfigFileOptions :
                 throw MetalavaCliException(e.message!!, cause = e)
             }
         }
+
+    /**
+     * Compute the [ApiSurfaces] model from [targetApiSurfaceName] and [config].
+     *
+     * Looks up the named surface in [Config.apiSurfaces] and constructs the [ApiSurfaces] for that
+     * surface and any surfaces it extends.
+     */
+    fun apiSurfacesForTargetSurface(targetApiSurfaceName: String): ApiSurfaces {
+        val apiSurfacesConfig = config.apiSurfaces
+
+        // If --api-surface is specified then <api-surfaces> must be configured in a --config-file.
+        if (apiSurfacesConfig == null || apiSurfacesConfig.apiSurfaceList.isEmpty()) {
+            cliError(
+                "$ARG_API_SURFACE requires at least one <api-surface> to have been configured in a $ARG_CONFIG_FILE"
+            )
+        }
+
+        // Look up the target surface configuration, failing with a CLI error if it does not exist.
+        val targetApiSurfaceConfig =
+            apiSurfacesConfig.getByNameOrError(targetApiSurfaceName, ::cliError) {
+                "$ARG_API_SURFACE (`$it`) does not match an <api-surface> in a $ARG_CONFIG_FILE"
+            }
+
+        // Create the ApiSurfaces for the target surface and the hierarchy of surfaces it extends.
+        return apiSurfacesFromConfig(
+            apiSurfacesConfig.surfacesFor(targetApiSurfaceConfig),
+            targetApiSurfaceName,
+        )
+    }
 }

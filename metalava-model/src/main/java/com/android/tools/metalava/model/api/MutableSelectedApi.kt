@@ -33,8 +33,6 @@ internal open class MutableSelectedApi<S : SelectableItem>(
 
     override var superClassApiVariants = ApiVariantSet.EMPTY
 
-    override var superMethodApiVariants = ApiVariantSet.EMPTY
-
     override var elidableApiVariants = ApiVariantSet.EMPTY
 
     override val revert: Boolean

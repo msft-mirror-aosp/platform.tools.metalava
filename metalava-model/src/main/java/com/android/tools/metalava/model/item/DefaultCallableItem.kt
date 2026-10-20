@@ -24,6 +24,7 @@ import com.android.tools.metalava.model.ExceptionTypeItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.ParameterItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeItemConverter
@@ -31,7 +32,6 @@ import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
-import com.android.tools.metalava.reporter.FileLocation
 
 /**
  * A lamda that given a [CallableItem] will create a list of [ParameterItem]s for it.
@@ -45,7 +45,8 @@ typealias ParameterItemsFactory = (CallableItem) -> List<ParameterItem>
 
 internal sealed class DefaultCallableItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
@@ -59,7 +60,8 @@ internal sealed class DefaultCallableItem(
 ) :
     DefaultMemberItem(
         codebase,
-        fileLocation,
+        fileLocationSource,
+        sourcePosition,
         sourceLanguage,
         targetLanguages,
         modifiers,

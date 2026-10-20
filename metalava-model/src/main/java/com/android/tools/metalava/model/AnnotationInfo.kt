@@ -50,8 +50,9 @@ interface AnnotationInfo {
     /**
      * The [ApiFlag] referenced by the annotation.
      *
-     * This will be `null` if no [ApiFlags] have been provided or the annotation type is not
-     * [ANDROID_FLAGGED_API]. Otherwise, it will be an instance of [ApiFlag].
+     * This will be `null` if the annotation type is not [ANDROID_FLAGGED_API]. If no [ApiFlags]
+     * have been provided, this will be [ApiFlag.KEEP_ALL]; otherwise, it will be an instance of
+     * [ApiFlag] from [ApiFlags].
      */
     val apiFlag: ApiFlag?
 

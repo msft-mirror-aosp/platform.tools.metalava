@@ -34,13 +34,11 @@
          <trusted-key id="0E225917414670F4442C250DFD533C07C264648F">
             <trusting group="androidx.collection"/>
             <trusting group="androidx.databinding"/>
+            <trusting group="androidx.tracing"/>
             <trusting group="^com[.]android($|([.].*))" regex="true"/>
             <trusting group="^com[.]android[.]tools($|([.].*))" regex="true"/>
          </trusted-key>
-         <trusted-key id="0F06FF86BEEAF4E71866EE5232EE5355A6BC6E42">
-            <trusting group="androidx.annotation"/>
-            <trusting group="androidx.tracing"/>
-         </trusted-key>
+         <trusted-key id="0F06FF86BEEAF4E71866EE5232EE5355A6BC6E42" group="androidx.annotation"/>
          <trusted-key id="147B691A19097624902F4EA9689CBE64F4BC997F" group="^org[.]mockito($|([.].*))" regex="true"/>
          <trusted-key id="19BEAB2D799C020F17C69126B16698A4ADF4D638" group="org.checkerframework"/>
          <trusted-key id="1A55F091AD28C07F831FA44D7905DE25C78AD456" group="com.google.protobuf"/>

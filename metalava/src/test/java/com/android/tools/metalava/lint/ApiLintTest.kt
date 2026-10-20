@@ -29,7 +29,6 @@ import com.android.tools.metalava.testing.createNativeModuleDescription
 import com.android.tools.metalava.testing.createProjectDescription
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
-import org.jetbrains.kotlin.cfg.pseudocode.and
 import org.junit.Test
 
 class ApiLintTest : DriverTest() {

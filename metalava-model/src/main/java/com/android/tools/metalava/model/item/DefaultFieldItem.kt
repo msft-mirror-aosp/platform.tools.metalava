@@ -23,6 +23,7 @@ import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.ItemDocumentationFactory
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SourceLanguage
+import com.android.tools.metalava.model.SourcePosition
 import com.android.tools.metalava.model.TargetLanguage
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.duplicatingFactory
@@ -30,11 +31,11 @@ import com.android.tools.metalava.model.scope.NameClassification
 import com.android.tools.metalava.model.scope.ReferencableNameScope
 import com.android.tools.metalava.model.value.ConstantValue
 import com.android.tools.metalava.model.value.OptionalValueProvider
-import com.android.tools.metalava.reporter.FileLocation
 
 internal class DefaultFieldItem(
     codebase: Codebase,
-    fileLocation: FileLocation,
+    fileLocationSource: FileLocationSource,
+    sourcePosition: SourcePosition,
     sourceLanguage: SourceLanguage,
     targetLanguages: Set<TargetLanguage>,
     modifiers: BaseModifierList,
@@ -47,7 +48,8 @@ internal class DefaultFieldItem(
 ) :
     DefaultMemberItem(
         codebase = codebase,
-        fileLocation = fileLocation,
+        fileLocationSource = fileLocationSource,
+        sourcePosition = sourcePosition,
         sourceLanguage = sourceLanguage,
         targetLanguages = targetLanguages,
         modifiers = modifiers,
@@ -71,7 +73,8 @@ internal class DefaultFieldItem(
         DefaultFieldItem(
                 // Create it in the same codebase as targetContainingClass.
                 codebase = targetContainingClass.codebase,
-                fileLocation = fileLocation,
+                fileLocationSource = duplicateFileLocationSource(),
+                sourcePosition = sourcePosition,
                 sourceLanguage = sourceLanguage,
                 targetLanguages = targetLanguages,
                 modifiers = modifiers,

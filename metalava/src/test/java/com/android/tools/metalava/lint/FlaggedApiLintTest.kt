@@ -64,10 +64,9 @@ class FlaggedApiLintTest : DriverTest() {
             // Access android.annotation.FlaggedApi
             classpath = arrayOf(KnownJarFiles.stubAnnotationsTestFile),
             extraArguments =
-                extraArguments +
-                    warningIssues(
-                        Issues.UNFLAGGED_API,
-                    ),
+                warningIssues(
+                    Issues.UNFLAGGED_API,
+                ) + extraArguments,
             expectedIssues = expectedIssues,
             expectedApiSignature = expectedApiSignature,
             checkCompatibilityApiReleased = checkCompatibilityApiReleased,
@@ -547,9 +546,9 @@ class FlaggedApiLintTest : DriverTest() {
         checkFlaggedApiLint(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
-                    src/test/pkg/Foo.java:4: warning: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
-                    src/test/pkg/Foo.java:5: warning: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
+                    src/test/pkg/Foo.java:3: error: Changes to modifiers, from 'public abstract' to 'public' must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:4: error: Changes to modifiers, from 'protected' to 'public' must be flagged with @FlaggedApi: constructor test.pkg.Foo() [UnflaggedApi]
+                    src/test/pkg/Foo.java:5: error: Changes to modifiers, from 'public final' to 'public' must be flagged with @FlaggedApi: method test.pkg.Foo.method() [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -575,6 +574,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 
@@ -624,7 +624,7 @@ class FlaggedApiLintTest : DriverTest() {
         checkFlaggedApiLint(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:6: warning: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:6: error: Changes from not deprecated to deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -651,6 +651,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 
@@ -659,7 +660,7 @@ class FlaggedApiLintTest : DriverTest() {
         checkFlaggedApiLint(
             expectedIssues =
                 """
-                    src/test/pkg/Foo.java:3: warning: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
+                    src/test/pkg/Foo.java:3: error: Changes from deprecated to not deprecated must be flagged with @FlaggedApi: class test.pkg.Foo [UnflaggedApi]
                 """,
             apiLint =
                 """
@@ -682,6 +683,7 @@ class FlaggedApiLintTest : DriverTest() {
                     ),
                     flagsFile,
                 ),
+            extraArguments = errorIssues(Issues.UNFLAGGED_API),
         )
     }
 

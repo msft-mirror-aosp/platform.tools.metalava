@@ -20,6 +20,7 @@ import com.android.tools.lint.checks.infrastructure.TestFile
 import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
+import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassPathResolver
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.SelectableItem
@@ -528,36 +529,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
     }
 
     @Test
-    fun `Test classes split across multiple files`() {
-        runSignatureTest(
-            signature(
-                "current.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        public class Foo {
-                        }
-                    }
-                """
-            ),
-            signature(
-                "system.txt",
-                """
-                    // Signature format: 2.0
-                    package test.pkg {
-                        @test.pkg.Anno(12) public class Foo {
-                        }
-
-                        public @interface Anno {
-                            method public int value();
-                        }
-                    }
-                """
-            ),
-        ) {}
-    }
-
-    @Test
     fun `Test unknown interface should still be marked as such`() {
         runSignatureTest(
             signature(
@@ -652,29 +623,6 @@ class ApiFileTest : BaseTextCodebaseTest() {
             // The type of FIELD1 should just be `int`.
             assertThat(fooClass.assertField("FIELD1").type().toString()).isEqualTo("int")
         }
-    }
-
-    @Test
-    fun testTypeParameterNames() {
-        assertThat(ApiFile.extractTypeParameterBoundsStringList(null).toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("X").toString()).isEqualTo("[]")
-        assertThat(ApiFile.extractTypeParameterBoundsStringList("DEF extends T").toString())
-            .isEqualTo("[T]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.lang.Comparable<? super T>"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.lang.Comparable<? super T>]")
-        assertThat(
-                ApiFile.extractTypeParameterBoundsStringList(
-                        "T extends java.util.List<Number> & java.util.RandomAccess"
-                    )
-                    .toString()
-            )
-            .isEqualTo("[java.util.List<Number>, java.util.RandomAccess]")
     }
 
     @Test
@@ -1026,6 +974,71 @@ class ApiFileTest : BaseTextCodebaseTest() {
             assertThat(kotlinOnlyClassWithOtherAnnotation.annotationNames())
                 .containsExactly("androidx.annotation.OtherAnnotation")
         }
+    }
+
+    @Test
+    fun `Test classOrigin on SignatureFile`() {
+        val classPathFile =
+            SignatureFile.fromText(
+                "classpath.txt",
+                """
+                    // Signature format: 5.0
+                    package classpath.pkg {
+                      public class ClassPathClass {
+                        ctor public ClassPathClass();
+                      }
+                      public typealias ClassPathAlias = String;
+                    }
+                    package shared.pkg {
+                      public class SharedClassPathClass {
+                        ctor public SharedClassPathClass();
+                      }
+                    }
+                """,
+                classOrigin = ClassOrigin.CLASS_PATH,
+            )
+        val commandLineFile =
+            SignatureFile.fromText(
+                "command-line.txt",
+                """
+                    // Signature format: 5.0
+                    package shared.pkg {
+                      public class CommandLineClass {
+                        ctor public CommandLineClass();
+                      }
+                      public typealias CommandLineAlias = String;
+                    }
+                """,
+                classOrigin = ClassOrigin.COMMAND_LINE,
+            )
+
+        val codebase = ApiFile.parseApi(listOf(classPathFile, commandLineFile))
+
+        val classPathPkg = codebase.findPackage("classpath.pkg")!!
+        assertThat(classPathPkg.emit).isFalse()
+
+        val classPathClass =
+            codebase.assertClass("classpath.pkg.ClassPathClass", expectedEmit = false)
+        assertThat(classPathClass.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val classPathAlias =
+            codebase.assertClass("classpath.pkg.ClassPathAlias", expectedEmit = false)
+        assertThat(classPathAlias.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val sharedPkg = codebase.findPackage("shared.pkg")!!
+        assertThat(sharedPkg.emit).isTrue()
+
+        val sharedClassPathClass =
+            codebase.assertClass("shared.pkg.SharedClassPathClass", expectedEmit = false)
+        assertThat(sharedClassPathClass.origin).isEqualTo(ClassOrigin.CLASS_PATH)
+
+        val commandLineClass =
+            codebase.assertClass("shared.pkg.CommandLineClass", expectedEmit = true)
+        assertThat(commandLineClass.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
+
+        val commandLineAlias =
+            codebase.assertClass("shared.pkg.CommandLineAlias", expectedEmit = true)
+        assertThat(commandLineAlias.origin).isEqualTo(ClassOrigin.COMMAND_LINE)
     }
 
     class TestClassItem private constructor(delegate: ClassItem) : ClassItem by delegate {

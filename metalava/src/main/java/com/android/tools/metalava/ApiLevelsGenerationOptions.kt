@@ -16,19 +16,17 @@
 
 package com.android.tools.metalava
 
-import com.android.tools.metalava.apilevels.ApiGenerator
 import com.android.tools.metalava.apilevels.ApiHistoryUpdater
 import com.android.tools.metalava.apilevels.ApiVersion
-import com.android.tools.metalava.apilevels.ExtVersion
 import com.android.tools.metalava.apilevels.GenerateApiHistoryConfig
 import com.android.tools.metalava.apilevels.MatchedPatternFile
 import com.android.tools.metalava.apilevels.MissingClassAction
 import com.android.tools.metalava.apilevels.PatternNode
-import com.android.tools.metalava.apilevels.SdkExtensionInfo
 import com.android.tools.metalava.apilevels.VersionedApi
 import com.android.tools.metalava.apilevels.VersionedJarApi
 import com.android.tools.metalava.apilevels.VersionedSignatureApi
 import com.android.tools.metalava.apilevels.VersionedSourceApi
+import com.android.tools.metalava.apilevels.createGenerateApiHistoryConfig
 import com.android.tools.metalava.cli.common.EarlyOptions
 import com.android.tools.metalava.cli.common.ExecutionEnvironment
 import com.android.tools.metalava.cli.common.MetalavaOptionGroup
@@ -74,12 +72,20 @@ const val ARG_API_VERSION_SIGNATURE_PATTERN = "--api-version-signature-pattern"
 const val ARG_GENERATE_API_VERSION_HISTORY = "--generate-api-version-history"
 const val ARG_API_VERSION_SIGNATURE_FILES = "--api-version-signature-files"
 
-/**
- * Factory for creating a [VersionedApi] from an [ApiHistoryUpdater] and a list of
- * [MatchedPatternFile].
- */
-private typealias VersionedApiFactory =
-    (ApiHistoryUpdater, List<MatchedPatternFile>) -> VersionedApi
+/** Convert an option value to an [ApiVersion]. */
+internal fun OptionWithValues<String?, String, String>.apiVersion() = convert {
+    ApiVersion.fromString(it)
+}
+
+/** Convert an option value to a [ClosedRange] of [ApiVersion]. */
+internal fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
+    val parts = text.split(':')
+    if (parts.size != 2) {
+        error("Must be of the form <version>:<version> but found '$text'")
+    }
+    val (from, to) = parts
+    ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
+}
 
 class ApiLevelsGenerationOptions(
     private val executionEnvironment: ExecutionEnvironment = ExecutionEnvironment(),
@@ -143,21 +149,6 @@ class ApiLevelsGenerationOptions(
                         .trimIndent(),
             )
             .flag()
-
-    /** Convert an option value to an [ApiVersion]. */
-    fun OptionWithValues<String?, String, String>.apiVersion() = convert {
-        ApiVersion.fromString(it)
-    }
-
-    /** Convert an option value to a [ClosedRange] of [ApiVersion]. */
-    private fun OptionWithValues<String?, String, String>.apiVersionRange() = convert { text ->
-        val parts = text.split(':')
-        if (parts.size != 2) {
-            error("Must be of the form <version>:<version> but found '$text'")
-        }
-        val (from, to) = parts
-        ApiVersion.fromString(from).rangeTo(ApiVersion.fromString(to))
-    }
 
     /** The range of historical API versions that can be included in the API version history. */
     private val apiVersionRange: ClosedRange<ApiVersion>? by
@@ -291,55 +282,6 @@ class ApiLevelsGenerationOptions(
             .apiVersion()
 
     /**
-     * Find all historical files that matches the patterns in [patterns] and are in the range from
-     * [firstApiVersion] to [lastApiVersion].
-     *
-     * @param dir the directory to scan.
-     * @param patterns the patterns that determine the files that will be found.
-     */
-    private fun findHistoricalApiFiles(
-        dir: File,
-        patterns: List<String>,
-        apiSurfaces: ApiSurfaces?,
-    ): List<MatchedPatternFile> {
-        // Find all the historical files for versions within the required range.
-        val patternNode = PatternNode.parsePatterns(patterns)
-        val sdkExtensionVersionRange =
-            sdkExtensionVersionRange
-                ?: ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(Int.MAX_VALUE))
-        val apiSurfaceByName = apiSurfaces?.byName
-        val scanConfig =
-            PatternNode.ScanConfig(
-                dir = dir,
-                apiVersionFilter = apiVersionRange?.let { it::contains },
-                sdkExtensionVersionFilter = sdkExtensionVersionRange::contains,
-                apiSurfaceByName = apiSurfaceByName,
-            )
-        return patternNode.scan(scanConfig)
-    }
-
-    /**
-     * Create [VersionedJarApi]s for each historical file in [matchedFiles].
-     *
-     * @param matchedFiles a list of files that matched the historical API patterns.
-     */
-    private fun constructVersionedApisForHistoricalFiles(
-        matchedFiles: List<MatchedPatternFile>,
-        versionedApiFactory: VersionedApiFactory,
-    ): List<VersionedApi> {
-        // TODO(b/383288863): Check to make sure that there is one VersionedApi for every major
-        //  version in the range.
-
-        val byVersion = matchedFiles.groupBy { it.version }
-
-        // Convert the MatchedPatternFiles into VersionedApis.
-        return byVersion.map { (apiVersion, files) ->
-            val updater = ApiHistoryUpdater.forApiVersion(apiVersion)
-            versionedApiFactory(updater, files)
-        }
-    }
-
-    /**
      * Create a [VersionedApi] from [updater] and [files].
      *
      * It requires [files] to contain a single entry.
@@ -391,101 +333,24 @@ class ApiLevelsGenerationOptions(
                 } else {
                     Pair(signaturePatterns, ::createVersionedSignatureApi)
                 }
-            val matchedApiFiles = findHistoricalApiFiles(currentDir, apiFilePatterns, apiSurfaces)
 
-            // Split the files into primary api files and extension api files.
-            val (primaryApiFiles, extensionApiFiles) = matchedApiFiles.partition { !it.isExtension }
-
-            // Get a VersionedApi for each of the released API files.
-            val versionedHistoricalApis =
-                constructVersionedApisForHistoricalFiles(primaryApiFiles, versionedApiFactory)
-
-            val codebaseSdkVersion = apiVersionForSources
-
-            // Get the optional SDK extension arguments.
-            val sdkExtensionsArguments =
-                if (sdkInfoFile != null) {
-                    // The not finalized SDK version is either:
-                    // 1. The version specified using --api-version-for-sdk-extension.
-                    // 2. Or the version after the last historical version.
-                    //
-                    // If the latter then that is either:
-                    // 1. The version used for the current codebase.
-                    // 2. Or the next version, i.e. b/454053322 placeholder value
-                    val notFinalizedSdkVersion =
-                        apiVersionForSdkExtension
-                            ?: codebaseSdkVersion
-                            ?: ApiVersion.fromString("10000")
-                    ApiGenerator.SdkExtensionsArguments(
-                        sdkInfoFile!!,
-                        notFinalizedSdkVersion,
-                    )
-                } else {
-                    null
-                }
-
-            // Create a list of VersionedApis that need to be incorporated into the Api history.
-            val versionedApis = buildList {
-                addAll(versionedHistoricalApis)
-
-                // Add a VersionedSourceApi for the current codebase if required.
-                if (codebaseSdkVersion != null) {
-                    add(
-                        VersionedSourceApi(
-                            codebaseFragmentProvider,
-                            codebaseSdkVersion,
-                        )
-                    )
-                }
-
-                // Add any VersionedApis for SDK extensions. These must be added after all
-                // VersionedApis for SDK versions as their behavior depends on whether an API was
-                // defined in an SDK version.
-                if (sdkExtensionsArguments != null) {
-                    require(extensionApiFiles.isNotEmpty()) {
-                        "no extension api files found by ${apiFilePatterns.joinToString()}"
-                    }
-
-                    // Get the potentially future API version that new SDK extension APIs will
-                    // be assumed to have been added.
-                    val apiVersionForNewSdkExtensionApis =
-                        sdkExtensionsArguments.notFinalizedSdkVersion
-
-                    // Any APIs added from the latest sources may not be present in the SDK
-                    // extension APIs so care needs to be taken to ensure that they are not treated
-                    // as being removed.
-                    if (codebaseSdkVersion != null) {
-                        // If the latest version of the API is not the same as the version that will
-                        // be used for new SDK extension APIs then assume that all APIs from the
-                        // latest version are present in the API version in which new SDK extension
-                        // APIs will be added. This is necessary because otherwise an API from the
-                        // latest version which is in an SDK extension class but not yet present in
-                        // an SDK extension version would not be present in that version and so
-                        // would be assumed to have been removed.
-                        if (codebaseSdkVersion != apiVersionForNewSdkExtensionApis) {
-                            add(
-                                VersionedSourceApi(
-                                    codebaseFragmentProvider,
-                                    apiVersionForNewSdkExtensionApis,
-                                )
-                            )
-                        }
-                    }
-
-                    addVersionedExtensionApis(
-                        this,
-                        apiVersionForNewSdkExtensionApis,
-                        extensionApiFiles,
-                        sdkExtensionsArguments.sdkExtensionInfo,
-                        versionedApiFactory,
-                    )
-                }
-            }
-
-            GenerateApiHistoryConfig(
-                versionedApis = versionedApis,
+            createGenerateApiHistoryConfig(
                 outputFile = outputFile,
-                sdkExtensionsArguments = sdkExtensionsArguments,
+                currentDir = currentDir,
+                apiFilePatterns = apiFilePatterns,
+                apiVersionRange = apiVersionRange,
+                sdkExtensionVersionRange = sdkExtensionVersionRange,
+                sdkInfoFile = sdkInfoFile,
+                apiVersionForSdkExtension = apiVersionForSdkExtension,
+                apiSurfaces = apiSurfaces,
+                currentVersion = apiVersionForSources,
+                currentVersionedApiFactory = { version ->
+                    VersionedSourceApi(
+                        codebaseFragmentProvider,
+                        version,
+                    )
+                },
+                versionedApiFactory = versionedApiFactory,
                 missingClassAction =
                     if (removeMissingClassReferencesInApiLevels) MissingClassAction.REMOVE
                     else MissingClassAction.REPORT,
@@ -493,54 +358,6 @@ class ApiLevelsGenerationOptions(
                 useInternalNames = true,
             )
         }
-
-    /**
-     * Add [VersionedApi] instances to [list] for each of the [extensionApiFiles].
-     *
-     * Some APIs only exist in extension SDKs and not in the Android SDK, but for backwards
-     * compatibility with tools that expect the Android SDK to be the only SDK, metalava needs to
-     * assign such APIs some Android SDK API version. This uses [versionNotInAndroidSdk].
-     *
-     * @param versionNotInAndroidSdk fallback API level for APIs not in the Android SDK
-     * @param extensionApiFiles extension api files.
-     * @param sdkExtensionInfo the [SdkExtensionInfo] read from sdk-extension-info.xml file.
-     * @param versionedApiFactory factory for creating [VersionedApi]s.
-     */
-    private fun addVersionedExtensionApis(
-        list: MutableList<VersionedApi>,
-        versionNotInAndroidSdk: ApiVersion,
-        extensionApiFiles: List<MatchedPatternFile>,
-        sdkExtensionInfo: SdkExtensionInfo,
-        versionedApiFactory: VersionedApiFactory,
-    ) {
-        val byModule = extensionApiFiles.groupBy({ it.module!! })
-        // Iterate over the mainline modules and their different versions.
-        for ((mainlineModule, moduleFiles) in byModule) {
-            // Get the extensions information for the mainline module. If no information exists for
-            // a particular module then the module is ignored.
-            val moduleMap = sdkExtensionInfo.extensionsMapForJarOrEmpty(mainlineModule)
-            if (moduleMap.isEmpty())
-                continue // TODO(b/259115852): remove this (though it is an optimization too).
-
-            // Extension modules only have a major version so group by that.
-            val byMajorVersion = moduleFiles.groupBy { it.version.major }
-            val lastMajorVersion = byMajorVersion.keys.max()
-            byMajorVersion.mapTo(list) { (extVersionNumber, files) ->
-                val extVersion = ExtVersion.fromLevel(extVersionNumber)
-                // If the extension is the last extension version then it will make sure that any
-                // new APIs appear to have been added in `versionNotInAndroidSdk`.
-                val isLatestExtVersion = extVersionNumber == lastMajorVersion
-                val updater =
-                    ApiHistoryUpdater.forExtVersion(
-                        versionNotInAndroidSdk,
-                        extVersion,
-                        mainlineModule,
-                        isLatestExtVersion,
-                    )
-                versionedApiFactory(updater, files)
-            }
-        }
-    }
 
     /** API version history file to generate */
     private val generateApiVersionHistory by
@@ -649,7 +466,7 @@ class ApiLevelsGenerationOptions(
         val matchedFiles =
             patternNode.scan(
                 PatternNode.ScanConfig(
-                    dir = File(".").canonicalFile,
+                    dir = fileForPathInner("."),
                     fileProvider = PatternNode.LimitedFileSystemProvider(historicalSignatureFiles)
                 )
             )

@@ -251,7 +251,6 @@ class FlaggedApiLint(
                 currentItem,
                 "Changes from $previous to $current must be flagged with @FlaggedApi: ${currentItem.describe()}",
                 location = location ?: FileLocation.UNKNOWN,
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW,
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.
@@ -268,7 +267,6 @@ class FlaggedApiLint(
                 UNFLAGGED_API,
                 currentItem,
                 "Changes to modifiers, from '$previousModifiers' to '$currentModifiers' must be flagged with @FlaggedApi: ${currentItem.describe()}",
-                maximumSeverity = Severity.WARNING_ERROR_WHEN_NEW
             )
             // Reporting the same issue on the same Item is pointless as the first report will
             // update the baseline and so suppress the second report so return immediately.
