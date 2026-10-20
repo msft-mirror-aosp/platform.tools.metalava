@@ -16,6 +16,9 @@
 
 package com.android.tools.metalava.stub
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
+import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
+import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
@@ -31,10 +34,13 @@ import com.android.tools.metalava.model.ModifierListWriter
 import com.android.tools.metalava.model.PrimitiveTypeItem
 import com.android.tools.metalava.model.PrimitiveTypeItem.Primitive
 import com.android.tools.metalava.model.RecordComponents
+import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterBindings
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VariableTypeItem
+import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
+import com.android.tools.metalava.reporter.Issues
 import java.io.PrintWriter
 
 internal class JavaStubWriter(
@@ -152,8 +158,66 @@ internal class JavaStubWriter(
         }
     }
 
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted
+     * and is not on an item with an [Effect.REMOVED] annotation, if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
+        if (any { it.surfaceData?.effect == Effect.REMOVED }) {
+            return null
+        }
+        return find { it.qualifiedName == ANDROID_FLAGGED_API && it.apiFlag?.revert != true }
+    }
+
     private fun appendModifiers(item: Item) {
-        modifierListWriter.write(item)
+        val modifierList = item.modifiers
+        var annotations = modifierList.annotations()
+
+        // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
+        // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
+        // @RequiresFlag compilation errors in stubs
+        if (
+            annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
+                annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
+        ) {
+            item.codebase.reporter.report(
+                Issues.MULTIPLE_FLAGGING,
+                item,
+                "@RequiresFlag can not be placed on APIs that are already flagged.",
+            )
+
+            annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
+        }
+
+        // Do not map @FlaggedApi on removed APIs to @RequiresFlag in stub files. Remove any
+        // direct @FlaggedApi before checking enclosing classes so an outer @FlaggedApi can
+        // still be inherited if applicable.
+        if (annotations.any { it.surfaceData?.effect == Effect.REMOVED }) {
+            annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
+        }
+
+        // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),
+        // and remove @FlaggedApi if the item was part of a previously released API.
+        if (item is SelectableItem && (modifierList.isPublic() || modifierList.isProtected())) {
+            if (annotations.findFlaggedApiAnnotation() == null) {
+                var containingClassItem: ClassItem? = item.containingClass()
+                while (containingClassItem != null) {
+                    val flaggedApiAnnotation =
+                        containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()
+                    if (flaggedApiAnnotation != null) {
+                        annotations = annotations + flaggedApiAnnotation
+                        break
+                    }
+                    containingClassItem = containingClassItem.containingClass()
+                }
+            }
+
+            if (item.selectedApi.wasPreviouslyReleased()) {
+                annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
+            }
+        }
+
+        modifierListWriter.write(item, annotations)
     }
 
     private fun generateSuperClassDeclaration(cls: ClassItem) {

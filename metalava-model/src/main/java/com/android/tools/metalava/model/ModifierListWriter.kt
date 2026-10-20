@@ -16,7 +16,6 @@
 
 package com.android.tools.metalava.model
 
-import com.android.tools.metalava.model.api.SurfaceSelectionRule.Effect
 import com.android.tools.metalava.reporter.Issues
 import java.io.Writer
 
@@ -115,8 +114,11 @@ class ModifierListWriter(
     }
 
     /** Write the modifier list (possibly including annotations) to the supplied [writer]. */
-    fun write(item: Item) {
-        writeAnnotations(item)
+    fun write(
+        item: Item,
+        annotations: List<AnnotationItem> = item.modifiers.annotations(),
+    ) {
+        writeAnnotations(item, annotations)
         writeKeywords(item)
     }
 
@@ -284,13 +286,10 @@ class ModifierListWriter(
     }
 
     /**
-     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted
-     * and, in stub files, is not on an item with an [Effect.REMOVED] annotation, if there is one.
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
+     * if there is one.
      */
     private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
-        if (target.isStubsFile() && any { it.surfaceData?.effect == Effect.REMOVED }) {
-            return null
-        }
         return find { it.qualifiedName == ANDROID_FLAGGED_API && it.apiFlag?.revert != true }
     }
 
@@ -322,7 +321,10 @@ class ModifierListWriter(
         return null
     }
 
-    fun writeAnnotations(item: Item) {
+    fun writeAnnotations(
+        item: Item,
+        annotations: List<AnnotationItem> = item.modifiers.annotations(),
+    ) {
         // Generate annotations on separate lines in stub files for packages, classes and
         // methods and also for enum constants.
         val separateLines =
@@ -350,61 +352,12 @@ class ModifierListWriter(
             }
         }
 
-        val modifierList = item.modifiers
-        var annotations = modifierList.annotations()
+        var annotations = annotations
 
         // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
         // does add it to this list. It will be sorted into the correct position below.
         flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
             annotations = annotations + flaggedApiAnnotation
-        }
-
-        // Modifiers may be written differently for stubs to remove superfluous information that the
-        // consumers of the stubs (e.g. linters) don't need
-        if (target.isStubsFile()) {
-            // @FlaggedApi annotations are always converted to @RequiresFlag in stub files.
-            // Developers are not allowed to add @RequiresFlag to flagged APIs to avoid duplicate
-            // @RequiresFlag compilation errors in stubs
-            if (
-                annotations.any { it.qualifiedName == ANDROID_FLAGGED_API } &&
-                    annotations.any { it.qualifiedName == ANDROID_REQUIRES_FLAG }
-            ) {
-                item.codebase.reporter.report(
-                    Issues.MULTIPLE_FLAGGING,
-                    item,
-                    "@RequiresFlag can not be placed on APIs that are already flagged.",
-                )
-
-                annotations = annotations.filter { it.qualifiedName != ANDROID_REQUIRES_FLAG }
-            }
-
-            // Do not map @FlaggedApi on removed APIs to @RequiresFlag in stub files. Remove any
-            // direct @FlaggedApi before checking enclosing classes so an outer @FlaggedApi can
-            // still be inherited if applicable.
-            if (annotations.any { it.surfaceData?.effect == Effect.REMOVED }) {
-                annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
-            }
-
-            // Inherit @FlaggedApi from enclosing classes if not present (for public APIs),
-            // and remove @FlaggedApi if the item was part of a previously released API.
-            if (item is SelectableItem && modifierList.isPublic() or modifierList.isProtected()) {
-                if (annotations.findFlaggedApiAnnotation() == null) {
-                    var containingClassItem: ClassItem? = item.containingClass()
-                    while (containingClassItem != null) {
-                        val flaggedApiAnnotation =
-                            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()
-                        if (flaggedApiAnnotation != null) {
-                            annotations = annotations + flaggedApiAnnotation
-                            break
-                        }
-                        containingClassItem = containingClassItem.containingClass()
-                    }
-                }
-
-                if (item.selectedApi.wasPreviouslyReleased()) {
-                    annotations = annotations.filter { it.qualifiedName != ANDROID_FLAGGED_API }
-                }
-            }
         }
 
         if (annotations.isEmpty()) {
