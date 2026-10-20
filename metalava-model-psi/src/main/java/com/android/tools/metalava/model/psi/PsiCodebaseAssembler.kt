@@ -331,7 +331,6 @@ internal class PsiCodebaseAssembler(
     internal fun initializeFromSources(
         sourceSet: SourceSet,
         apiPackages: PackageFilter?,
-        includeKotlinInCodebase: Boolean,
         tracer: Tracer,
     ) {
         // Get the list of `PsiFile`s from the `SourceSet`.
@@ -348,12 +347,10 @@ internal class PsiCodebaseAssembler(
 
         // Add type aliases.
         val kotlinFiles = psiFiles.filterIsInstance<KtFile>()
-        if (includeKotlinInCodebase) {
-            kaCodebaseAssembler =
-                psiCodebase.mainAnalysisModule?.let {
-                    KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
-                }
-        }
+        kaCodebaseAssembler =
+            psiCodebase.mainAnalysisModule?.let {
+                KaCodebaseAssembler(kotlinFiles, psiCodebase, apiPackages)
+            }
 
         kaCodebaseAssembler?.apply {
             // Provide a list of all packages when all typealiases are needed in order to inline

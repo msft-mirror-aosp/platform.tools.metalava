@@ -34,13 +34,11 @@ abstract class AbstractSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
     ): Codebase? =
         processSources(
                 description = description,
                 apiPackages = apiPackages,
                 compiledSourceJar = compiledSourceJar,
-                includeKotlinInCodebase = includeKotlinInCodebase,
             )
             ?.let { postProcessCodebase(it) }
 
@@ -49,7 +47,6 @@ abstract class AbstractSourceParser(
         description: String,
         apiPackages: PackageFilter?,
         compiledSourceJar: File?,
-        includeKotlinInCodebase: Boolean,
     ): Codebase?
 
     final override fun parseJavaStubs(
