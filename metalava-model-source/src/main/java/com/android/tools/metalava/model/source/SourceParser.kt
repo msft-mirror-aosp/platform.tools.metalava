@@ -67,17 +67,6 @@ interface SourceParser {
     ): Codebase?
 
     /**
-     * Load a [Codebase] from a single jar.
-     *
-     * If an implementation supports this it must provide [Capability.LOAD_JAR].
-     *
-     * @param apiJar the jar file from which the [Codebase] will be loaded.
-     * @param classPath the possibly empty list of jar files which may provide additional classes
-     *   referenced by [apiJar].
-     */
-    fun loadFromJar(apiJar: File, classPath: List<File>): Codebase
-
-    /**
      * Creates a multiplatform codebase based on the [Environment.projectDescription] file, which is
      * a lint project model that can describe project structures in detail.
      *

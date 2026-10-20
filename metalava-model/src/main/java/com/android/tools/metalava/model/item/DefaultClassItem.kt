@@ -123,8 +123,7 @@ internal class DefaultClassItem(
             ensureNotFrozen()
             if (field != value) {
                 field = value
-                // A class initially resolved with ClassOrigin.CLASS_PATH (e.g. when loading a
-                // codebase from a jar in AbstractSourceParser.loadFromJarFile, or when merging an
+                // A class initially resolved with ClassOrigin.CLASS_PATH (e.g. when merging an
                 // --api-path signature file with a command-line signature file in ClassMerger) may
                 // be promoted to ClassOrigin.COMMAND_LINE after creation; ensure its top-level
                 // class is added to the package when promoted.

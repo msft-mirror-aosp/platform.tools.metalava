@@ -32,7 +32,6 @@ internal class TurbineSourceParser(
     tracer: Tracer,
 ) :
     AbstractSourceParser(
-        turbineEnvironment,
         codebaseConfig,
         tracer,
     ) {

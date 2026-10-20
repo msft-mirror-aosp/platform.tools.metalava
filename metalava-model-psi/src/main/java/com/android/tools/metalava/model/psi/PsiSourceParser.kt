@@ -45,7 +45,6 @@ internal class PsiSourceParser(
     tracer: Tracer,
 ) :
     AbstractSourceParser(
-        psiEnvironment,
         codebaseConfig,
         tracer,
     ) {
