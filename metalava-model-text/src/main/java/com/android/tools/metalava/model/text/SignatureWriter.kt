@@ -16,6 +16,7 @@
 
 package com.android.tools.metalava.model.text
 
+import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.AnnotationFormatter
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.AnnotationTarget
@@ -29,7 +30,6 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
-import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
@@ -329,9 +329,52 @@ class SignatureWriter(
         }
     }
 
+    /**
+     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
+     * if there is one.
+     */
+    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
+        return find { it.apiFlag?.let { flag -> !flag.revert } == true }
+    }
+
+    /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
+    private fun flaggedApiAnnotationToInherit(
+        item: Item,
+        annotations: List<AnnotationItem>,
+    ): AnnotationItem? {
+        // If the item is not a nested class then return null.
+        if (item !is ClassItem) return null
+        var containingClassItem: ClassItem? = item.containingClass() ?: return null
+
+        // If this already has an [ANDROID_FLAGGED_API] annotation
+        if (annotations.findFlaggedApiAnnotation() != null) return null
+
+        // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
+        // [ClassItem], if there is one.
+        while (containingClassItem != null) {
+            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
+                return it
+            }
+            containingClassItem = containingClassItem.containingClass()
+        }
+
+        // Otherwise, no flagged api annotation needs adding.
+        return null
+    }
+
     private fun writeModifiers(item: Item) {
         (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-        modifierListWriter.write(item)
+
+        var annotations = item.modifiers.annotations()
+
+        // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
+        // does add it to this list. It will be sorted into the correct position in
+        // modifierListWriter.write.
+        flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
+            annotations = annotations + flaggedApiAnnotation
+        }
+
+        modifierListWriter.write(item, annotations)
     }
 
     private fun writeAnnotations(item: Item) {
@@ -520,7 +563,6 @@ class SignatureWriter(
                 annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
-                flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
             )
     }
 }

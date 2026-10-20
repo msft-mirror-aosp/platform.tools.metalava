@@ -55,9 +55,6 @@ class ModifierListWriter(
          */
         val normalizeAbstract: Boolean = true,
 
-        /** Determines whether `@FlaggedApi` annotations are inherited and if so how. */
-        val flaggedApiInheritance: FlaggedApiInheritance = FlaggedApiInheritance.NONE,
-
         /**
          * If `true` then a [ClassKind.RECORD] class will be represented as a `record` class and the
          * `final` modifier will not be written out as `record` classes are implicitly `final`.
@@ -79,7 +76,6 @@ class ModifierListWriter(
     private val skipNullnessAnnotations = config.skipNullnessAnnotations
     private val normalizeFinal = config.normalizeFinal
     private val normalizeAbstract = config.normalizeAbstract
-    private val flaggedApiInheritance = config.flaggedApiInheritance
     private val javaRecordClasses: Boolean = config.javaRecordClasses
     private val javaSealedClasses = config.javaSealedClasses
 
@@ -285,42 +281,6 @@ class ModifierListWriter(
         }
     }
 
-    /**
-     * Find the [ANDROID_FLAGGED_API] in this list of [AnnotationItem]s that has not been reverted,
-     * if there is one.
-     */
-    private fun List<AnnotationItem>.findFlaggedApiAnnotation(): AnnotationItem? {
-        return find { it.qualifiedName == ANDROID_FLAGGED_API && it.apiFlag?.revert != true }
-    }
-
-    /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
-    private fun flaggedApiAnnotationToInherit(
-        item: Item,
-        annotations: List<AnnotationItem>,
-    ): AnnotationItem? {
-        // If they are not required to be inherited onto nested classes then return null.
-        if (flaggedApiInheritance != FlaggedApiInheritance.NESTED_CLASSES) return null
-
-        // If the item is not a nested class then return null.
-        if (item !is ClassItem) return null
-        var containingClassItem: ClassItem? = item.containingClass() ?: return null
-
-        // If this already has an [ANDROID_FLAGGED_API] annotation
-        if (annotations.findFlaggedApiAnnotation() != null) return null
-
-        // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
-        // [ClassItem], if there is one.
-        while (containingClassItem != null) {
-            containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
-                return it
-            }
-            containingClassItem = containingClassItem.containingClass()
-        }
-
-        // Otherwise, no flagged api annotation needs adding.
-        return null
-    }
-
     fun writeAnnotations(
         item: Item,
         annotations: List<AnnotationItem> = item.modifiers.annotations(),
@@ -352,14 +312,6 @@ class ModifierListWriter(
             }
         }
 
-        var annotations = annotations
-
-        // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
-        // does add it to this list. It will be sorted into the correct position below.
-        flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
-            annotations = annotations + flaggedApiAnnotation
-        }
-
         if (annotations.isEmpty()) {
             return
         }
@@ -371,13 +323,14 @@ class ModifierListWriter(
 
         // Remove @SuppressCompatibility if it exists (it will for text codebases) because it was
         // already written out above.
-        annotations =
-            annotations.filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
         // Ensure stable signature file order
-        annotations = annotations.sortedBy { it.qualifiedName }
+        val filteredAnnotations =
+            annotations
+                .filter { it.qualifiedName != SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED }
+                .sortedBy { it.qualifiedName }
 
         var index = -1
-        for (annotation in annotations) {
+        for (annotation in filteredAnnotations) {
             index++
 
             if (runtimeAnnotationsOnly && annotation.retention != AnnotationRetention.RUNTIME) {
@@ -496,15 +449,3 @@ const val SUPPRESS_COMPATIBILITY_ANNOTATION = "SuppressCompatibility"
  */
 val SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED =
     AnnotationItem.unshortenAnnotation(SUPPRESS_COMPATIBILITY_ANNOTATION)
-
-/** Determines how [ModifierListWriter] handles `@FlaggedApi` inheritance. */
-enum class FlaggedApiInheritance {
-    /** @FlaggedApi annotations are not inherited. */
-    NONE,
-
-    /**
-     * @FlaggedApi annotations are inherited onto nested classes that do not have their own
-     *   annotation.
-     */
-    NESTED_CLASSES,
-}
