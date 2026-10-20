@@ -47,7 +47,7 @@ import java.io.PrintWriter
  */
 class JDiffXmlWriter(
     private val writer: PrintWriter,
-    private val apiName: String? = null,
+    private val apiName: String,
 ) : DelegatedVisitor {
     /**
      * JDiff XML files require classes to be visited in deterministic, alphabetical order for stable
@@ -59,12 +59,10 @@ class JDiffXmlWriter(
     override fun visitCodebase(codebase: Codebase) {
         writer.print("<api")
 
-        if (apiName != null) {
-            // See JDiff's XMLToAPI#nameAPI
-            writer.print(" name=\"")
-            writer.print(apiName)
-            writer.print("\"")
-        }
+        // See JDiff's XMLToAPI#nameAPI
+        writer.print(" name=\"")
+        writer.print(apiName)
+        writer.print("\"")
 
         // Specify metalava schema used for metalava:enumConstant
         writer.print(" xmlns:metalava=\"http://www.android.com/metalava/\"")
