@@ -339,7 +339,7 @@ class SignatureWriter(
 
     /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
     private fun flaggedApiAnnotationToInherit(
-        item: Item,
+        item: SelectableItem,
         annotations: List<AnnotationItem>,
     ): AnnotationItem? {
         // If the item is not a nested class then return null.
@@ -363,15 +363,19 @@ class SignatureWriter(
     }
 
     private fun writeModifiers(item: Item) {
-        (item as? SelectableItem)?.let { writeTargetLanguage(it) }
-
         var annotations = item.modifiers.annotations()
 
-        // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if it
-        // does add it to this list. It will be sorted into the correct position in
-        // modifierListWriter.write.
-        flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
-            annotations = annotations + flaggedApiAnnotation
+        // Target language modifiers and @FlaggedApi inheritance only apply to SelectableItems
+        // (not parameters or record components).
+        if (item is SelectableItem) {
+            writeTargetLanguage(item)
+
+            // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if
+            // it does add it to this list. It will be sorted into the correct position in
+            // modifierListWriter.write.
+            flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
+                annotations = annotations + flaggedApiAnnotation
+            }
         }
 
         modifierListWriter.write(item, annotations)
