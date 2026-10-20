@@ -29,6 +29,7 @@ import com.android.tools.metalava.model.CodebaseFragment
 import com.android.tools.metalava.model.ConstructorItem
 import com.android.tools.metalava.model.DelegatedVisitor
 import com.android.tools.metalava.model.FieldItem
+import com.android.tools.metalava.model.FlaggedApiInheritance
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.ModifierListWriter
@@ -44,7 +45,6 @@ import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.TypeStringConfiguration
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_DEFAULT_PARAMETER_VALUES
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.INCLUDE_TYPE_USE_ANNOTATIONS
 import com.android.tools.metalava.model.text.CustomizableProperty.Companion.JAVA_RECORD_CLASSES
@@ -111,7 +111,6 @@ class SignatureWriter(
                     skipNullnessAnnotations = fileFormat[KOTLIN_STYLE_NULLS],
                     normalizeFinal = fileFormat[NORMALIZE_FINAL_MODIFIER],
                     normalizeAbstract = fileFormat[NORMALIZE_ABSTRACT_MODIFIER],
-                    flaggedApiInheritance = fileFormat[FLAGGED_API_INHERITANCE],
                     javaRecordClasses = javaRecordClasses,
                     javaSealedClasses = javaSealedClasses,
                 ),
@@ -521,6 +520,7 @@ class SignatureWriter(
                 annotationFormatter = AnnotationFormatter.legacyAnnotationFormatter(),
                 runtimeAnnotationsOnly = false,
                 skipNullnessAnnotations = false,
+                flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
             )
     }
 }

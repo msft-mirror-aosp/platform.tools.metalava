@@ -20,8 +20,6 @@ import com.android.tools.metalava.cli.common.ARG_STUB_PACKAGES
 import com.android.tools.metalava.model.ANDROID_FLAGGED_API
 import com.android.tools.metalava.model.ANDROID_REQUIRES_FLAG
 import com.android.tools.metalava.model.ANDROID_SYSTEM_API
-import com.android.tools.metalava.model.FlaggedApiInheritance
-import com.android.tools.metalava.model.text.CustomizableProperty.Companion.FLAGGED_API_INHERITANCE
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.testing.KnownSourceFiles.flaggedApiSource
 import com.android.tools.metalava.testing.KnownSourceFiles.requiresFlagSource
@@ -362,14 +360,10 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
         )
     }
 
-    /** Check [flaggedApiInheritance] behavior. */
-    private fun checkFlaggedApiInheritance(
-        flaggedApiInheritance: FlaggedApiInheritance,
-        expectedApiSignature: String,
-    ) {
+    @Test
+    fun `Test flagged API inheritance in signature files`() {
         check(
-            format =
-                FileFormat.V6.buildCopy { this[FLAGGED_API_INHERITANCE] = flaggedApiInheritance },
+            format = FileFormat.V6,
             sourceFiles =
                 arrayOf(
                     java(
@@ -403,7 +397,24 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                     ),
                     flaggedApiSource
                 ),
-            expectedApiSignature = expectedApiSignature,
+            expectedApiSignature =
+                """
+                    // Signature format: 6.0
+                    package test.pkg {
+                      @FlaggedApi("flag.name1") public class Test {
+                        field public static final String FLAG_NAME1 = "flag.name1";
+                        field public static final String FLAG_NAME2 = "flag.name2";
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
+                      }
+                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested {
+                      }
+                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
+                      }
+                    }
+                """,
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -435,58 +446,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                         """
                     ),
                 ),
-        )
-    }
-
-    @Test
-    fun `Test flagged API inheritance in signature files - no inheritance`() {
-        checkFlaggedApiInheritance(
-            flaggedApiInheritance = FlaggedApiInheritance.NONE,
-            expectedApiSignature =
-                """
-                    // Signature format: 6.0
-                    // - flagged-api-inheritance=none
-                    package test.pkg {
-                      @FlaggedApi("flag.name1") public class Test {
-                        field public static final String FLAG_NAME1 = "flag.name1";
-                        field public static final String FLAG_NAME2 = "flag.name2";
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
-                      }
-                      public class Test.FlaggedNested.FlaggedNestedTwice {
-                      }
-                      public class Test.Nested {
-                      }
-                      public class Test.Nested.NestedTwice {
-                      }
-                    }
-                """,
-        )
-    }
-
-    @Test
-    fun `Test flagged API inheritance in signature files - nested-class inheritance`() {
-        checkFlaggedApiInheritance(
-            flaggedApiInheritance = FlaggedApiInheritance.NESTED_CLASSES,
-            // TODO(b/362253909): Should be added to nested classes.
-            expectedApiSignature =
-                """
-                    // Signature format: 6.0
-                    package test.pkg {
-                      @FlaggedApi("flag.name1") public class Test {
-                        field public static final String FLAG_NAME1 = "flag.name1";
-                        field public static final String FLAG_NAME2 = "flag.name2";
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested {
-                      }
-                      @FlaggedApi("flag.name2") public class Test.FlaggedNested.FlaggedNestedTwice {
-                      }
-                      @FlaggedApi("flag.name1") public class Test.Nested {
-                      }
-                      @FlaggedApi("flag.name1") public class Test.Nested.NestedTwice {
-                      }
-                    }
-                """,
         )
     }
 
