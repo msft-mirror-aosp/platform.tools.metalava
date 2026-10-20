@@ -30,7 +30,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.TypeItem
-import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiVisitor
 import com.android.tools.metalava.model.visitors.FilteringApiVisitor
 import com.android.utils.XmlUtils
@@ -294,16 +293,16 @@ class JDiffXmlWriter(
 }
 
 /**
- * Create an [ApiVisitor] that will filter the [Item] to which is applied according to the supplied
- * parameters and in a manner appropriate for writing JDiff files, e.g. not nesting classes. It will
- * delegate any visitor calls that pass through its filter to [delegate].
+ * Create an [ApiVisitor] that will filter the [Item] to which is applied in a manner appropriate
+ * for writing JDiff files, e.g. not nesting classes. It will delegate any visitor calls that pass
+ * through its filter to [delegate].
  */
 fun createFilteringVisitorForJDiffWriter(
     delegate: DelegatedVisitor,
-    apiFilters: ApiFilters?,
 ): ApiVisitor =
     FilteringApiVisitor(
         delegate,
         interfaceListComparator = TypeItem.totalComparator,
-        apiFilters = apiFilters,
+        // Signature files are always pre-filtered so require no filtering.
+        apiFilters = null,
     )
