@@ -174,7 +174,6 @@ class Driver(
                 CheckCompatibilityCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
-                JarToJDiffCommand(),
                 ListFlagsCommand(),
                 MakeAnnotationsPackagePrivateCommand(),
                 MergeSignaturesCommand(),
