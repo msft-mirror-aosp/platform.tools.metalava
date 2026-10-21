@@ -67,10 +67,8 @@ class CommonRemovedTest : BaseModelTest() {
      * [expected].
      */
     private fun SelectableItem.assertHasRemovedAnnotation(expected: Boolean) {
-        // TODO(b/571827848): Recognize @ForRemoval in signature files.
-        val expectedForInput = if (inputFormat == InputFormat.SIGNATURE) false else expected
         assertEquals(
-            expectedForInput,
+            expected,
             selectedApi.hasRemovedAnnotation(),
             message = "$this hasRemovedAnnotation()",
         )

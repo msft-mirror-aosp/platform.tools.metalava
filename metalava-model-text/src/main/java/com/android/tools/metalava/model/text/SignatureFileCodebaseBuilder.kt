@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
+import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -49,6 +50,7 @@ import com.android.tools.metalava.model.TypeNullability
 import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
+import com.android.tools.metalava.model.api.SelectedApi
 import com.android.tools.metalava.model.api.surface.ApiVariant
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
@@ -72,6 +74,25 @@ import com.android.tools.metalava.model.value.ValueUseSite
 import com.android.tools.metalava.reporter.FileLocation
 import com.android.tools.metalava.reporter.Issues
 import java.nio.file.Path
+
+/**
+ * Synthetic annotation used in signature files alongside `@FlaggedApi` to mark an API item whose
+ * removal is gated by a flag.
+ *
+ * Kept without any package to make it clear that it is a synthetic annotation.
+ */
+internal const val FOR_REMOVAL_ANNOTATION = "ForRemoval"
+
+/**
+ * Shared marker [AnnotationItem] added to an item's modifiers when `@ForRemoval` is parsed in
+ * [SignatureFileCodebaseBuilder.getAnnotations] and subsequently removed in
+ * [SignatureFileCodebaseBuilder.updateSelectedApi] after recording the state on [SelectedApi].
+ */
+private val FOR_REMOVAL_MARKER_ANNOTATION =
+    AnnotationItem.createMarkerAnnotation(
+        AnnotationContext.DEFAULT_RESOLVE_NULL,
+        FOR_REMOVAL_ANNOTATION,
+    )!!
 
 /**
  * [SignatureFileConsumer] implementation that populates a [DefaultCodebase] from one or more
@@ -211,6 +232,13 @@ internal class SignatureFileCodebaseBuilder(
      * If [item] was already defined in a different API surface, this will not add the new surface.
      */
     private fun updateSelectedApi(item: SelectableItem): ApiVariant {
+        // Check whether the item's modifiers included the @ForRemoval marker annotation, and if so
+        // remove it from the item's modifiers and record it on SelectedApi.
+        if (FOR_REMOVAL_MARKER_ANNOTATION in item.modifiers.annotations()) {
+            item.mutateModifiers { mutateAnnotations { remove(FOR_REMOVAL_MARKER_ANNOTATION) } }
+            item.selectedApi.markHasRemovedAnnotation()
+        }
+
         // Members inherit the variant of their enclosing class, while top-level and nested
         // classes/typealiases start from the signature file's variant.
         val variant = if (item is MemberItem) currentClassApiVariant else currentApiVariant
@@ -296,7 +324,16 @@ internal class SignatureFileCodebaseBuilder(
         tokenStream: TokenStream,
         apiText: String,
     ): List<AnnotationItem> = buildList {
-        while (tokenStream.peekType() == SharedTokenType.AT) {
+        while (tokenStream.match(SharedTokenType.AT)) {
+            // @ForRemoval is a synthetic marker annotation used to record removed-annotation state
+            // on SelectedApi; add the shared marker annotation to the modifiers so
+            // updateSelectedApi can detect and remove it.
+            if (tokenStream.peek().text(apiText) == FOR_REMOVAL_ANNOTATION) {
+                tokenStream.consume()
+                add(FOR_REMOVAL_MARKER_ANNOTATION)
+                continue
+            }
+
             // Parse the annotation from the tokenStream, unshortening the class name if necessary,
             // and add it to the list if it is recognized.
             valueParser.parseAnnotationItem(tokenStream, apiText, unshorten = true)?.let {

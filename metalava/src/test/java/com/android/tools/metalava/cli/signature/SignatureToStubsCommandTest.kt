@@ -150,6 +150,7 @@ class SignatureToStubsCommandTest :
                             ctor public Foo();
                             method @FlaggedApi("test.pkg.kept_flag") public void keptMethod();
                             method @FlaggedApi("test.pkg.finalized_flag") public void finalizedMethod();
+                            method @ForRemoval @FlaggedApi("test.pkg.kept_flag") public void keptRemovedMethod();
                           }
                         }
                     """,
@@ -166,6 +167,7 @@ class SignatureToStubsCommandTest :
                         public void finalizedMethod() { throw new RuntimeException("Stub!"); }
                         @android.annotation.RequiresFlag("test.pkg.kept_flag")
                         public void keptMethod() { throw new RuntimeException("Stub!"); }
+                        public void keptRemovedMethod() { throw new RuntimeException("Stub!"); }
                         }
                     """
                         .trimIndent(),
