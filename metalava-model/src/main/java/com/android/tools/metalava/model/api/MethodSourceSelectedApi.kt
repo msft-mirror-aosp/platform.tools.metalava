@@ -213,22 +213,16 @@ internal class MethodSourceSelectedApi(
                 val duplicateSuper = findDuplicateSuperMethod(item, item, referenceMask) ?: continue
 
                 // For a REMOVED variant, this method is only an elidable override if this method
-                // or the duplicate super method has a removed variant/annotation. If neither has a
-                // removed status, the override is purely in the core API and not part of the
-                // removed API.
+                // or the duplicate super method has a removed variant in itemApiVariants (rather
+                // than merely hasRemovedAnnotation(), which is also true for unfinalized flagged
+                // removals that remain in the core API). If neither has a removed variant, the
+                // override is purely in the core API and not part of the removed API.
                 if (variant.type == ApiVariantType.REMOVED) {
-                    val itemHasRemoved =
-                        hasRemovedAnnotation() ||
-                            selectedApiUpdater.apiSurfaces.all.any {
-                                it.variantFor(ApiVariantType.REMOVED) in itemApiVariants
-                            }
-                    val superHasRemoved =
-                        duplicateSuper.selectedApi.hasRemovedAnnotation() ||
-                            selectedApiUpdater.apiSurfaces.all.any {
-                                it.variantFor(ApiVariantType.REMOVED) in
-                                    duplicateSuper.selectedApi.itemApiVariants
-                            }
-                    if (!itemHasRemoved && !superHasRemoved) {
+                    val allRemoved = ApiVariantSet.ALL_REMOVED
+                    if (
+                        !itemApiVariants.containsAny(allRemoved) &&
+                            !duplicateSuper.selectedApi.itemApiVariants.containsAny(allRemoved)
+                    ) {
                         continue
                     }
                 }
