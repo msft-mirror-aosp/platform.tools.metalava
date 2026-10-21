@@ -213,7 +213,7 @@ Sub-commands:
   main                                       The default sub-command that is run if no sub-command is specified.
   api-history                                Generate an API versions XML or JSON file from API signature files.
   check-compatibility                        Check compatibility between two APIs.
-  filter-signature                           Filter a signature file using configured API flags.
+  filter-signature                           Filter signature files using configured API flags.
   flag-report                                Generates a flag report
   help                                       Provides help for general metalava concepts.
   list-flags                                 List flags referenced in signature files.

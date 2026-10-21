@@ -34,21 +34,30 @@ private val filterSignatureHelp =
     """
 Usage: metalava filter-signature [options]
 
-  Filter a signature file using configured API flags.
+  Filter signature files using configured API flags.
 
-  Reads signature files defining an API surface and writes a filtered signature file after applying any `<api-flags>`
-  from `--config-file`, reverting flagged changes against `--previously-released-api` if provided.
+  Reads signature files defining an API surface (and optionally its removed API) and writes filtered signature files
+  after applying any `<api-flags>` from `--config-file`, reverting flagged changes against `--previously-released-api`
+  and `--previously-released-removed-api` if provided.
 
 Options:
   --api-files <files>                        One or more signature files (separated by `${File.pathSeparator}`) defining the current API
                                              from narrowest to widest API surface. The last file is the target signature
                                              file to filter; any preceding files are base surface signature files that
                                              it extends. (required)
+  --removed-api-files <files>                One or more signature files (separated by `${File.pathSeparator}`) defining the current removed
+                                             API from narrowest to widest API surface, corresponding to the surfaces in
+                                             `--api-files`.
   --previously-released-api <files>          One or more signature files (separated by `${File.pathSeparator}`) defining the previously
                                              released API from narrowest to widest API surface, used when reverting
                                              flagged changes to previously released APIs.
+  --previously-released-removed-api <files>  One or more signature files (separated by `${File.pathSeparator}`) defining the previously
+                                             released removed API from narrowest to widest API surface, used when
+                                             reverting flagged changes to previously released removed APIs.
   --output-file <file>                       The output file into which the filtered signature file will be written.
                                              (required)
+  --output-removed-file <file>               The output file into which the filtered removed signature file will be
+                                             written.
   -h, -?, --help                             Show this message and exit
 
 $CONFIG_FILE_OPTIONS_HELP
@@ -637,6 +646,426 @@ class FilterSignatureCommandTest :
                     """
                 )
             }
+        }
+    }
+
+    @Test
+    fun `Test ForRemoval and FlaggedApi transitions between current and removed signature files`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags>
+                                <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="reverted_flag" mutability="immutable" status="disabled"/>
+                              </api-flags>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public class FinalizedRemovedClass {
+                                ctor public FinalizedRemovedClass();
+                                method public void method();
+                              }
+                              public class Foo {
+                                ctor public Foo();
+                                method @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public void finalizedRemovedMethod();
+                                method @ForRemoval @FlaggedApi("test.pkg.kept_flag") public void keptRemovedMethod();
+                                method @ForRemoval @FlaggedApi("test.pkg.reverted_flag") public void revertedRemovedMethod();
+                                field @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public static final int FINALIZED_REMOVED_FIELD = 1; // 0x1
+                                field @ForRemoval @FlaggedApi("test.pkg.kept_flag") public static final int KEPT_REMOVED_FIELD = 2; // 0x2
+                                field @ForRemoval @FlaggedApi("test.pkg.reverted_flag") public static final int REVERTED_REMOVED_FIELD = 3; // 0x3
+                              }
+                              @ForRemoval @FlaggedApi("test.pkg.kept_flag") public class KeptRemovedClass {
+                                ctor public KeptRemovedClass();
+                                method public void method();
+                              }
+                              @ForRemoval @FlaggedApi("test.pkg.reverted_flag") public class RevertedRemovedClass {
+                                ctor public RevertedRemovedClass();
+                                method public void method();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "removed.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void alreadyRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            val outputCurrent = outputFile("filtered-current.txt")
+            val outputRemoved = outputFile("filtered-removed.txt")
+            args += ARG_OUTPUT_FILE to outputCurrent
+            args += ARG_OUTPUT_REMOVED_FILE to outputRemoved
+
+            verify {
+                outputCurrent.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method @ForRemoval @FlaggedApi("test.pkg.kept_flag") public void keptRemovedMethod();
+                            method public void revertedRemovedMethod();
+                            field @ForRemoval @FlaggedApi("test.pkg.kept_flag") public static final int KEPT_REMOVED_FIELD = 2; // 0x2
+                            field public static final int REVERTED_REMOVED_FIELD = 3; // 0x3
+                          }
+                          @ForRemoval @FlaggedApi("test.pkg.kept_flag") public class KeptRemovedClass {
+                            ctor public KeptRemovedClass();
+                            method public void method();
+                          }
+                          public class RevertedRemovedClass {
+                            ctor public RevertedRemovedClass();
+                            method public void method();
+                          }
+                        }
+                    """
+                )
+                outputRemoved.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class FinalizedRemovedClass {
+                            ctor public FinalizedRemovedClass();
+                            method public void method();
+                          }
+                          public class Foo {
+                            method public void alreadyRemovedMethod();
+                            method public void finalizedRemovedMethod();
+                            field public static final int FINALIZED_REMOVED_FIELD = 1; // 0x1
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test removed member on class whose flagged change in current API is reverted`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_PREVIOUSLY_RELEASED_API to
+                    signature(
+                        "prev-current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void existingMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_PREVIOUSLY_RELEASED_REMOVED_API to
+                    signature(
+                        "prev-removed.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void existingRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated @FlaggedApi("test.pkg.disabled_flag") public class Foo {
+                                ctor @Deprecated public Foo();
+                                method @Deprecated public void existingMethod();
+                                method public void newFlaggedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "removed.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated @FlaggedApi("test.pkg.disabled_flag") public class Foo {
+                                method @Deprecated @FlaggedApi("test.pkg.disabled_flag") public void existingRemovedMethod();
+                                method public void unflaggedRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            val outputCurrent = outputFile("filtered-current.txt")
+            val outputRemoved = outputFile("filtered-removed.txt")
+            args += ARG_OUTPUT_FILE to outputCurrent
+            args += ARG_OUTPUT_REMOVED_FILE to outputRemoved
+
+            verify {
+                outputCurrent.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method public void existingMethod();
+                          }
+                        }
+                    """
+                )
+                outputRemoved.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void existingRemovedMethod();
+                            method public void unflaggedRemovedMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test empty removed signature file preserves empty output when no items are removed`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method @ForRemoval @FlaggedApi("test.pkg.reverted_flag") public void revertedRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "removed.txt",
+                        "",
+                    )
+
+            val outputCurrent = outputFile("filtered-current.txt")
+            val outputRemoved = outputFile("filtered-removed.txt")
+            args += ARG_OUTPUT_FILE to outputCurrent
+            args += ARG_OUTPUT_REMOVED_FILE to outputRemoved
+
+            verify {
+                outputCurrent.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            ctor public Foo();
+                            method public void revertedRemovedMethod();
+                          }
+                        }
+                    """
+                )
+                outputRemoved.assertSignatureContents("")
+            }
+        }
+    }
+
+    @Test
+    fun `Test delta signature file filtering with removed API files`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags>
+                                <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="reverted_flag" mutability="immutable" status="disabled"/>
+                              </api-flags>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "public.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public void finalizedPublicRemovedMethod();
+                                method public void publicMethod();
+                              }
+                            }
+                        """,
+                    )
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "system.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method @ForRemoval @FlaggedApi("test.pkg.finalized_flag") public void finalizedSystemRemovedMethod();
+                                method @ForRemoval @FlaggedApi("test.pkg.reverted_flag") public void revertedSystemRemovedMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "public-removed.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method public void alreadyRemovedPublicMethod();
+                              }
+                            }
+                        """,
+                    )
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "system-removed.txt",
+                        "",
+                    )
+
+            val outputSystem = outputFile("filtered-system.txt")
+            val outputSystemRemoved = outputFile("filtered-system-removed.txt")
+            args += ARG_OUTPUT_FILE to outputSystem
+            args += ARG_OUTPUT_REMOVED_FILE to outputSystemRemoved
+
+            verify {
+                outputSystem.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void revertedSystemRemovedMethod();
+                          }
+                        }
+                    """
+                )
+                outputSystemRemoved.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void finalizedSystemRemovedMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test mismatched number of api-files and removed-api-files`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "public.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "system.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+
+            args +=
+                ARG_REMOVED_API_FILES to
+                    signature(
+                        "public-removed.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            expectedStderr =
+                "Aborting: --removed-api-files must specify the same number of files (1) as --api-files (2)"
         }
     }
 }

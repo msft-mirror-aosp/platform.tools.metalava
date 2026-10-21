@@ -49,16 +49,20 @@ import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.api.flags.ApiFlag
 import com.android.tools.metalava.model.api.flags.ApiFlags
 import com.android.tools.metalava.model.api.flags.optionalFlagName
+import com.android.tools.metalava.model.api.surface.ApiSurfacePredicate
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.noOpAnnotationManager
 import com.android.tools.metalava.model.snapshot.NonFilteringDelegatingVisitor
 import com.android.tools.metalava.model.text.ApiFile
 import com.android.tools.metalava.model.text.ApiParseException
+import com.android.tools.metalava.model.text.EmitFileHeader
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
 import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
+import com.android.tools.metalava.model.visitors.ApiType
 import com.android.tools.metalava.reporter.DefaultReporter
 import com.android.tools.metalava.reporter.Reporter
 import com.android.tools.metalava.trace
@@ -70,14 +74,23 @@ import java.io.File
 /** Name of the `--api-files` option. */
 const val ARG_API_FILES = "--api-files"
 
+/** Name of the `--removed-api-files` option. */
+const val ARG_REMOVED_API_FILES = "--removed-api-files"
+
 /** Name of the `--previously-released-api` option. */
 const val ARG_PREVIOUSLY_RELEASED_API = "--previously-released-api"
+
+/** Name of the `--previously-released-removed-api` option. */
+const val ARG_PREVIOUSLY_RELEASED_REMOVED_API = "--previously-released-removed-api"
 
 /** Name of the `--output-file` option. */
 private const val ARG_OUTPUT_FILE = "--output-file"
 
+/** Name of the `--output-removed-file` option. */
+const val ARG_OUTPUT_REMOVED_FILE = "--output-removed-file"
+
 /**
- * Command that filters a signature file (possibly a delta on another signature file) against a set
+ * Command that filters signature files (possibly a delta on another signature file) against a set
  * of `<api-flags>` provided via `--config-file`, optionally reverting flagged changes against a
  * previously released API.
  */
@@ -85,11 +98,12 @@ class FilterSignatureCommand :
     MetalavaSubCommand(
         help =
             """
-                Filter a signature file using configured API flags.
+                Filter signature files using configured API flags.
 
-                Reads signature files defining an API surface and writes a filtered signature file
-                after applying any `<api-flags>` from `--config-file`, reverting flagged changes
-                against `--previously-released-api` if provided.
+                Reads signature files defining an API surface (and optionally its removed API) and
+                writes filtered signature files after applying any `<api-flags>` from
+                `--config-file`, reverting flagged changes against `--previously-released-api` and
+                `--previously-released-removed-api` if provided.
             """
                 .trimIndent(),
     ) {
@@ -122,6 +136,25 @@ class FilterSignatureCommand :
             .splitMultiple(File.pathSeparator, required = true)
 
     /**
+     * Optional signature files defining the current removed API from narrowest to widest API
+     * surface, matching the surfaces in [apiFiles].
+     */
+    private val removedApiFiles by
+        option(
+                ARG_REMOVED_API_FILES,
+                metavar = "<files>",
+                help =
+                    """
+                        One or more signature files (separated by `${File.pathSeparator}`) defining
+                        the current removed API from narrowest to widest API surface, corresponding
+                        to the surfaces in `$ARG_API_FILES`.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .splitMultiple(File.pathSeparator)
+
+    /**
      * Optional signature files defining the previously released API from narrowest to widest API
      * surface, used when reverting flagged changes to previously released APIs.
      */
@@ -140,6 +173,25 @@ class FilterSignatureCommand :
             .existingFile()
             .splitMultiple(File.pathSeparator)
 
+    /**
+     * Optional signature files defining the previously released removed API from narrowest to
+     * widest API surface, used when reverting flagged changes to previously released removed APIs.
+     */
+    private val previouslyReleasedRemovedApiFiles by
+        option(
+                ARG_PREVIOUSLY_RELEASED_REMOVED_API,
+                metavar = "<files>",
+                help =
+                    """
+                        One or more signature files (separated by `${File.pathSeparator}`) defining
+                        the previously released removed API from narrowest to widest API surface,
+                        used when reverting flagged changes to previously released removed APIs.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .splitMultiple(File.pathSeparator)
+
     /** The output file into which the filtered signature file will be written. */
     private val outputFile by
         option(
@@ -149,6 +201,16 @@ class FilterSignatureCommand :
             )
             .newFile()
             .required()
+
+    /** The optional output file into which the filtered removed signature file will be written. */
+    private val outputRemovedFile by
+        option(
+                ARG_OUTPUT_REMOVED_FILE,
+                metavar = "<file>",
+                help =
+                    "The output file into which the filtered removed signature file will be written.",
+            )
+            .newFile()
 
     override fun run() {
         val config = configFileOptions.config
@@ -169,35 +231,47 @@ class FilterSignatureCommand :
         }
 
         try {
+            if (removedApiFiles.isNotEmpty() && removedApiFiles.size != apiFiles.size) {
+                cliError(
+                    "$ARG_REMOVED_API_FILES must specify the same number of files (${removedApiFiles.size}) as $ARG_API_FILES (${apiFiles.size})"
+                )
+            }
+
             val apiFlags = ApiFlagsCreator.createFromConfig(config.apiFlags)
 
             // Preserve the FileFormat from the header of the target (last) input signature file,
             // defaulting to V2 if the file is empty.
-            val lastFile = apiFiles.last()
-            val fileFormat =
-                try {
-                    lastFile.reader().use { FileFormat.parseHeader(lastFile.toPath(), it) }
-                        ?: FileFormat.V2
-                } catch (e: ApiParseException) {
-                    cliError(e.message!!)
-                }
+            val fileFormat = parseFileFormat(apiFiles.last()) ?: FileFormat.V2
 
             var previousFilteredCodebase: Codebase? = null
             var currentFilteredFragment: CodebaseFragment? = null
 
             for (i in 1..apiFiles.size) {
-                val currentFiles = apiFiles.take(i)
-                val currentPreviouslyReleasedFiles =
-                    if (i == apiFiles.size) {
-                        previouslyReleasedApiFiles
-                    } else {
-                        previouslyReleasedApiFiles.take(i)
-                    }
+                val currentSignatureFiles =
+                    createSignatureFiles(
+                        coreFiles = apiFiles.take(i),
+                        removedFiles = removedApiFiles.take(i),
+                    )
+                val currentPreviouslyReleasedSignatureFiles =
+                    createSignatureFiles(
+                        coreFiles =
+                            if (i == apiFiles.size) {
+                                previouslyReleasedApiFiles
+                            } else {
+                                previouslyReleasedApiFiles.take(i)
+                            },
+                        removedFiles =
+                            if (i == apiFiles.size) {
+                                previouslyReleasedRemovedApiFiles
+                            } else {
+                                previouslyReleasedRemovedApiFiles.take(i)
+                            },
+                    )
                 val previouslyReleasedCodebase =
-                    if (currentPreviouslyReleasedFiles.isNotEmpty()) {
+                    if (currentPreviouslyReleasedSignatureFiles.isNotEmpty()) {
                         try {
                             ApiFile.parseApi(
-                                SignatureFile.fromFiles(currentPreviouslyReleasedFiles),
+                                currentPreviouslyReleasedSignatureFiles,
                                 Codebase.Config(reporter = reporter),
                             )
                         } catch (e: ApiParseException) {
@@ -211,7 +285,7 @@ class FilterSignatureCommand :
                 previousFilteredCodebase = currentFilteredFragment?.codebase
                 currentFilteredFragment =
                     filterCodebase(
-                        currentFiles,
+                        currentSignatureFiles,
                         fallbacks,
                         apiFlags,
                         fileFormat,
@@ -220,32 +294,35 @@ class FilterSignatureCommand :
             }
 
             val baseCodebase = previousFilteredCodebase
-            val targetFragment = currentFilteredFragment!!
-            val outputFragment =
-                if (baseCodebase == null) {
-                    targetFragment
-                } else {
-                    val deltaFragment =
-                        SnapshotDeltaMaker.createDelta(
-                            base = baseCodebase,
-                            codebaseFragment = targetFragment,
-                            checkMemberItemEquivalence = false,
-                            allowClassModifierChanges = false,
-                        )
-                    createCodebaseFragmentForSignatureFile(
-                        deltaFragment.codebase,
-                        fileFormat = fileFormat,
-                        apiFilters = null,
-                    )
-                }
+            val targetCodebase = currentFilteredFragment!!.codebase
 
-            createOutputFileFromCodebaseFragment(
-                outputFragment,
-                outputFile,
-            ) { printWriter ->
-                SignatureWriter(
-                    writer = printWriter,
-                    fileFormat = fileFormat,
+            writeOutputSignatureFile(
+                targetCodebase = targetCodebase,
+                baseCodebase = baseCodebase,
+                apiType = ApiType.CORE,
+                fileFormat = fileFormat,
+                emitHeader = EmitFileHeader.ALWAYS,
+                output = outputFile,
+            )
+
+            outputRemovedFile?.let { removedOutput ->
+                val lastRemovedHeaderFormat =
+                    removedApiFiles.lastOrNull()?.let { parseFileFormat(it) }
+                val removedFileFormat = lastRemovedHeaderFormat ?: fileFormat
+                val emitRemovedHeader =
+                    if (lastRemovedHeaderFormat != null) {
+                        EmitFileHeader.ALWAYS
+                    } else {
+                        EmitFileHeader.IF_NONEMPTY_FILE
+                    }
+
+                writeOutputSignatureFile(
+                    targetCodebase = targetCodebase,
+                    baseCodebase = baseCodebase,
+                    apiType = ApiType.REMOVED,
+                    fileFormat = removedFileFormat,
+                    emitHeader = emitRemovedHeader,
+                    output = removedOutput,
                 )
             }
         } finally {
@@ -272,11 +349,108 @@ class FilterSignatureCommand :
     }
 
     /**
-     * Parse [currentFiles] into a [Codebase] and filter it using [apiFlags] and
+     * Parse the [FileFormat] header of [file], returning `null` if the file is empty or has no
+     * header.
+     */
+    private fun parseFileFormat(file: File): FileFormat? =
+        try {
+            file.reader().use { FileFormat.parseHeader(file.toPath(), it) }
+        } catch (e: ApiParseException) {
+            cliError(e.message!!)
+        }
+
+    /**
+     * Combine [coreFiles] ([ApiVariantType.CORE]) and [removedFiles] ([ApiVariantType.REMOVED])
+     * into a single list of [SignatureFile]s with all core files preceding all removed files so
+     * that classes present in both are created in the core variant before removed members are
+     * merged into them.
+     */
+    private fun createSignatureFiles(
+        coreFiles: List<File>,
+        removedFiles: List<File>,
+    ): List<SignatureFile> =
+        SignatureFile.fromFiles(
+            coreFiles,
+            apiVariantTypeChooser = { ApiVariantType.CORE },
+        ) +
+            SignatureFile.fromFiles(
+                removedFiles,
+                apiVariantTypeChooser = { ApiVariantType.REMOVED },
+            )
+
+    /**
+     * Write the filtered signature output for [apiType] (`CORE` or `REMOVED`) from [targetCodebase]
+     * (computing a delta against [baseCodebase] if non-null) to [output].
+     */
+    private fun writeOutputSignatureFile(
+        targetCodebase: Codebase,
+        baseCodebase: Codebase?,
+        apiType: ApiType,
+        fileFormat: FileFormat,
+        emitHeader: EmitFileHeader,
+        output: File,
+    ) {
+        val targetVariantFragment =
+            createVariantCodebaseFragment(targetCodebase, fileFormat, apiType)
+        val outputFragment =
+            if (baseCodebase == null) {
+                targetVariantFragment
+            } else {
+                // Take a variant-filtered snapshot of baseCodebase so SnapshotDeltaMaker compares
+                // the target variant against only the base items belonging to the same variant.
+                val baseVariantCodebase =
+                    createVariantCodebaseFragment(baseCodebase, fileFormat, apiType)
+                        .snapshotIncludingRevertedItems(
+                            referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                        )
+                        .codebase
+                val deltaFragment =
+                    SnapshotDeltaMaker.createDelta(
+                        base = baseVariantCodebase,
+                        codebaseFragment = targetVariantFragment,
+                        checkMemberItemEquivalence = false,
+                        allowClassModifierChanges = false,
+                    )
+                createVariantCodebaseFragment(deltaFragment.codebase, fileFormat, apiType)
+            }
+
+        createOutputFileFromCodebaseFragment(
+            outputFragment,
+            output,
+        ) { printWriter ->
+            SignatureWriter(
+                writer = printWriter,
+                fileFormat = fileFormat,
+                emitHeader = emitHeader,
+            )
+        }
+    }
+
+    /**
+     * Create a [CodebaseFragment] for [codebase] filtered to the items belonging to [apiType] on
+     * the main API surface.
+     */
+    private fun createVariantCodebaseFragment(
+        codebase: Codebase,
+        fileFormat: FileFormat,
+        apiType: ApiType,
+    ): CodebaseFragment =
+        createCodebaseFragmentForSignatureFile(
+            codebase,
+            fileFormat = fileFormat,
+            apiFilters =
+                ApiSurfacePredicate.apiFilters(
+                    apiType,
+                    codebase.config.apiSurfaces.main,
+                ),
+        )
+
+    /**
+     * Parse [currentSignatureFiles] into a [Codebase] and filter it using [apiFlags] and
      * [fallbackCodebases].
      */
     private fun filterCodebase(
-        currentFiles: List<File>,
+        currentSignatureFiles: List<SignatureFile>,
         fallbackCodebases: List<Codebase>,
         apiFlags: ApiFlags?,
         fileFormat: FileFormat,
@@ -295,7 +469,7 @@ class FilterSignatureCommand :
         val codebase =
             try {
                 ApiFile.parseApi(
-                    SignatureFile.fromFiles(currentFiles),
+                    currentSignatureFiles,
                     codebaseConfig,
                 )
             } catch (e: ApiParseException) {
@@ -365,17 +539,34 @@ class FilterSignatureCommand :
     }
 
     /**
-     * Find the effective `@FlaggedApi` [AnnotationItem] for [item], checking [item] directly first
-     * and walking up its [SelectableItem.containingClass] hierarchy if none is present on [item].
+     * Find the effective `@FlaggedApi` [AnnotationItem] gating the addition or modification of
+     * [item], checking [item] directly first and walking up its [SelectableItem.containingClass]
+     * hierarchy if none is present on [item].
+     *
+     * Ignores `@FlaggedApi` annotations on items marked with `@ForRemoval`
+     * ([SelectedApi.hasRemovedAnnotation]), since those gate the *removal* of an API item rather
+     * than its addition or modification (reverting the flag cancels the removal and keeps the item
+     * in the core API). Also only inherits `@FlaggedApi` from an enclosing class when the enclosing
+     * class's [SelectedApi.itemApiVariants] overlaps with [item]'s [SelectedApi.itemApiVariants],
+     * so a removed member in `removed.txt` does not inherit a `@FlaggedApi` annotation that only
+     * applies to its enclosing class in `current.txt`.
      */
     private fun effectiveFlaggedApi(item: SelectableItem): AnnotationItem? {
         var current: SelectableItem? = item
         while (current != null) {
-            val annotation =
-                current.modifiers.annotations().firstOrNull {
-                    it.qualifiedName == ANDROID_FLAGGED_API
-                }
-            if (annotation != null) return annotation
+            if (
+                !current.selectedApi.hasRemovedAnnotation() &&
+                    (current === item ||
+                        current.selectedApi.itemApiVariants.containsAny(
+                            item.selectedApi.itemApiVariants
+                        ))
+            ) {
+                val annotation =
+                    current.modifiers.annotations().firstOrNull {
+                        it.qualifiedName == ANDROID_FLAGGED_API
+                    }
+                if (annotation != null) return annotation
+            }
             current = current.containingClass()
         }
         return null
