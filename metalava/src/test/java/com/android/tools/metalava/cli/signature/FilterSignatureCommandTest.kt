@@ -40,11 +40,13 @@ Usage: metalava filter-signature [options]
   from `--config-file`, reverting flagged changes against `--previously-released-api` if provided.
 
 Options:
-  --api-files <files>                        One or more signature files (separated by `${File.pathSeparator}`) defining the current API.
-                                             (required)
+  --api-files <files>                        One or more signature files (separated by `${File.pathSeparator}`) defining the current API
+                                             from narrowest to widest API surface. The last file is the target signature
+                                             file to filter; any preceding files are base surface signature files that
+                                             it extends. (required)
   --previously-released-api <files>          One or more signature files (separated by `${File.pathSeparator}`) defining the previously
-                                             released API, used when reverting flagged changes to previously released
-                                             APIs.
+                                             released API from narrowest to widest API surface, used when reverting
+                                             flagged changes to previously released APIs.
   --output-file <file>                       The output file into which the filtered signature file will be written.
                                              (required)
   -h, -?, --help                             Show this message and exit
@@ -349,6 +351,157 @@ class FilterSignatureCommandTest :
                           }
                           public final class Foo {
                             method public void existingMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test delta signature file filtering`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags>
+                                <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="finalized_flag" mutability="immutable" status="enabled"/>
+                                <api-flag package="test.pkg" name="disabled_flag" mutability="immutable" status="disabled"/>
+                              </api-flags>
+                            </config>
+                        """,
+                    )
+
+            val output = outputFile("filtered-system.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "public.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                ctor public Foo();
+                                method public void publicMethod();
+                              }
+                            }
+                        """,
+                    )
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "system.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Foo {
+                                method @FlaggedApi("test.pkg.kept_flag") public void keptSystemMethod();
+                                method @FlaggedApi("test.pkg.finalized_flag") public void finalizedSystemMethod();
+                                method @FlaggedApi("test.pkg.disabled_flag") public void disabledSystemMethod();
+                              }
+                              @FlaggedApi("test.pkg.disabled_flag") public class DisabledSystemClass {
+                                ctor public DisabledSystemClass();
+                                method public void bar();
+                              }
+                            }
+                        """,
+                    )
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Foo {
+                            method public void finalizedSystemMethod();
+                            method @FlaggedApi("test.pkg.kept_flag") public void keptSystemMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test delta signature file filtering when class moves from system to public behind reverted flag`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_PREVIOUSLY_RELEASED_API to
+                    signature(
+                        "prev-public.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+            args +=
+                ARG_PREVIOUSLY_RELEASED_API to
+                    signature(
+                        "prev-system.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public final class Foo {
+                              }
+                            }
+                        """,
+                    )
+
+            val output = outputFile("filtered-system.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "public.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @FlaggedApi("test.pkg.disabled_flag") public final class Foo {
+                                ctor public Foo();
+                                method public void method();
+                                field public final int field;
+                              }
+                            }
+                        """,
+                    )
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "system.txt",
+                        """
+                            // Signature format: 2.0
+                        """,
+                    )
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public final class Foo {
                           }
                         }
                     """

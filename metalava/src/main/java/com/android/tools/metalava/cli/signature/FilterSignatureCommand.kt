@@ -56,6 +56,7 @@ import com.android.tools.metalava.model.text.ApiParseException
 import com.android.tools.metalava.model.text.FileFormat
 import com.android.tools.metalava.model.text.SignatureFile
 import com.android.tools.metalava.model.text.SignatureWriter
+import com.android.tools.metalava.model.text.SnapshotDeltaMaker
 import com.android.tools.metalava.model.text.createCodebaseFragmentForSignatureFile
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.reporter.DefaultReporter
@@ -76,8 +77,9 @@ const val ARG_PREVIOUSLY_RELEASED_API = "--previously-released-api"
 private const val ARG_OUTPUT_FILE = "--output-file"
 
 /**
- * Command that filters a signature file against a set of `<api-flags>` provided via
- * `--config-file`, optionally reverting flagged changes against a previously released API.
+ * Command that filters a signature file (possibly a delta on another signature file) against a set
+ * of `<api-flags>` provided via `--config-file`, optionally reverting flagged changes against a
+ * previously released API.
  */
 class FilterSignatureCommand :
     MetalavaSubCommand(
@@ -98,7 +100,11 @@ class FilterSignatureCommand :
     /** Options for configuring issue reporting. */
     private val issueReportingOptions by IssueReportingOptions()
 
-    /** Signature files defining the current API. */
+    /**
+     * Signature files defining the current API from narrowest to widest API surface. The last file
+     * is the target signature file to filter; any preceding files are base surface signature files
+     * that it extends.
+     */
     private val apiFiles by
         option(
                 ARG_API_FILES,
@@ -106,7 +112,9 @@ class FilterSignatureCommand :
                 help =
                     """
                         One or more signature files (separated by `${File.pathSeparator}`) defining
-                        the current API.
+                        the current API from narrowest to widest API surface. The last file is the
+                        target signature file to filter; any preceding files are base surface
+                        signature files that it extends.
                     """
                         .trimIndent(),
             )
@@ -114,8 +122,8 @@ class FilterSignatureCommand :
             .splitMultiple(File.pathSeparator, required = true)
 
     /**
-     * Optional signature files defining the previously released API, used when reverting flagged
-     * changes to previously released APIs.
+     * Optional signature files defining the previously released API from narrowest to widest API
+     * surface, used when reverting flagged changes to previously released APIs.
      */
     private val previouslyReleasedApiFiles by
         option(
@@ -124,8 +132,8 @@ class FilterSignatureCommand :
                 help =
                     """
                         One or more signature files (separated by `${File.pathSeparator}`) defining
-                        the previously released API, used when reverting flagged changes to
-                        previously released APIs.
+                        the previously released API from narrowest to widest API surface, used when
+                        reverting flagged changes to previously released APIs.
                     """
                         .trimIndent(),
             )
@@ -174,28 +182,62 @@ class FilterSignatureCommand :
                     cliError(e.message!!)
                 }
 
-            val previouslyReleasedCodebase =
-                if (previouslyReleasedApiFiles.isNotEmpty()) {
-                    try {
-                        ApiFile.parseApi(
-                            SignatureFile.fromFiles(previouslyReleasedApiFiles),
-                            Codebase.Config(reporter = reporter),
-                        )
-                    } catch (e: ApiParseException) {
-                        cliError(e.message!!)
-                    }
-                } else {
-                    null
-                }
+            var previousFilteredCodebase: Codebase? = null
+            var currentFilteredFragment: CodebaseFragment? = null
 
+            for (i in 1..apiFiles.size) {
+                val currentFiles = apiFiles.take(i)
+                val currentPreviouslyReleasedFiles =
+                    if (i == apiFiles.size) {
+                        previouslyReleasedApiFiles
+                    } else {
+                        previouslyReleasedApiFiles.take(i)
+                    }
+                val previouslyReleasedCodebase =
+                    if (currentPreviouslyReleasedFiles.isNotEmpty()) {
+                        try {
+                            ApiFile.parseApi(
+                                SignatureFile.fromFiles(currentPreviouslyReleasedFiles),
+                                Codebase.Config(reporter = reporter),
+                            )
+                        } catch (e: ApiParseException) {
+                            cliError(e.message!!)
+                        }
+                    } else {
+                        null
+                    }
+
+                val fallbacks = listOfNotNull(previouslyReleasedCodebase, previousFilteredCodebase)
+                previousFilteredCodebase = currentFilteredFragment?.codebase
+                currentFilteredFragment =
+                    filterCodebase(
+                        currentFiles,
+                        fallbacks,
+                        apiFlags,
+                        fileFormat,
+                        reporter,
+                    )
+            }
+
+            val baseCodebase = previousFilteredCodebase
+            val targetFragment = currentFilteredFragment!!
             val outputFragment =
-                filterCodebase(
-                    apiFiles,
-                    previouslyReleasedCodebase,
-                    apiFlags,
-                    fileFormat,
-                    reporter,
-                )
+                if (baseCodebase == null) {
+                    targetFragment
+                } else {
+                    val deltaFragment =
+                        SnapshotDeltaMaker.createDelta(
+                            base = baseCodebase,
+                            codebaseFragment = targetFragment,
+                            checkMemberItemEquivalence = false,
+                            allowClassModifierChanges = false,
+                        )
+                    createCodebaseFragmentForSignatureFile(
+                        deltaFragment.codebase,
+                        fileFormat = fileFormat,
+                        apiFilters = null,
+                    )
+                }
 
             createOutputFileFromCodebaseFragment(
                 outputFragment,
@@ -231,11 +273,11 @@ class FilterSignatureCommand :
 
     /**
      * Parse [currentFiles] into a [Codebase] and filter it using [apiFlags] and
-     * [previouslyReleasedCodebase].
+     * [fallbackCodebases].
      */
     private fun filterCodebase(
         currentFiles: List<File>,
-        previouslyReleasedCodebase: Codebase?,
+        fallbackCodebases: List<Codebase>,
         apiFlags: ApiFlags?,
         fileFormat: FileFormat,
         reporter: Reporter,
@@ -272,7 +314,9 @@ class FilterSignatureCommand :
                     }
                     if (isMarkedForRevert(item)) {
                         val revertItem =
-                            previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
+                            fallbackCodebases.firstNotNullOfOrNull {
+                                item.findCorrespondingItemIn(it)
+                            }
                         if (revertItem != null) {
                             revertItems[item] = revertItem
                         } else {
@@ -302,7 +346,9 @@ class FilterSignatureCommand :
             )
 
         // Strip any annotations from the snapshot that should not be written to a signature file
-        // (such as finalized/reverted @FlaggedApi annotations or dropped @interface annotations).
+        // (such as finalized/reverted @FlaggedApi annotations or dropped @interface annotations) so
+        // that SnapshotDeltaMaker sees the post-filtered annotations on both base and extension
+        // codebases.
         snapshotFragment.codebase.accept(
             object : BaseItemVisitor(visitParameterItems = true) {
                 override fun visitItem(item: Item) {
