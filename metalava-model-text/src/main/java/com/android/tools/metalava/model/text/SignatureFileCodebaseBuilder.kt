@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.text
 
 import com.android.tools.metalava.model.ANDROIDX_NONNULL
 import com.android.tools.metalava.model.ANDROIDX_NULLABLE
-import com.android.tools.metalava.model.AnnotationContext
 import com.android.tools.metalava.model.AnnotationItem
 import com.android.tools.metalava.model.ArrayTypeItem
 import com.android.tools.metalava.model.CallableItem
@@ -84,17 +83,6 @@ import java.nio.file.Path
  * Kept without any package to make it clear that it is a synthetic annotation.
  */
 internal const val FOR_REMOVAL_ANNOTATION = "ForRemoval"
-
-/**
- * Shared marker [AnnotationItem] added to an item's modifiers when `@ForRemoval` is parsed in
- * [SignatureFileCodebaseBuilder.getAnnotations] and subsequently removed in
- * [SignatureFileCodebaseBuilder.updateSelectedApi] after recording the state on [SelectedApi].
- */
-private val FOR_REMOVAL_MARKER_ANNOTATION =
-    AnnotationItem.createMarkerAnnotation(
-        AnnotationContext.DEFAULT_RESOLVE_NULL,
-        FOR_REMOVAL_ANNOTATION,
-    )!!
 
 /**
  * [SignatureFileConsumer] implementation that populates a [DefaultCodebase] from one or more
@@ -216,6 +204,17 @@ internal class SignatureFileCodebaseBuilder(
     /** The [kotlinStyleNulls] setting of the previously parsed signature file, if any. */
     private var previousKotlinStyleNulls: Boolean? = null
 
+    /**
+     * Whether the class, typealias, or member currently being parsed had a `@ForRemoval` annotation
+     * in its modifiers, to be recorded on [SelectedApi] when the item is created.
+     *
+     * Stored separately from the item's modifiers so that the synthetic `@ForRemoval` annotation is
+     * never added to the item's modifiers (avoiding having to remove it later or risk merging it
+     * onto an existing class in [ClassMerger]). Reset in [beforeClass] and [beforeMember] before
+     * parsing each declaration's modifiers.
+     */
+    private var currentItemHasRemovedAnnotation: Boolean = false
+
     /** Get the [FileLocation] at the 0-based [charOffset] in the current file. */
     private fun fileLocation(charOffset: Int): FileLocation =
         currentLineMap.fileLocation(currentPath, charOffset)
@@ -240,11 +239,9 @@ internal class SignatureFileCodebaseBuilder(
      * If [item] was already defined in a different API surface, this will not add the new surface.
      */
     private fun updateSelectedApi(item: SelectableItem): ApiVariant {
-        // Check whether the item's modifiers included the @ForRemoval marker annotation, and if so
-        // remove it from the item's modifiers and record it on SelectedApi.
-        val itemHasRemovedAnnotation = FOR_REMOVAL_MARKER_ANNOTATION in item.modifiers.annotations()
-        if (itemHasRemovedAnnotation) {
-            item.mutateModifiers { mutateAnnotations { remove(FOR_REMOVAL_MARKER_ANNOTATION) } }
+        // If the item's modifiers included the @ForRemoval marker annotation, record that on its
+        // SelectedApi.
+        if (currentItemHasRemovedAnnotation) {
             item.selectedApi.markHasRemovedAnnotation()
         }
 
@@ -257,7 +254,7 @@ internal class SignatureFileCodebaseBuilder(
         // finalized; otherwise keep it in defaultVariant (which may itself be REMOVED if its
         // enclosing class was moved to REMOVED).
         val variant =
-            if (itemHasRemovedAnnotation && shouldMoveToRemovedVariant(item)) {
+            if (currentItemHasRemovedAnnotation && shouldMoveToRemovedVariant(item)) {
                 defaultVariant.surface.variantFor(ApiVariantType.REMOVED)
             } else {
                 defaultVariant
@@ -365,11 +362,10 @@ internal class SignatureFileCodebaseBuilder(
     ): List<AnnotationItem> = buildList {
         while (tokenStream.match(SharedTokenType.AT)) {
             // @ForRemoval is a synthetic marker annotation used to record removed-annotation state
-            // on SelectedApi; add the shared marker annotation to the modifiers so
-            // updateSelectedApi can detect and remove it.
+            // on SelectedApi rather than adding an annotation to the item's modifiers.
             if (tokenStream.peek().text(apiText) == FOR_REMOVAL_ANNOTATION) {
                 tokenStream.consume()
-                add(FOR_REMOVAL_MARKER_ANNOTATION)
+                currentItemHasRemovedAnnotation = true
                 continue
             }
 
@@ -441,6 +437,11 @@ internal class SignatureFileCodebaseBuilder(
         // Create the package. This relies on containing packages always being processed before any
         // contained package which is guaranteed by the signature file order.
         return codebase.packageTracker.createPackage(name, packageInfo)
+    }
+
+    override fun beforeClass() {
+        // Reset per-item @ForRemoval state before parsing the class or typealias modifiers.
+        currentItemHasRemovedAnnotation = false
     }
 
     override fun consumeTypeAlias(
@@ -821,6 +822,11 @@ internal class SignatureFileCodebaseBuilder(
                 }
             },
         )
+    }
+
+    override fun beforeMember() {
+        // Reset per-item @ForRemoval state before parsing the member modifiers.
+        currentItemHasRemovedAnnotation = false
     }
 
     override fun consumeConstructor(

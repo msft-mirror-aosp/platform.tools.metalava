@@ -641,16 +641,14 @@ class SignatureToStubsCommandTest :
                 )
 
             verify {
-                // TODO(b/571827848): checkForExistingClass does not strip the @ForRemoval marker
-                //   annotation from ClassCharacteristics.modifiers, so ClassMerger merges
-                //   @ForRemoval onto the existing class's modifiers and it is emitted into the
-                //   generated stub.
+                // Ensure that a @ForRemoval class split across multiple signature files has all its
+                // members merged and does not emit the synthetic @ForRemoval annotation in the
+                // generated stub.
                 val keptRemovedStub = stubsDir.resolve("test/pkg/KeptRemoved.java")
                 assertEquals(
                     """
                         package test.pkg;
                         @SuppressWarnings({"unchecked", "deprecation", "all"})
-                        @ForRemoval
                         public class KeptRemoved {
                         public KeptRemoved() { throw new RuntimeException("Stub!"); }
                         public void publicMethod() { throw new RuntimeException("Stub!"); }

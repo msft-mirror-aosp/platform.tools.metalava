@@ -120,11 +120,10 @@ class CommonRemovedTest : BaseModelTest() {
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
 
-            // TODO(b/571827848): checkForExistingClass does not strip @ForRemoval from
-            //   ClassCharacteristics.modifiers, so ClassMerger merges @ForRemoval back onto Foo's
-            //   modifiers when Foo is re-declared in second.txt.
+            // Ensure that the synthetic @ForRemoval annotation from signature files is not retained
+            // in the class's annotations, even when the class is merged across multiple files.
             val expectedAnnotations =
-                if (inputFormat == InputFormat.SIGNATURE) listOf("ForRemoval")
+                if (inputFormat == InputFormat.SIGNATURE) emptyList()
                 else listOf("test.pkg.Removed")
             assertEquals(expectedAnnotations, fooClass.annotationNames())
             fooClass.assertHasRemovedAnnotation(true)
