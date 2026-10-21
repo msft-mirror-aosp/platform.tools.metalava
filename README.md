@@ -258,11 +258,10 @@ This is done for multiple reasons:
 
 The basic API element class is "Item". (In doclava1 this was called a
 "DocInfo".)  There are several sub interfaces of Item: PackageItem, ClassItem,
-MemberItem, MethodItem, FieldItem, ParameterItem, etc. And then there are
-several implementation hierarchies: One is PSI based, where you point metalava
-to a source tree, and it constructs Items built on top of PSI: PsiPackageItem,
-PsiClassItem, PsiMethodItem, etc. Another is textual, based on signature files:
-TextPackageItem, TextClassItem, and so on.
+MemberItem, MethodItem, FieldItem, ParameterItem, etc., with a shared default
+implementation hierarchy (DefaultPackageItem, DefaultClassItem,
+DefaultMethodItem, etc.) populated by the different back-ends (such as PSI,
+Turbine, or signature files).
 
 The "Codebase" class captures a complete API snapshot (including classes that
 are hidden, which is why it's called a "Codebase" rather than an "API").
