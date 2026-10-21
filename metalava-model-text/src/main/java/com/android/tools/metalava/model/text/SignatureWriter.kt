@@ -337,23 +337,22 @@ class SignatureWriter(
         return find { it.apiFlag?.let { flag -> !flag.revert } == true }
     }
 
-    /** Get the [ANDROID_FLAGGED_API] [AnnotationItem] to add to [item]'s [annotations], if any. */
+    /**
+     * Get the enclosing [ClassItem] and its [ANDROID_FLAGGED_API] [AnnotationItem] to add to
+     * [item]'s [annotations], if any.
+     */
     private fun flaggedApiAnnotationToInherit(
         item: SelectableItem,
-        annotations: List<AnnotationItem>,
-    ): AnnotationItem? {
+    ): Pair<ClassItem, AnnotationItem>? {
         // If the item is not a nested class then return null.
         if (item !is ClassItem) return null
         var containingClassItem: ClassItem? = item.containingClass() ?: return null
-
-        // If this already has an [ANDROID_FLAGGED_API] annotation
-        if (annotations.findFlaggedApiAnnotation() != null) return null
 
         // Find the closest enclosing [ANDROID_FLAGGED_API] annotation in [item]'s containing
         // [ClassItem], if there is one.
         while (containingClassItem != null) {
             containingClassItem.modifiers.annotations().findFlaggedApiAnnotation()?.let {
-                return it
+                return containingClassItem to it
             }
             containingClassItem = containingClassItem.containingClass()
         }
@@ -373,8 +372,10 @@ class SignatureWriter(
             // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if
             // it does add it to this list. It will be sorted into the correct position in
             // modifierListWriter.write.
-            flaggedApiAnnotationToInherit(item, annotations)?.let { flaggedApiAnnotation ->
-                annotations = annotations + flaggedApiAnnotation
+            if (annotations.findFlaggedApiAnnotation() == null) {
+                flaggedApiAnnotationToInherit(item)?.let { (_, inheritedAnnotation) ->
+                    annotations = annotations + inheritedAnnotation
+                }
             }
         }
 
