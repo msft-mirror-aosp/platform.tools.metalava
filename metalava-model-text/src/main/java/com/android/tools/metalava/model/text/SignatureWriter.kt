@@ -369,13 +369,27 @@ class SignatureWriter(
         if (item is SelectableItem) {
             writeTargetLanguage(item)
 
-            // Check to see if a FlaggedApi annotation needs to be inherited onto this item and if
-            // it does add it to this list. It will be sorted into the correct position in
-            // modifierListWriter.write.
-            if (annotations.findFlaggedApiAnnotation() == null) {
-                flaggedApiAnnotationToInherit(item)?.let { (_, inheritedAnnotation) ->
-                    annotations = annotations + inheritedAnnotation
-                }
+            // Find the item supplying the active @FlaggedApi annotation: either this item itself,
+            // or an enclosing class from which @FlaggedApi is inherited onto this item's
+            // annotations.
+            val flaggedItemAndAnnotation =
+                annotations.findFlaggedApiAnnotation()?.let { item to it }
+                    ?: flaggedApiAnnotationToInherit(item)?.also { (_, inheritedAnnotation) ->
+                        annotations = annotations + inheritedAnnotation
+                    }
+
+            // If the item has an active @FlaggedApi annotation that will be written to the
+            // signature file and the item supplying that @FlaggedApi annotation has a removed
+            // annotation, emit the synthetic @ForRemoval annotation before the item's other
+            // annotations.
+            if (
+                flaggedItemAndAnnotation != null &&
+                    flaggedItemAndAnnotation.let { (flaggedItem, flaggedApiAnnotation) ->
+                        flaggedItem.selectedApi.hasRemovedAnnotation() &&
+                            AnnotationTarget.SIGNATURE_FILE in flaggedApiAnnotation.targets
+                    }
+            ) {
+                write("@$FOR_REMOVAL_ANNOTATION ")
             }
         }
 

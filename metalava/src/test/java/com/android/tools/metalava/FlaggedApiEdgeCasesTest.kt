@@ -533,19 +533,19 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                 """
                     // Signature format: 6.0
                     package test.pkg {
-                      @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public class KeptRemovedClass {
                         ctor public KeptRemovedClass();
                         method public void method();
                       }
                       @FlaggedApi("test.pkg.kept_flag") public class Test {
                         ctor public Test();
-                        method @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
+                        method @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public void keptMethod();
                         method public void revertedMethod();
                       }
-                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested {
                         ctor public Test.KeptNested();
                       }
-                      @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
+                      @ForRemoval @FlaggedApi("test.pkg.kept_removed_flag") public static class Test.KeptNested.NestedTwice {
                         ctor public Test.KeptNested.NestedTwice();
                       }
                       @FlaggedApi("test.pkg.kept_flag") public static class Test.RevertedNested {
