@@ -51,7 +51,9 @@ import com.android.tools.metalava.model.TypeParameterList
 import com.android.tools.metalava.model.VisibilityLevel
 import com.android.tools.metalava.model.WellKnownTypes
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.api.flags.ApiFlagAction
 import com.android.tools.metalava.model.api.surface.ApiVariant
+import com.android.tools.metalava.model.api.surface.ApiVariantType
 import com.android.tools.metalava.model.createImmutableModifiers
 import com.android.tools.metalava.model.createMutableModifiers
 import com.android.tools.metalava.model.item.DefaultCodebase
@@ -172,7 +174,13 @@ internal class SignatureFileCodebaseBuilder(
     /** The [SkeletonClassItem] of the class currently being parsed. */
     private lateinit var currentClass: SkeletonClassItem
 
-    /** The [ApiVariant] of [currentClass] to use as the default for its members. */
+    /**
+     * The [ApiVariant] of [currentClass] to use as the default for its members.
+     *
+     * Usually [currentApiVariant], except when [currentClass] was moved to the
+     * [ApiVariantType.REMOVED] variant due to an unflagged or finalized `@ForRemoval` annotation,
+     * in which case its members also default to [ApiVariantType.REMOVED].
+     */
     private lateinit var currentClassApiVariant: ApiVariant
 
     /** The [TextTypeItemFactory] for [currentClass]. */
@@ -234,16 +242,47 @@ internal class SignatureFileCodebaseBuilder(
     private fun updateSelectedApi(item: SelectableItem): ApiVariant {
         // Check whether the item's modifiers included the @ForRemoval marker annotation, and if so
         // remove it from the item's modifiers and record it on SelectedApi.
-        if (FOR_REMOVAL_MARKER_ANNOTATION in item.modifiers.annotations()) {
+        val itemHasRemovedAnnotation = FOR_REMOVAL_MARKER_ANNOTATION in item.modifiers.annotations()
+        if (itemHasRemovedAnnotation) {
             item.mutateModifiers { mutateAnnotations { remove(FOR_REMOVAL_MARKER_ANNOTATION) } }
             item.selectedApi.markHasRemovedAnnotation()
         }
 
-        // Members inherit the variant of their enclosing class, while top-level and nested
-        // classes/typealiases start from the signature file's variant.
-        val variant = if (item is MemberItem) currentClassApiVariant else currentApiVariant
+        // Members inherit the variant of their enclosing class (which may have been moved to
+        // REMOVED by @ForRemoval), while top-level and nested classes/typealiases start from the
+        // signature file's variant.
+        val defaultVariant = if (item is MemberItem) currentClassApiVariant else currentApiVariant
+
+        // Place the item in the REMOVED variant of the surface if its removal is unconditional or
+        // finalized; otherwise keep it in defaultVariant (which may itself be REMOVED if its
+        // enclosing class was moved to REMOVED).
+        val variant =
+            if (itemHasRemovedAnnotation && shouldMoveToRemovedVariant(item)) {
+                defaultVariant.surface.variantFor(ApiVariantType.REMOVED)
+            } else {
+                defaultVariant
+            }
         item.selectedApi.addItemApiVariant(variant)
         return variant
+    }
+
+    /**
+     * Returns whether an [item] marked with `@ForRemoval` should be placed in the
+     * [ApiVariantType.REMOVED] variant rather than its default variant.
+     *
+     * An item marked with `@ForRemoval` is moved to [ApiVariantType.REMOVED] if it has no
+     * `@FlaggedApi` annotation or if its `@FlaggedApi` annotation has [ApiFlagAction.FINALIZE].
+     */
+    private fun shouldMoveToRemovedVariant(item: SelectableItem): Boolean {
+        // Check if the item has a @FlaggedApi annotation (the only annotation with a non-null
+        // apiFlag).
+        val flaggedApiAnnotation = item.modifiers.annotations().firstOrNull { it.apiFlag != null }
+        val action = flaggedApiAnnotation?.apiFlag?.action
+
+        // Move the item to REMOVED if the removal is unflagged (action == null) or if the flag
+        // gating the removal has been finalized. If the flag is kept or reverted, the item stays in
+        // its default variant.
+        return action == null || action == ApiFlagAction.FINALIZE
     }
 
     /**

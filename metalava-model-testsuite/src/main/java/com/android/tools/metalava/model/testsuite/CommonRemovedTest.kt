@@ -105,21 +105,16 @@ class CommonRemovedTest : BaseModelTest() {
             ),
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
-            // TODO(b/571827848): Recognize @ForRemoval in signature files.
-            val expectedVariants =
-                if (inputFormat == InputFormat.SIGNATURE) "ApiVariantSet[main(C)]"
-                else "ApiVariantSet[main(R)]"
-
             val fooClass = codebase.assertClass("test.pkg.Foo")
             fooClass.assertHasRemovedAnnotation(true)
             fooClass.assertItemApiVariants(
-                expectedVariants,
+                "ApiVariantSet[main(R)]",
                 message = "Foo should be removed",
             )
             val method = fooClass.assertMethod("method", emptyList())
             method.assertHasRemovedAnnotation(false)
             method.assertItemApiVariants(
-                expectedVariants,
+                "ApiVariantSet[main(R)]",
                 message = "Foo.method() should be removed",
             )
         }
@@ -247,21 +242,16 @@ class CommonRemovedTest : BaseModelTest() {
                         ),
                 ),
         ) {
-            // TODO(b/571827848): Recognize @ForRemoval in signature files.
-            val expectedRemovedVariants =
-                if (inputFormat == InputFormat.SIGNATURE) "ApiVariantSet[main(C)]"
-                else "ApiVariantSet[main(R)]"
-
             val finalizedRemovedClass = codebase.assertClass("test.pkg.FinalizedRemovedClass")
             finalizedRemovedClass.assertHasRemovedAnnotation(true)
             finalizedRemovedClass.assertItemApiVariants(
-                expectedRemovedVariants,
+                "ApiVariantSet[main(R)]",
                 message = "FinalizedRemovedClass should be removed",
             )
             finalizedRemovedClass.assertMethod("method", emptyList()).let { method ->
                 method.assertHasRemovedAnnotation(false)
                 method.assertItemApiVariants(
-                    expectedRemovedVariants,
+                    "ApiVariantSet[main(R)]",
                     message = "FinalizedRemovedClass.method() should be removed",
                 )
             }
@@ -303,7 +293,7 @@ class CommonRemovedTest : BaseModelTest() {
             fooClass.assertMethod("finalizedRemovedMethod", emptyList()).let { method ->
                 method.assertHasRemovedAnnotation(true)
                 method.assertItemApiVariants(
-                    expectedRemovedVariants,
+                    "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedMethod() should be removed",
                 )
             }
@@ -324,7 +314,7 @@ class CommonRemovedTest : BaseModelTest() {
             fooClass.assertField("finalizedRemovedField").let { field ->
                 field.assertHasRemovedAnnotation(true)
                 field.assertItemApiVariants(
-                    expectedRemovedVariants,
+                    "ApiVariantSet[main(R)]",
                     message = "Foo.finalizedRemovedField should be removed",
                 )
             }
