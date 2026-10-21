@@ -98,7 +98,7 @@ class CommonRemovedTest : BaseModelTest() {
                 message = "Foo should be removed",
             )
             val method = fooClass.assertMethod("method", emptyList())
-            method.assertHasRemovedAnnotation(true)
+            method.assertHasRemovedAnnotation(false)
             method.assertItemApiVariants(
                 "ApiVariantSet[main(R)]",
                 message = "Foo.method() should be removed",
@@ -205,7 +205,7 @@ class CommonRemovedTest : BaseModelTest() {
                 message = "FinalizedRemovedClass should be removed",
             )
             finalizedRemovedClass.assertMethod("method", emptyList()).let { method ->
-                method.assertHasRemovedAnnotation(true)
+                method.assertHasRemovedAnnotation(false)
                 method.assertItemApiVariants(
                     "ApiVariantSet[main(R)]",
                     message = "FinalizedRemovedClass.method() should be removed",
@@ -213,7 +213,7 @@ class CommonRemovedTest : BaseModelTest() {
             }
 
             val keptRemovedClass = codebase.assertClass("test.pkg.KeptRemovedClass")
-            keptRemovedClass.assertHasRemovedAnnotation(false)
+            keptRemovedClass.assertHasRemovedAnnotation(true)
             keptRemovedClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "KeptRemovedClass should be in main(C)",
@@ -227,7 +227,7 @@ class CommonRemovedTest : BaseModelTest() {
             }
 
             val revertedRemovedClass = codebase.assertClass("test.pkg.RevertedRemovedClass")
-            revertedRemovedClass.assertHasRemovedAnnotation(false)
+            revertedRemovedClass.assertHasRemovedAnnotation(true)
             revertedRemovedClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "RevertedRemovedClass should be in main(C)",
@@ -254,14 +254,14 @@ class CommonRemovedTest : BaseModelTest() {
                 )
             }
             fooClass.assertMethod("keptRemovedMethod", emptyList()).let { method ->
-                method.assertHasRemovedAnnotation(false)
+                method.assertHasRemovedAnnotation(true)
                 method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedMethod() should be in main(C)",
                 )
             }
             fooClass.assertMethod("revertedRemovedMethod", emptyList()).let { method ->
-                method.assertHasRemovedAnnotation(false)
+                method.assertHasRemovedAnnotation(true)
                 method.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedMethod() should be in main(C)",
@@ -275,14 +275,14 @@ class CommonRemovedTest : BaseModelTest() {
                 )
             }
             fooClass.assertField("keptRemovedField").let { field ->
-                field.assertHasRemovedAnnotation(false)
+                field.assertHasRemovedAnnotation(true)
                 field.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.keptRemovedField should be in main(C)",
                 )
             }
             fooClass.assertField("revertedRemovedField").let { field ->
-                field.assertHasRemovedAnnotation(false)
+                field.assertHasRemovedAnnotation(true)
                 field.assertItemApiVariants(
                     "ApiVariantSet[main(C)]",
                     message = "Foo.revertedRemovedField should be in main(C)",
@@ -314,7 +314,7 @@ class CommonRemovedTest : BaseModelTest() {
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
-            fooClass.assertHasRemovedAnnotation(false)
+            fooClass.assertHasRemovedAnnotation(true)
             fooClass.assertItemApiVariants(
                 "ApiVariantSet[main(C)]",
                 message = "Foo should be in main(C)",

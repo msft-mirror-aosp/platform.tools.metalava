@@ -74,7 +74,13 @@ sealed class SelectedApi {
      */
     abstract val revertItem: SelectableItem?
 
-    /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
+    /**
+     * Checks to see if the associated [SelectableItem] contains any removed annotations.
+     *
+     * Unlike membership in a `REMOVED` variant in [itemApiVariants], this only reflects whether the
+     * item itself has a removed annotation (it is not inherited by enclosed items) and remains
+     * `true` even when the removal is gated by an unfinalized `@FlaggedApi` annotation.
+     */
     open fun hasRemovedAnnotation(): Boolean = false
 
     /**

@@ -77,11 +77,27 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
-     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     * Indicates whether the associated [SelectableItem] is removed (e.g. via a removed annotation,
+     * a `@removed` doc tag, or inherited from an enclosing item that was removed).
+     *
+     * Note: If the item has both a removed annotation and an unfinalized `@FlaggedApi` annotation,
+     * this is reset to `false` so the item remains in the core API until the flag is finalized,
+     * whereas [hasRemovedAnnotation] remains `true`.
      *
      * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
      */
     var removed: Boolean = false
+        internal set
+
+    /**
+     * Indicates whether the associated [SelectableItem] has a removed annotation.
+     *
+     * Unlike [removed], this is only `true` when the item itself has a removed annotation and is
+     * not reset when the item also has an unfinalized `@FlaggedApi` annotation.
+     *
+     * Initialized by [SelectedApiUpdater.updateSelectedApi] called from [updateFromSelectableItem].
+     */
+    var hasRemovedAnnotation: Boolean = false
         internal set
 
     /**
@@ -157,7 +173,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
     var inheritableApiVariants = ApiVariantSet.EMPTY
 
     /** Checks to see if the associated [SelectableItem] contains any removed annotations. */
-    override fun hasRemovedAnnotation() = removed
+    override fun hasRemovedAnnotation() = hasRemovedAnnotation
 
     /** Cached result of [wasPreviouslyReleased], or `null` if it has not yet been computed. */
     private var wasPreviouslyReleased: Boolean? = null
@@ -235,6 +251,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         inheritableApiVariants = other.inheritableApiVariants
         docOnly = other.docOnly
         removed = other.removed
+        hasRemovedAnnotation = other.hasRemovedAnnotation
         revert = other.revert
         revertItem = other.revertItem
         wasPreviouslyReleased = other.wasPreviouslyReleased

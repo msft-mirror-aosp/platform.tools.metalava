@@ -180,6 +180,11 @@ class SelectedApiUpdater(
                         }
                     }
                     Effect.REMOVED -> {
+                        // Record that the item itself has a removed annotation on selectedApi in
+                        // addition to setting `removed = true`, as `removed` may be reset to
+                        // `false` below if the removal is gated by an unfinalized @FlaggedApi
+                        // annotation.
+                        selectedApi.hasRemovedAnnotation = true
                         removed = true
                     }
                 }
