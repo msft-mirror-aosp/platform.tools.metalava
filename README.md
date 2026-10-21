@@ -103,7 +103,7 @@ It can also be run for repeated measurement using [gradle-profiler](https://gith
     "@interface" instead of "abstract class extends java.lang.Annotation", sorts
     modifiers in the canonical modifier order, using "extends" instead of
     "implements" for the superclass of an interface, and many other similar
-    tweaks outlined in the `Compatibility` class. (Metalava also allows (and
+    tweaks outlined in the `FileFormat` class. (Metalava also allows (and
     ignores) block comments in the signature files.)
 
   * Add support for writing (and reading) annotations into the signature
