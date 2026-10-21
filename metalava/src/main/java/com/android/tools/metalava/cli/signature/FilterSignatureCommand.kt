@@ -69,12 +69,15 @@ import java.io.File
 /** Name of the `--api-files` option. */
 const val ARG_API_FILES = "--api-files"
 
+/** Name of the `--previously-released-api` option. */
+const val ARG_PREVIOUSLY_RELEASED_API = "--previously-released-api"
+
 /** Name of the `--output-file` option. */
 private const val ARG_OUTPUT_FILE = "--output-file"
 
 /**
  * Command that filters a signature file against a set of `<api-flags>` provided via
- * `--config-file`.
+ * `--config-file`, optionally reverting flagged changes against a previously released API.
  */
 class FilterSignatureCommand :
     MetalavaSubCommand(
@@ -83,7 +86,8 @@ class FilterSignatureCommand :
                 Filter a signature file using configured API flags.
 
                 Reads signature files defining an API surface and writes a filtered signature file
-                after applying any `<api-flags>` from `--config-file`.
+                after applying any `<api-flags>` from `--config-file`, reverting flagged changes
+                against `--previously-released-api` if provided.
             """
                 .trimIndent(),
     ) {
@@ -108,6 +112,25 @@ class FilterSignatureCommand :
             )
             .existingFile()
             .splitMultiple(File.pathSeparator, required = true)
+
+    /**
+     * Optional signature files defining the previously released API, used when reverting flagged
+     * changes to previously released APIs.
+     */
+    private val previouslyReleasedApiFiles by
+        option(
+                ARG_PREVIOUSLY_RELEASED_API,
+                metavar = "<files>",
+                help =
+                    """
+                        One or more signature files (separated by `${File.pathSeparator}`) defining
+                        the previously released API, used when reverting flagged changes to
+                        previously released APIs.
+                    """
+                        .trimIndent(),
+            )
+            .existingFile()
+            .splitMultiple(File.pathSeparator)
 
     /** The output file into which the filtered signature file will be written. */
     private val outputFile by
@@ -151,9 +174,24 @@ class FilterSignatureCommand :
                     cliError(e.message!!)
                 }
 
+            val previouslyReleasedCodebase =
+                if (previouslyReleasedApiFiles.isNotEmpty()) {
+                    try {
+                        ApiFile.parseApi(
+                            SignatureFile.fromFiles(previouslyReleasedApiFiles),
+                            Codebase.Config(reporter = reporter),
+                        )
+                    } catch (e: ApiParseException) {
+                        cliError(e.message!!)
+                    }
+                } else {
+                    null
+                }
+
             val outputFragment =
                 filterCodebase(
                     apiFiles,
+                    previouslyReleasedCodebase,
                     apiFlags,
                     fileFormat,
                     reporter,
@@ -191,14 +229,19 @@ class FilterSignatureCommand :
         }
     }
 
-    /** Parse [currentFiles] into a [Codebase] and filter it using [apiFlags]. */
+    /**
+     * Parse [currentFiles] into a [Codebase] and filter it using [apiFlags] and
+     * [previouslyReleasedCodebase].
+     */
     private fun filterCodebase(
         currentFiles: List<File>,
+        previouslyReleasedCodebase: Codebase?,
         apiFlags: ApiFlags?,
         fileFormat: FileFormat,
         reporter: Reporter,
     ): CodebaseFragment {
         val droppedItems = mutableSetOf<SelectableItem>()
+        val revertItems = mutableMapOf<SelectableItem, SelectableItem>()
 
         val annotationManager = SignatureFilterAnnotationManager(apiFlags, droppedItems)
         val codebaseConfig =
@@ -219,7 +262,7 @@ class FilterSignatureCommand :
         annotationManager.codebase = codebase
 
         // Walk items top-down (containing classes before nested classes and members) to identify
-        // dropped items.
+        // reverted and dropped items.
         codebase.accept(
             object : BaseItemVisitor() {
                 override fun visitSelectableItem(item: SelectableItem) {
@@ -228,7 +271,13 @@ class FilterSignatureCommand :
                         return
                     }
                     if (isMarkedForRevert(item)) {
-                        droppedItems.add(item)
+                        val revertItem =
+                            previouslyReleasedCodebase?.let { item.findCorrespondingItemIn(it) }
+                        if (revertItem != null) {
+                            revertItems[item] = revertItem
+                        } else {
+                            droppedItems.add(item)
+                        }
                     }
                 }
             }
@@ -249,6 +298,7 @@ class FilterSignatureCommand :
         val snapshotFragment =
             fragment.snapshotIncludingRevertedItems(
                 referenceVisitorFactory = ::NonFilteringDelegatingVisitor,
+                revertItemGetter = { revertItems[it] },
             )
 
         // Strip any annotations from the snapshot that should not be written to a signature file

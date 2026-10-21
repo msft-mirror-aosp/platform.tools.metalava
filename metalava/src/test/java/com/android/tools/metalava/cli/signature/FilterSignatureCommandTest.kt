@@ -37,11 +37,14 @@ Usage: metalava filter-signature [options]
   Filter a signature file using configured API flags.
 
   Reads signature files defining an API surface and writes a filtered signature file after applying any `<api-flags>`
-  from `--config-file`.
+  from `--config-file`, reverting flagged changes against `--previously-released-api` if provided.
 
 Options:
   --api-files <files>                        One or more signature files (separated by `${File.pathSeparator}`) defining the current API.
                                              (required)
+  --previously-released-api <files>          One or more signature files (separated by `${File.pathSeparator}`) defining the previously
+                                             released API, used when reverting flagged changes to previously released
+                                             APIs.
   --output-file <file>                       The output file into which the filtered signature file will be written.
                                              (required)
   -h, -?, --help                             Show this message and exit
@@ -275,6 +278,86 @@ class FilterSignatureCommandTest :
     }
 
     @Test
+    fun `Test reverting flagged changes against previously released API`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_PREVIOUSLY_RELEASED_API to
+                    signature(
+                        "prev-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Bar {
+                                ctor public Bar();
+                                method public void method();
+                                field public static int field;
+                              }
+                              public final class Foo {
+                                method public void existingMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              @Deprecated @FlaggedApi("test.pkg.disabled_flag") public class Bar {
+                                ctor @Deprecated public Bar();
+                                method @Deprecated public void method();
+                                field @Deprecated public static int field;
+                              }
+                              @FlaggedApi("test.pkg.disabled_flag") public final class Foo {
+                                ctor public Foo();
+                                method public void existingMethod();
+                                method public void newMethod();
+                                field public final int newField;
+                              }
+                            }
+                        """,
+                    )
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Bar {
+                            ctor public Bar();
+                            method public void method();
+                            field public static int field;
+                          }
+                          public final class Foo {
+                            method public void existingMethod();
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
     fun `Test preserving signature format from target signature file`() {
         commandTest {
             args += "filter-signature"
@@ -319,6 +402,83 @@ class FilterSignatureCommandTest :
                           public final class Foo {
                             ctor public Foo();
                             method public String? finalizedMethod(String);
+                          }
+                        }
+                    """
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `Test method overrides of reverted super methods are dropped or reverted`() {
+        commandTest {
+            args += "filter-signature"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                              <api-flags/>
+                            </config>
+                        """,
+                    )
+
+            args +=
+                ARG_PREVIOUSLY_RELEASED_API to
+                    signature(
+                        "prev-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Base {
+                                ctor public Base();
+                                method public void existingMethod();
+                              }
+                              public class Sub extends test.pkg.Base {
+                                ctor public Sub();
+                              }
+                            }
+                        """,
+                    )
+
+            val output = outputFile("filtered.txt")
+            args += ARG_OUTPUT_FILE to output
+
+            args +=
+                ARG_API_FILES to
+                    signature(
+                        "current-api.txt",
+                        """
+                            // Signature format: 2.0
+                            package test.pkg {
+                              public class Base {
+                                ctor public Base();
+                                method public void existingMethod();
+                                method @FlaggedApi("test.pkg.disabled_flag") public void newSuperMethod();
+                              }
+                              public class Sub extends test.pkg.Base {
+                                ctor public Sub();
+                                method @FlaggedApi("test.pkg.disabled_flag") public final void existingMethod();
+                                method public final void newSuperMethod();
+                              }
+                            }
+                        """,
+                    )
+
+            verify {
+                output.assertSignatureContents(
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          public class Base {
+                            ctor public Base();
+                            method public void existingMethod();
+                          }
+                          public class Sub extends test.pkg.Base {
+                            ctor public Sub();
                           }
                         }
                     """
