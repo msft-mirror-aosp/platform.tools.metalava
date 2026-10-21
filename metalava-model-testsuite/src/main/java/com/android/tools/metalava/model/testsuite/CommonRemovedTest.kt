@@ -91,21 +91,42 @@ class CommonRemovedTest : BaseModelTest() {
                 ),
             ),
             inputSet(
+                // Split Foo across two signature files to test merging an existing @ForRemoval
+                // class.
                 signature(
+                    "first.txt",
                     """
                         // Signature format: 2.0
                         package test.pkg {
                           @ForRemoval public class Foo {
                             ctor public Foo();
+                          }
+                        }
+                    """,
+                ),
+                signature(
+                    "second.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval public class Foo {
                             method public void method();
                           }
                         }
-                    """
+                    """,
                 ),
             ),
             testFixture = TestFixture(apiSurfaceRules = createApiSurfaceRules()),
         ) {
             val fooClass = codebase.assertClass("test.pkg.Foo")
+
+            // TODO(b/571827848): checkForExistingClass does not strip @ForRemoval from
+            //   ClassCharacteristics.modifiers, so ClassMerger merges @ForRemoval back onto Foo's
+            //   modifiers when Foo is re-declared in second.txt.
+            val expectedAnnotations =
+                if (inputFormat == InputFormat.SIGNATURE) listOf("ForRemoval")
+                else listOf("test.pkg.Removed")
+            assertEquals(expectedAnnotations, fooClass.annotationNames())
             fooClass.assertHasRemovedAnnotation(true)
             fooClass.assertItemApiVariants(
                 "ApiVariantSet[main(R)]",
@@ -113,8 +134,15 @@ class CommonRemovedTest : BaseModelTest() {
             )
             val method = fooClass.assertMethod("method", emptyList())
             method.assertHasRemovedAnnotation(false)
+
+            // TODO(b/571827848): checkForExistingClass sets currentClassApiVariant to
+            //   currentApiVariant without checking @ForRemoval, so Foo.method() in second.txt is
+            //   placed in main(C) instead of main(R).
+            val expectedMethodVariants =
+                if (inputFormat == InputFormat.SIGNATURE) "ApiVariantSet[main(C)]"
+                else "ApiVariantSet[main(R)]"
             method.assertItemApiVariants(
-                "ApiVariantSet[main(R)]",
+                expectedMethodVariants,
                 message = "Foo.method() should be removed",
             )
         }

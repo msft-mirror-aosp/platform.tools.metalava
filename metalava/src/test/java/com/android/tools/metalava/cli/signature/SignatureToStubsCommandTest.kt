@@ -592,4 +592,75 @@ class SignatureToStubsCommandTest :
             }
         }
     }
+
+    @Test
+    fun `Test @ForRemoval class split across multiple signature files`() {
+        commandTest {
+            args += "signature-to-stubs"
+
+            args +=
+                ARG_CONFIG_FILE to
+                    xml(
+                        "config.xml",
+                        """
+                            <config xmlns="http://www.google.com/tools/metalava/config">
+                                <api-flags>
+                                    <api-flag package="test.pkg" name="kept_flag" mutability="mutable" status="disabled"/>
+                                </api-flags>
+                            </config>
+                        """,
+                    )
+
+            val stubsDir = folder("stubs")
+            args += ARG_STUBS to stubsDir
+
+            args +=
+                signature(
+                    "public.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval @FlaggedApi("test.pkg.kept_flag") public class KeptRemoved {
+                            ctor public KeptRemoved();
+                            method public void publicMethod();
+                          }
+                        }
+                    """,
+                )
+            args +=
+                signature(
+                    "system.txt",
+                    """
+                        // Signature format: 2.0
+                        package test.pkg {
+                          @ForRemoval @FlaggedApi("test.pkg.kept_flag") public class KeptRemoved {
+                            method public void systemMethod();
+                          }
+                        }
+                    """,
+                )
+
+            verify {
+                // TODO(b/571827848): checkForExistingClass does not strip the @ForRemoval marker
+                //   annotation from ClassCharacteristics.modifiers, so ClassMerger merges
+                //   @ForRemoval onto the existing class's modifiers and it is emitted into the
+                //   generated stub.
+                val keptRemovedStub = stubsDir.resolve("test/pkg/KeptRemoved.java")
+                assertEquals(
+                    """
+                        package test.pkg;
+                        @SuppressWarnings({"unchecked", "deprecation", "all"})
+                        @ForRemoval
+                        public class KeptRemoved {
+                        public KeptRemoved() { throw new RuntimeException("Stub!"); }
+                        public void publicMethod() { throw new RuntimeException("Stub!"); }
+                        public void systemMethod() { throw new RuntimeException("Stub!"); }
+                        }
+                    """
+                        .trimIndent(),
+                    keptRemovedStub.readText().trim(),
+                )
+            }
+        }
+    }
 }
