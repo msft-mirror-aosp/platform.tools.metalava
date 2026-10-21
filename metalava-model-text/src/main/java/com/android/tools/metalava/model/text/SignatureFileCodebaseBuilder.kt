@@ -31,6 +31,7 @@ import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
 import com.android.tools.metalava.model.JAVA_LANG_DEPRECATED
 import com.android.tools.metalava.model.JAVA_LANG_OBJECT
+import com.android.tools.metalava.model.MemberItem
 import com.android.tools.metalava.model.MutableModifierList
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.ParameterItem
@@ -150,6 +151,9 @@ internal class SignatureFileCodebaseBuilder(
     /** The [SkeletonClassItem] of the class currently being parsed. */
     private lateinit var currentClass: SkeletonClassItem
 
+    /** The [ApiVariant] of [currentClass] to use as the default for its members. */
+    private lateinit var currentClassApiVariant: ApiVariant
+
     /** The [TextTypeItemFactory] for [currentClass]. */
     private lateinit var currentClassTypeItemFactory: TextTypeItemFactory
 
@@ -201,13 +205,17 @@ internal class SignatureFileCodebaseBuilder(
     }
 
     /**
-     * Record that [item] was loaded from a signature file that contains [currentApiVariant].
+     * Update [SelectableItem.selectedApi] for [item], returning the [ApiVariant] that was added to
+     * [item].
      *
-     * If this item was already defined in a different API surface, this will not add the new
-     * surface.
+     * If [item] was already defined in a different API surface, this will not add the new surface.
      */
-    private fun markSelectedApiVariant(item: SelectableItem) {
-        item.selectedApi.addItemApiVariant(currentApiVariant)
+    private fun updateSelectedApi(item: SelectableItem): ApiVariant {
+        // Members inherit the variant of their enclosing class, while top-level and nested
+        // classes/typealiases start from the signature file's variant.
+        val variant = if (item is MemberItem) currentClassApiVariant else currentApiVariant
+        item.selectedApi.addItemApiVariant(variant)
+        return variant
     }
 
     /**
@@ -303,7 +311,7 @@ internal class SignatureFileCodebaseBuilder(
         modifiers: MutableModifierList,
         name: String,
     ) {
-        // Note: currentPackage.markSelectedApiVariant() is not called here because packages do not
+        // Note: currentPackage.updateSelectedApi() is not called here because packages do not
         // belong to an API surface in their own right; their API variants are populated via
         // propagation from their contained classes and members.
         currentPackage = findOrCreatePackage(sourcePosition, name, modifiers)
@@ -407,7 +415,7 @@ internal class SignatureFileCodebaseBuilder(
                 origin = currentClassOrigin,
             )
         // Mark type alias as belonging to the main API surface of this signature file.
-        markSelectedApiVariant(typeAlias)
+        updateSelectedApi(typeAlias)
     }
 
     override fun startClass(
@@ -499,7 +507,9 @@ internal class SignatureFileCodebaseBuilder(
                             }
                         }
             )
-        markSelectedApiVariant(cl)
+        // Update the class's SelectedApi and record its resolved variant as the default variant for
+        // any members parsed in the class body.
+        currentClassApiVariant = updateSelectedApi(cl)
 
         currentClass = cl
         currentClassTypeItemFactory = typeItemFactory
@@ -526,6 +536,10 @@ internal class SignatureFileCodebaseBuilder(
         // existing class (typealiases do not have a class body).
         if (classCharacteristics.classKind != ClassKind.TYPEALIAS) {
             currentClass = existingClass
+
+            // Use the current signature file's variant as the default for any members added to the
+            // existing class in this file.
+            currentClassApiVariant = currentApiVariant
             currentClassTypeItemFactory = typeItemFactoryForClass(existingClass)
             hasExistingConstructors = existingClass.constructors().isNotEmpty()
             hasExistingFields = existingClass.fields().isNotEmpty()
@@ -773,7 +787,7 @@ internal class SignatureFileCodebaseBuilder(
                 implicitConstructor = false,
                 targetLanguages = targetLanguages,
             )
-        markSelectedApiVariant(constructor)
+        updateSelectedApi(constructor)
         if (hasExistingConstructors) {
             containingClass.replaceOrAddConstructor(constructor)
         } else {
@@ -845,7 +859,7 @@ internal class SignatureFileCodebaseBuilder(
         // ensure that the resulting Codebase is consistent with the original source Codebase.
         if (method.isEnumSyntheticMethod()) return
 
-        markSelectedApiVariant(method)
+        updateSelectedApi(method)
         if (hasExistingMethods) {
             containingClass.replaceOrAddMethod(method)
         } else {
@@ -904,7 +918,7 @@ internal class SignatureFileCodebaseBuilder(
                 constantValueProvider = constantValueProvider,
                 targetLanguages = targetLanguages,
             )
-        markSelectedApiVariant(field)
+        updateSelectedApi(field)
         if (hasExistingFields) {
             containingClass.replaceOrAddField(field)
         } else {
@@ -952,7 +966,7 @@ internal class SignatureFileCodebaseBuilder(
                     contextParameters.map { it.create(propertyItem, typeItemFactory) }
                 },
             )
-        markSelectedApiVariant(property)
+        updateSelectedApi(property)
         if (hasExistingProperties) {
             containingClass.replaceOrAddProperty(property)
         } else {
