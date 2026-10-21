@@ -42,6 +42,7 @@ import com.android.tools.metalava.cli.lint.ComputedApiLintOptions
 import com.android.tools.metalava.cli.multiplatform.MultiplatformOptions
 import com.android.tools.metalava.cli.signature.ApiHistoryCommand
 import com.android.tools.metalava.cli.signature.ComputedSignatureFormatOptions
+import com.android.tools.metalava.cli.signature.FilterSignatureCommand
 import com.android.tools.metalava.cli.signature.MergeSignaturesCommand
 import com.android.tools.metalava.cli.signature.SignatureCatCommand
 import com.android.tools.metalava.cli.signature.SignatureToDexCommand
@@ -172,6 +173,7 @@ class Driver(
                 MainCommand(command.commonOptions, executionEnvironment),
                 ApiHistoryCommand(),
                 CheckCompatibilityCommand(),
+                FilterSignatureCommand(),
                 FlagReportCommand(),
                 HelpCommand(),
                 ListFlagsCommand(),

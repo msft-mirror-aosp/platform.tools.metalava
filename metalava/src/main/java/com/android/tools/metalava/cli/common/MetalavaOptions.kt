@@ -277,11 +277,14 @@ internal fun stringToNewOrExistingFile(value: String): File {
  * Allows multiple options to be supplied, each of which is split into a list based on [delimiter]
  * and then concatenates the resulting lists together into a single list.
  */
-fun <EachT : Any, ValueT> NullableOption<EachT, ValueT>.splitMultiple(delimiter: String) =
+fun <EachT : Any, ValueT> NullableOption<EachT, ValueT>.splitMultiple(
+    delimiter: String,
+    required: Boolean = false,
+) =
     // Split each option into a list separated by delimiter
     split(delimiter)
         // Allow multiple options to be specified producing a list of lists.
-        .multiple()
+        .multiple(required = required)
         // Flatten the list of lists into a single list.
         .map { it.flatten() }
 
