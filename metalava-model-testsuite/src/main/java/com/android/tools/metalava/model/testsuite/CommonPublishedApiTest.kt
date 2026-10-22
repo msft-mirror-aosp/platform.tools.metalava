@@ -736,4 +736,28 @@ class CommonPublishedApiTest : BaseModelTest() {
             assertThat(fooCompanion.targetLanguages).isEqualTo(TargetLanguageSet.BYTECODE_ONLY)
         }
     }
+
+    @SupportedInputFormats(InputFormat.KOTLIN)
+    @Test
+    fun `PublishedApi data class`() {
+        runCodebaseTest(
+            kotlin(
+                """
+                package test.pkg
+                @PublishedApi
+                internal data class Foo(val i: int)
+                """
+            )
+        ) {
+            val fooClass = codebase.assertClass("test.pkg.Foo")
+            assertThat(fooClass.modifiers.isInternal()).isTrue()
+            assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
+
+            val toString = fooClass.assertMethod("toString", emptyList())
+            // TODO: toString is overridden from Object, where it is public, so it should not be
+            // internal here
+            assertThat(toString.modifiers.isInternal()).isTrue()
+            assertThat(toString.modifiers.isPublishedApi()).isFalse()
+        }
+    }
 }
