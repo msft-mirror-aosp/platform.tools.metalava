@@ -96,7 +96,7 @@ class ApiUpdateConsistencyTest : DriverTest() {
                 )
             val classPath =
                 listOf(
-                    getAndroidJar(30),
+                    getAndroidJar(),
                 )
 
             val environment =
