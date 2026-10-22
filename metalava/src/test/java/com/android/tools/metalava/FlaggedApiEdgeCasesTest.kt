@@ -868,4 +868,65 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
             extraArguments = arrayOf("--check-compatibility", "disabled")
         )
     }
+
+    @Test
+    fun `Test non-signature annotations are preserved in stubs when reverting flagged API`() {
+        check(
+            // Revert all FlaggedApi annotations.
+            configFiles = arrayOf(KnownConfigFiles.configEmptyApiFlags),
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            import android.annotation.FlaggedApi;
+
+                            public class Test {
+                                @FlaggedApi("flag.name")
+                                @android.view.ViewDebug.ExportedProperty
+                                public void method() {}
+                            }
+                        """
+                    ),
+                    flaggedApiSource,
+                ),
+            checkCompatibilityApiReleased =
+                """
+                    // Signature format: 2.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            expectedApiSignature =
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public class Test {
+                        ctor public Test();
+                        method public void method();
+                      }
+                    }
+                """,
+            // TODO(b/576562462): Should include @android.view.ViewDebug.ExportedProperty on
+            //   method(), as that annotation is not included in signature files and should be
+            //   preserved from the source item when reverting method() to the identical version in
+            //   the released signature file.
+            expectedStubFiles =
+                arrayOf(
+                    java(
+                        """
+                            package test.pkg;
+                            @SuppressWarnings({"unchecked", "deprecation", "all"})
+                            public class Test {
+                            public Test() { throw new RuntimeException("Stub!"); }
+                            public void method() { throw new RuntimeException("Stub!"); }
+                            }
+                        """
+                    )
+                ),
+        )
+    }
 }
