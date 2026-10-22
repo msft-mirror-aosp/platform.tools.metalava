@@ -80,9 +80,7 @@ class ApiLintOptionsTest :
                 .isEqualTo(
                     SignatureBasedApi.fromFiles(
                         listOf(file1, file2),
-                        // TODO(b/565687326): All --api-lint-previous-api files should be loaded
-                        //  into the main API surface.
-                        onlyUseLastForMainApiSurface = true,
+                        onlyUseLastForMainApiSurface = false,
                     )
                 )
         }
