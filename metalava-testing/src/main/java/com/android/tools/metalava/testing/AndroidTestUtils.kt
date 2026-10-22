@@ -68,4 +68,4 @@ private fun getMetalavaDir(): File {
 }
 
 /** The `prebuilts/sdk` directory used for testing. */
-fun getPrebuiltsSdkDir(): File = getMetalavaDir().resolve("../../prebuilts/sdk")
+fun getPrebuiltsSdkDir(): File = getMetalavaDir().resolve("test-data/prebuilts-sdk")
