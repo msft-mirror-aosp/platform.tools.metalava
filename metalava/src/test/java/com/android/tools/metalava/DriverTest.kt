@@ -541,6 +541,7 @@ abstract class DriverTest :
          * codebase are linted.
          */
         @Language("TEXT") apiLint: String? = null,
+        @Language("TEXT") apiLintList: List<String> = listOfNotNull(apiLint),
         /** The source files to pass to the analyzer */
         sourceFiles: Array<TestFile> = emptyArray(),
         /**
@@ -742,14 +743,15 @@ abstract class DriverTest :
         val extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE) + extraArguments
 
         val apiLintArgs =
-            if (apiLint != null) {
-                if (apiLint.isBlank()) {
-                    arrayOf(ARG_API_LINT)
-                } else {
-                    val file = File(projectDir, "prev-api-lint.txt")
-                    file.writeSignatureText(apiLint)
-                    arrayOf(ARG_API_LINT, ARG_API_LINT_PREVIOUS_API, file.path)
-                }
+            if (apiLintList.isNotEmpty()) {
+                arrayOf(ARG_API_LINT) +
+                    apiLintList
+                        .filter { it.isNotBlank() }
+                        .contentOrPathListToArgsArray(
+                            projectDir,
+                            "prev-api-lint.txt",
+                            ARG_API_LINT_PREVIOUS_API,
+                        )
             } else {
                 emptyArray()
             }
