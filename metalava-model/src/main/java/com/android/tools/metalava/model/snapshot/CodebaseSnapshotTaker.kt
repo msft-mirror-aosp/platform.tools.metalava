@@ -100,12 +100,20 @@ private constructor(
     /** Take a snapshot of this [ModifierList] for [snapshotCodebase]. */
     private fun ModifierList.snapshot() = snapshot(snapshotCodebase)
 
-    /** Take a snapshot of the modifiers for [itemToSnapshot]. */
+    /**
+     * Take a snapshot of the modifiers for [itemToSnapshot].
+     *
+     * If [itemToSnapshot] is not [originalItem] then [originalItem] is being reverted to
+     * [itemToSnapshot], so pass [originalItem]'s modifiers to [ModifierList.snapshot] to preserve
+     * any annotations that are not included in signature files.
+     */
     private fun snapshotModifiers(
         itemToSnapshot: Item,
-        @Suppress("unused") originalItem: Item,
+        originalItem: Item,
     ): ModifierList {
-        return itemToSnapshot.modifiers.snapshot()
+        val revertFromModifiers =
+            if (itemToSnapshot === originalItem) null else originalItem.modifiers
+        return itemToSnapshot.modifiers.snapshot(snapshotCodebase, revertFromModifiers)
     }
 
     /**

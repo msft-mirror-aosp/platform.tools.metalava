@@ -910,10 +910,6 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                       }
                     }
                 """,
-            // TODO(b/576562462): Should include @android.view.ViewDebug.ExportedProperty on
-            //   method(), as that annotation is not included in signature files and should be
-            //   preserved from the source item when reverting method() to the identical version in
-            //   the released signature file.
             expectedStubFiles =
                 arrayOf(
                     java(
@@ -922,6 +918,7 @@ class FlaggedApiEdgeCasesTest : DriverTest() {
                             @SuppressWarnings({"unchecked", "deprecation", "all"})
                             public class Test {
                             public Test() { throw new RuntimeException("Stub!"); }
+                            @android.view.ViewDebug.ExportedProperty
                             public void method() { throw new RuntimeException("Stub!"); }
                             }
                         """
