@@ -20,11 +20,9 @@ import com.android.tools.metalava.model.api.surface.ApiSurface
 import com.android.tools.metalava.model.api.surface.ApiSurfaces
 import com.android.tools.metalava.testing.BaseTemporaryFolderOwner
 import com.android.tools.metalava.testing.DirectoryBuilder
-import com.android.tools.metalava.testing.getAndroidDir
 import java.io.File
 import kotlin.test.assertEquals
 import org.junit.Assert.assertThrows
-import org.junit.Before
 import org.junit.Test
 
 class PatternNodeTest : BaseTemporaryFolderOwner() {
@@ -37,16 +35,6 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
         val actual = joinToString("\n")
         val cleaned = removeTestSpecificDirectories(actual)
         assertEquals(expected.trimIndent(), cleaned)
-    }
-
-    private lateinit var androidDir: File
-
-    @Before
-    fun initAndroidDir() {
-        androidDir = getAndroidDir()
-
-        // Replace the environment specific android directory with a constant label.
-        temporaryFolder.addTestLabelForFile(androidDir, "ANDROID_ROOT")
     }
 
     @Test
@@ -263,28 +251,47 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
         )
     }
 
+    /** Create a structure of versioned `prebuilts/sdk` files for testing. */
+    private fun createPrebuiltsSdkFileStructure(): File {
+        val rootDir = buildFileStructure {
+            dir("prebuilts/sdk") {
+                for (level in 1..32) {
+                    dir("$level") {
+                        apiFile("public/api/android")
+                        if (level >= 21) {
+                            apiFile("system/api/android")
+                        }
+                    }
+                }
+            }
+        }
+        return rootDir
+    }
+
     @Test
     fun `Scan public prebuilts`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/api/android.txt",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(1).rangeTo(ApiVersion.fromLevel(5))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/2/public/api/android.txt, version=2)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/3/public/api/android.txt, version=3)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/4/public/api/android.txt, version=4)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/5/public/api/android.txt, version=5)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/1/public/api/android.txt, version=1)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/2/public/api/android.txt, version=2)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/3/public/api/android.txt, version=3)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/4/public/api/android.txt, version=4)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/5/public/api/android.txt, version=5)
             """
         )
     }
 
     @Test
     fun `Scan system prebuilts`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 // Check system first and then fall back to public. As there are both public and
@@ -295,18 +302,19 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21/system/api/android.txt, version=21)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/system/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21/system/api/android.txt, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/system/api/android.txt, version=22)
             """
         )
     }
 
     @Test
     fun `Scan public prebuilts with unnecessary system pattern`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 // Check the public first, this should never fall back to system as it will always
@@ -316,36 +324,38 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(20).rangeTo(ApiVersion.fromLevel(22))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21/public/api/android.txt, version=21)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/20/public/api/android.txt, version=20)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21/public/api/android.txt, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
             """
         )
     }
 
     @Test
     fun `Scan version specific prebuilt directories`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}",
             )
         val node = PatternNode.parsePatterns(patterns)
         val range = ApiVersion.fromLevel(21).rangeTo(ApiVersion.fromLevel(23))
-        val files = node.scan(PatternNode.ScanConfig(androidDir, range::contains))
+        val files = node.scan(PatternNode.ScanConfig(rootDir, range::contains))
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/21, version=21)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22, version=22)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/23, version=23)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/21, version=21)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/23, version=23)
             """
         )
     }
 
     @Test
     fun `Scan explicit list of version specific jars`() {
+        val rootDir = createPrebuiltsSdkFileStructure()
         val patterns =
             listOf(
                 "prebuilts/sdk/{version:level}/public/api/android.txt",
@@ -359,44 +369,41 @@ class PatternNodeTest : BaseTemporaryFolderOwner() {
                         "prebuilts/sdk/22/public/api/android.txt",
                         "prebuilts/sdk/32/public/api/android.txt",
                     )
-                    .map { androidDir.resolve(it) }
+                    .map { rootDir.resolve(it) }
             )
 
         val scanConfig =
             PatternNode.ScanConfig(
-                dir = androidDir,
+                dir = rootDir,
                 fileProvider = limitedFileProvider,
             )
         val files = node.scan(scanConfig)
         files.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
             """
         )
 
         val prebuiltsContents =
-            limitedFileProvider
-                .listFiles(androidDir.resolve("prebuilts"))
-                .orEmpty()
-                .joinToString("\n")
+            limitedFileProvider.listFiles(rootDir.resolve("prebuilts")).orEmpty().joinToString("\n")
         assertEquals(
-            "ANDROID_ROOT/prebuilts/sdk",
+            "TESTROOT/prebuilts/sdk",
             removeTestSpecificDirectories(prebuiltsContents),
         )
 
         val unnormalizedDirScanConfig =
             PatternNode.ScanConfig(
-                dir = androidDir.resolve("."),
+                dir = rootDir.resolve("."),
                 fileProvider = limitedFileProvider,
             )
         val unnormalizedFiles = node.scan(unnormalizedDirScanConfig)
         unnormalizedFiles.assertMatchedPatternFiles(
             """
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
-                MatchedPatternFile(file=ANDROID_ROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/19/public/api/android.txt, version=19)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/22/public/api/android.txt, version=22)
+                MatchedPatternFile(file=TESTROOT/prebuilts/sdk/32/public/api/android.txt, version=32)
             """
         )
     }
