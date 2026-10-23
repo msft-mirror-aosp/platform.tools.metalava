@@ -183,4 +183,29 @@ class OverridingMethodTest : DriverTest() {
                 """,
         )
     }
+
+    @Test
+    fun `Test hiding override of public method from the classpath`() {
+        check(
+            // TODO: there should be an issue for attempting to hide toString
+            expectedIssues = "",
+            apiSurface = KnownApiSurface.PUBLIC,
+            sourceFiles =
+                arrayOf(
+                    java(
+                        """
+                        package test.pkg;
+
+                        import android.annotation.Hide;
+
+                        public class Foo {
+                            @Hide
+                            @Override
+                            public String toString() { return "Foo"; }
+                        }
+                        """
+                    ),
+                ),
+        )
+    }
 }
