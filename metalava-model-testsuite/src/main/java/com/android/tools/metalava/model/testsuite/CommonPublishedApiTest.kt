@@ -754,9 +754,8 @@ class CommonPublishedApiTest : BaseModelTest() {
             assertThat(fooClass.modifiers.isPublishedApi()).isTrue()
 
             val toString = fooClass.assertMethod("toString", emptyList())
-            // TODO: toString is overridden from Object, where it is public, so it should not be
-            // internal here
-            assertThat(toString.modifiers.isInternal()).isTrue()
+            // toString is overridden from Object, where it is public, so the override is public
+            assertThat(toString.modifiers.isPublic()).isTrue()
             assertThat(toString.modifiers.isPublishedApi()).isFalse()
         }
     }
