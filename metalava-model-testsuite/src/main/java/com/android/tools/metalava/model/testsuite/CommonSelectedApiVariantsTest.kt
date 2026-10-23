@@ -18,7 +18,6 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.SelectedApi
-import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
@@ -213,14 +212,8 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
             // Verify that accessing package itemApiVariants and class contentApiVariants directly
             // (before dumpSelectedApiVariants traverses the codebase) lazily initializes child
             // SelectedApi instances.
-            val isSourceModel = codebaseCreatorHasCapability(Capability.HIDDEN_ITEMS)
             val pkg = codebase.assertPackage("test.pkg")
-            // TODO(b/568477816): PackageSourceSelectedApi does not lazily initialize its classes'
-            //  SelectedApi instances when itemApiVariants is accessed, so for un-snapshotted source
-            //  models it is empty until the classes and their members are visited.
-            pkg.assertItemApiVariants(
-                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[public(C),system(C)]"
-            )
+            pkg.assertItemApiVariants("ApiVariantSet[public(C),system(C)]")
             val testClass = codebase.assertClass("test.pkg.Test")
             assertEquals(
                 "ApiVariantSet[system(C)]",

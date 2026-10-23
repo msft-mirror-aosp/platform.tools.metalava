@@ -24,6 +24,20 @@ internal class PackageSourceSelectedApi(
     selectedApiUpdater: SelectedApiUpdater,
     item: PackageItem,
 ) : SourceSelectedApi<PackageItem>(selectedApiUpdater, item) {
+    /** Whether the classes in [item] have had their [SelectedApi] initialized. */
+    private var classesInitialized = false
+
+    override val itemApiVariants: ApiVariantSet
+        get() {
+            if (item.emit && !classesInitialized) {
+                classesInitialized = true
+                for (cls in item.allClasses()) {
+                    cls.selectedApi.contentApiVariants
+                }
+            }
+            return rawItemApiVariants
+        }
+
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
