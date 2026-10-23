@@ -222,11 +222,8 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                 if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[public(C),system(C)]"
             )
             val testClass = codebase.assertClass("test.pkg.Test")
-            // TODO(b/568477816): ClassSourceSelectedApi does not lazily initialize its members'
-            //  SelectedApi instances when contentApiVariants is accessed, so for un-snapshotted
-            //  source models it is empty until the members are visited.
             assertEquals(
-                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[system(C)]",
+                "ApiVariantSet[system(C)]",
                 testClass.selectedApi.contentApiVariants.formatFor(codebase.apiSurfaces),
             )
 
@@ -261,17 +258,10 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                 """
             ),
         ) {
-            val isSourceModel = codebaseCreatorHasCapability(Capability.HIDDEN_ITEMS)
             val fooKt = codebase.assertClass("test.pkg.FooKt")
-            // TODO(b/568477816): ClassSourceSelectedApi does not lazily initialize its members'
-            //  SelectedApi instances when itemApiVariants is accessed on a file facade class, so
-            //  for un-snapshotted source models both the file facade class and its package have
-            //  empty itemApiVariants.
-            val expectedVariants =
-                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[main(C)]"
-            fooKt.assertItemApiVariants(expectedVariants)
+            fooKt.assertItemApiVariants("ApiVariantSet[main(C)]")
             val pkg = codebase.assertPackage("test.pkg")
-            pkg.assertItemApiVariants(expectedVariants)
+            pkg.assertItemApiVariants("ApiVariantSet[main(C)]")
         }
     }
 }

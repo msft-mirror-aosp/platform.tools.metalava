@@ -26,6 +26,35 @@ internal class ClassSourceSelectedApi(
 ) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
     override var superClassApiVariants = ApiVariantSet.EMPTY
 
+    /** Whether the members in [item] have had their [SelectedApi] initialized. */
+    private var membersInitialized = false
+
+    /** Ensure that all members of [item] have had their [SelectedApi] initialized. */
+    private fun ensureMembersInitialized() {
+        if (!membersInitialized) {
+            membersInitialized = true
+            if (!areChildrenCompletelyHidden()) {
+                for (member in item.members()) {
+                    member.selectedApi
+                }
+            }
+        }
+    }
+
+    override val itemApiVariants: ApiVariantSet
+        get() {
+            if (item.isFileFacade) {
+                ensureMembersInitialized()
+            }
+            return rawItemApiVariants
+        }
+
+    override val contentApiVariants: ApiVariantSet
+        get() {
+            ensureMembersInitialized()
+            return rawContentApiVariants
+        }
+
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
