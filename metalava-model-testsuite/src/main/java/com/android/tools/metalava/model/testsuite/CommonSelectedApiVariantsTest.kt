@@ -18,6 +18,7 @@ package com.android.tools.metalava.model.testsuite
 
 import com.android.tools.metalava.model.PackageFilter
 import com.android.tools.metalava.model.api.SelectedApi
+import com.android.tools.metalava.model.provider.Capability
 import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
@@ -25,6 +26,7 @@ import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYS
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
+import kotlin.test.assertEquals
 import org.junit.Test
 
 /**
@@ -208,7 +210,68 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
                         method test.pkg.Test.method()
                                self - ApiVariantSet[system(C)]
                 """
+            // Verify that accessing package itemApiVariants and class contentApiVariants directly
+            // (before dumpSelectedApiVariants traverses the codebase) lazily initializes child
+            // SelectedApi instances.
+            val isSourceModel = codebaseCreatorHasCapability(Capability.HIDDEN_ITEMS)
+            val pkg = codebase.assertPackage("test.pkg")
+            // TODO(b/568477816): PackageSourceSelectedApi does not lazily initialize its classes'
+            //  SelectedApi instances when itemApiVariants is accessed, so for un-snapshotted source
+            //  models it is empty until the classes and their members are visited.
+            pkg.assertItemApiVariants(
+                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[public(C),system(C)]"
+            )
+            val testClass = codebase.assertClass("test.pkg.Test")
+            // TODO(b/568477816): ClassSourceSelectedApi does not lazily initialize its members'
+            //  SelectedApi instances when contentApiVariants is accessed, so for un-snapshotted
+            //  source models it is empty until the members are visited.
+            assertEquals(
+                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[system(C)]",
+                testClass.selectedApi.contentApiVariants.formatFor(codebase.apiSurfaces),
+            )
+
             codebase.assertSelectedApiVariants(expected)
+        }
+    }
+
+    /**
+     * Tests that accessing [SelectedApi.itemApiVariants] directly on a Kotlin file facade class and
+     * its containing package lazily initializes the file facade's members and propagates their
+     * variants.
+     */
+    @SupportedInputFormats(InputFormat.SIGNATURE, InputFormat.KOTLIN)
+    @Test
+    fun `Test file facade in single signature file and api surface`() {
+        runCodebaseTest(
+            signature(
+                """
+                    // Signature format: 5.0
+                    package test.pkg {
+                      public final class FooKt {
+                        method public static void foo();
+                      }
+                    }
+                """
+            ),
+            kotlin(
+                "test/pkg/Foo.kt",
+                """
+                    package test.pkg
+                    fun foo() {}
+                """
+            ),
+        ) {
+            val isSourceModel = codebaseCreatorHasCapability(Capability.HIDDEN_ITEMS)
+            val fooKt = codebase.assertClass("test.pkg.FooKt")
+            // TODO(b/568477816): ClassSourceSelectedApi does not lazily initialize its members'
+            //  SelectedApi instances when itemApiVariants is accessed on a file facade class, so
+            //  for un-snapshotted source models both the file facade class and its package have
+            //  empty itemApiVariants.
+            val expectedVariants =
+                if (isSourceModel) "ApiVariantSet[]" else "ApiVariantSet[main(C)]"
+            fooKt.assertItemApiVariants(expectedVariants)
+            val pkg = codebase.assertPackage("test.pkg")
+            pkg.assertItemApiVariants(expectedVariants)
         }
     }
 }
