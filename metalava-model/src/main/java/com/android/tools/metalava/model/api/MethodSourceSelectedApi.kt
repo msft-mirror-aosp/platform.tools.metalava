@@ -139,8 +139,8 @@ internal class MethodSourceSelectedApi(
      *
      * If such an overridden method is found, this unhides the method (when their erased parameter
      * types match) by adopting the overridden method's [itemApiVariants], reports an
-     * [Issues.HIDING_API_METHOD_OVERRIDE] issue if appropriate, and returns `true`. Otherwise, this
-     * returns `false`.
+     * [Issues.HIDING_API_METHOD_OVERRIDE]/[Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if
+     * appropriate, and returns `true`. Otherwise, this returns `false`.
      */
     private inline fun handleHidingApiMethodOverride(
         predicate: FilterPredicate,
@@ -161,22 +161,25 @@ internal class MethodSourceSelectedApi(
         // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by
         //   the revert rather than an explicit `@hide`.
         // - The issue is suppressed.
-        // - The overridden method comes from the classpath, as it may not be possible to determine
-        //   if a method in a jar matches a specific API version.
         // - A final class is hiding a protected method from its superclass, as there is no way to
         //   call a method of a final class through a protected method of the superclass.
         if (
             !revert &&
-                !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
-                overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
                 !(item.containingClass().modifiers.isFinal() &&
                     overriddenMethod.modifiers.isProtected())
         ) {
-            item.codebase.reporter.report(
-                Issues.HIDING_API_METHOD_OVERRIDE,
-                item,
-                reportMessageProvider(item, overriddenMethod),
-            )
+            val issue =
+                when (overriddenMethod.origin) {
+                    ClassOrigin.CLASS_PATH -> Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH
+                    else -> Issues.HIDING_API_METHOD_OVERRIDE
+                }
+            if (!item.codebase.reporter.isSuppressed(issue)) {
+                item.codebase.reporter.report(
+                    issue,
+                    item,
+                    reportMessageProvider(item, overriddenMethod),
+                )
+            }
         }
         return true
     }
