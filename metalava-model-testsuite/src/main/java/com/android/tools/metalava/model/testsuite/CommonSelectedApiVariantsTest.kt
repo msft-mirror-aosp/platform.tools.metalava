@@ -22,6 +22,7 @@ import com.android.tools.metalava.model.provider.InputFormat
 import com.android.tools.metalava.model.testing.SupportedInputFormats
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.SYSTEM_API
+import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.annotatedOnlyRules
 import com.android.tools.metalava.model.testing.surfaces.TestableApiSurfaces.publicSystemModuleRules
 import com.android.tools.metalava.testing.java
 import com.android.tools.metalava.testing.kotlin
@@ -281,6 +282,57 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
         ) {
             val javaLangPkg = codebase.assertResolvedPackage("java.lang")
             javaLangPkg.assertItemApiVariants("ApiVariantSet[main(C)]")
+        }
+    }
+
+    /**
+     * Tests that when `unannotatedApiSurface` is `null` (via [annotatedOnlyRules]), unannotated
+     * classpath packages, classes, and members (such as `java.lang`, `java.lang.String`, and
+     * `java.lang.String.length()`) still belong to the base API surface (`public`), while
+     * unannotated source classes remain hidden (`ApiVariantSet[]`).
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test classpath items when unannotatedApiSurface is null`() {
+        runCodebaseTest(
+            inputSet(
+                listOf(
+                    java(
+                        """
+                            package test.pkg;
+                            public class Unannotated {}
+                        """
+                    ),
+                ) + TestableApiSurfaces.annotationSources
+            ),
+            inputSet(
+                listOf(
+                    kotlin(
+                        """
+                            package test.pkg
+                            class Unannotated
+                        """
+                    ),
+                ) + TestableApiSurfaces.annotationSources
+            ),
+            testFixture =
+                TestFixture(
+                    apiSurfaceRules = annotatedOnlyRules,
+                ),
+        ) {
+            val unannotatedClass = codebase.assertClass("test.pkg.Unannotated")
+            unannotatedClass.assertItemApiVariants("ApiVariantSet[]")
+
+            // TODO(b/568477816): When unannotatedApiSurface is null, unannotated classpath
+            //  packages, classes, and members use SelectedApiUpdater.defaultVariantSet (EMPTY),
+            //  even though compiled .class files on the classpath do not retain SOURCE-retention
+            //  show annotations and should belong to the base API surface.
+            val javaLangPkg = codebase.assertResolvedPackage("java.lang")
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[]")
+
+            val stringClass = codebase.assertResolvedClass("java.lang.String")
+            stringClass.assertItemApiVariants("ApiVariantSet[]")
+            stringClass.assertMethod("length", emptyList()).assertItemApiVariants("ApiVariantSet[]")
         }
     }
 }
