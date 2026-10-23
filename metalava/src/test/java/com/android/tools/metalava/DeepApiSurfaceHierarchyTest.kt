@@ -30,7 +30,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
         private val EXTRA_ARGS =
             errorIssues(
                 Issues.UNAVAILABLE_SYMBOL,
-                Issues.HIDDEN_TYPE_PARAMETER,
                 Issues.REFERENCES_HIDDEN,
                 Issues.OVERLAPPING_API_SURFACES,
                 Issues.HIDING_API_METHOD_OVERRIDE,
@@ -574,7 +573,6 @@ class DeepApiSurfaceHierarchyTest : DriverTest() {
                 ),
             expectedIssues =
                 """
-                    src/test/pkg/SystemClass.java:6: error: Parameter arg references hidden type test.pkg.ModuleClass. [HiddenTypeParameter]
                     src/test/pkg/SystemClass.java:6: error: Class test.pkg.ModuleClass is hidden but was referenced (in parameter type) from public parameter arg in test.pkg.SystemClass.foo(test.pkg.ModuleClass arg) [ReferencesHidden]
                     src/test/pkg/SystemClass.java:6: error: Parameter of unavailable type test.pkg.ModuleClass in test.pkg.SystemClass.foo() [UnavailableSymbol]
                 """,

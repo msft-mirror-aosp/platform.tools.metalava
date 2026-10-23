@@ -34,7 +34,6 @@ class BaselineTest : DriverTest() {
                 hiddenIssues(
                     Issues.HIDDEN_SUPERCLASS,
                     Issues.UNAVAILABLE_SYMBOL,
-                    Issues.HIDDEN_TYPE_PARAMETER,
                 ) +
                     errorIssues(
                         Issues.REFERENCES_HIDDEN,

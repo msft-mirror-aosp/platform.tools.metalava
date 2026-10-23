@@ -181,7 +181,6 @@ class ApiAnalyzerTest : DriverTest() {
             extraArguments = errorIssues(Issues.HIDDEN_ABSTRACT_METHOD_IN_INTERFACE),
             expectedIssues =
                 """
-                    src/test/pkg/PublicClass.java:4: warning: Parameter p references hidden type test.pkg.PackagePrivateInterface. [HiddenTypeParameter]
                     src/test/pkg/PublicClass.java:4: error: Class test.pkg.PackagePrivateInterface is not public but was referenced (in parameter type) from public parameter p in test.pkg.PublicClass.foo(test.pkg.PackagePrivateInterface p) [ReferencesHidden]
                 """,
             sourceFiles =
