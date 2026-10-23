@@ -30,15 +30,15 @@ internal class PackageSourceSelectedApi(
         // Packages do not belong to an API surface in their own right. They belong to the union of
         // the API surfaces to which their contained classes belong. So, reset this to empty to
         // ignore the default values.
-        itemApiVariants = ApiVariantSet.EMPTY
-        contentApiVariants = ApiVariantSet.EMPTY
+        rawItemApiVariants = ApiVariantSet.EMPTY
+        rawContentApiVariants = ApiVariantSet.EMPTY
     }
 
     override fun propagateFromChild(childVariants: ApiVariantSet) {
         // Packages are not included in API surfaces directly. Instead, a package is included in an
         // API surface if one of its child classes is included in the API surface. So, add all the
         // child variants to this package's variant set.
-        itemApiVariants += childVariants
+        rawItemApiVariants += childVariants
     }
 
     /**

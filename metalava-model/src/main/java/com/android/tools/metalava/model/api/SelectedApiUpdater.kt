@@ -82,7 +82,7 @@ class SelectedApiUpdater(
         selectedApi.revert = revert
         selectedApi.revertItem = null
         // A hidden item does not belong to any API surfaces.
-        selectedApi.itemApiVariants = ApiVariantSet.EMPTY
+        selectedApi.rawItemApiVariants = ApiVariantSet.EMPTY
         selectedApi.inheritableApiVariants = ApiVariantSet.EMPTY
     }
 
@@ -398,7 +398,7 @@ class SelectedApiUpdater(
         val actualInheritableApiVariants = revertedApiVariants ?: inheritableApiVariants
 
         // Store the variant sets in selectedApi.
-        selectedApi.itemApiVariants = actualItemApiVariants
+        selectedApi.rawItemApiVariants = actualItemApiVariants
         selectedApi.inheritableApiVariants = actualInheritableApiVariants
     }
 

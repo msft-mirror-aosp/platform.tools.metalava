@@ -48,15 +48,15 @@ internal class MethodSourceSelectedApi(
         super.itemSpecificInitialization()
 
         // If the parent is not part of any API then the method cannot be either.
-        if (parent.itemApiVariants.isEmpty()) return
+        if (parent.rawItemApiVariants.isEmpty()) return
 
         // Unlike classes and fields, methods implicitly inherit API surface membership from the
         // methods they override (e.g. an unannotated or @Hide method implementing a public
         // interface method). If this method did not directly specify any API variants, find the
         // widest API surface inherited from overridden super methods.
-        if (itemApiVariants.isEmpty()) {
+        if (rawItemApiVariants.isEmpty()) {
             val apiSurfaces = selectedApiUpdater.apiSurfaces
-            val parentSurface = parent.itemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
+            val parentSurface = parent.rawItemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
             var maxSuperSurface: ApiSurface? = null
             var maxSuperVariants = ApiVariantSet.EMPTY
 
@@ -91,7 +91,7 @@ internal class MethodSourceSelectedApi(
 
             // Adopt the API variants from the super method in the widest surface found.
             if (maxSuperSurface != null) {
-                itemApiVariants = maxSuperVariants
+                rawItemApiVariants = maxSuperVariants
             } else {
                 handleHidingApiMethodOverride()
             }
@@ -154,7 +154,7 @@ internal class MethodSourceSelectedApi(
         // method with specialized type arguments), unhide this method by adopting the overridden
         // method's API variants.
         if (MethodItem.overridesMethod(item, overriddenMethod)) {
-            itemApiVariants = overriddenMethod.selectedApi.itemApiVariants
+            rawItemApiVariants = overriddenMethod.selectedApi.itemApiVariants
         }
 
         // Report an issue unless:
@@ -220,7 +220,7 @@ internal class MethodSourceSelectedApi(
                 if (variant.type == ApiVariantType.REMOVED) {
                     val allRemoved = ApiVariantSet.ALL_REMOVED
                     if (
-                        !itemApiVariants.containsAny(allRemoved) &&
+                        !rawItemApiVariants.containsAny(allRemoved) &&
                             !duplicateSuper.selectedApi.itemApiVariants.containsAny(allRemoved)
                     ) {
                         continue
