@@ -257,4 +257,34 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
             pkg.assertItemApiVariants("ApiVariantSet[main(C)]")
         }
     }
+
+    /**
+     * Tests that a non-emitted package resolved from the classpath (such as `java.lang`) retains
+     * its default [SelectedApi.itemApiVariants] rather than having them cleared to empty.
+     */
+    @SupportedInputFormats(InputFormat.JAVA, InputFormat.KOTLIN)
+    @Test
+    fun `Test non-emitted classpath package variants`() {
+        runCodebaseTest(
+            java(
+                """
+                    package test.pkg;
+                    public class Test {}
+                """
+            ),
+            kotlin(
+                """
+                    package test.pkg
+                    class Test
+                """
+            ),
+        ) {
+            val javaLangPkg = codebase.assertResolvedPackage("java.lang")
+            // TODO(b/568477816): PackageSourceSelectedApi unconditionally resets
+            //  rawItemApiVariants to EMPTY expecting child classes to propagate variants back, but
+            //  non-emitted classes do not propagate variants to their package, leaving non-emitted
+            //  packages with empty itemApiVariants.
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[]")
+        }
+    }
 }
