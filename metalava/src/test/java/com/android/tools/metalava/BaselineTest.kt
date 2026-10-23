@@ -33,7 +33,6 @@ class BaselineTest : DriverTest() {
             extraArguments =
                 hiddenIssues(
                     Issues.HIDDEN_SUPERCLASS,
-                    Issues.UNAVAILABLE_SYMBOL,
                 ) +
                     errorIssues(
                         Issues.REFERENCES_HIDDEN,

@@ -240,7 +240,6 @@ class ApiContentsTest : DriverTest() {
                 """,
             expectedIssues =
                 """
-                    src/test/pkg/HiddenInterface.kt:5: warning: Return type of unavailable type test.pkg.HiddenInterface in test.pkg.PublicClass.returnsHiddenInterface() [UnavailableSymbol]
                     src/test/pkg/HiddenInterface.kt:5: error: Class test.pkg.HiddenInterface is hidden but was referenced (in return type) from public method test.pkg.PublicClass.returnsHiddenInterface() [ReferencesHidden]
                 """,
         )
@@ -283,7 +282,6 @@ class ApiContentsTest : DriverTest() {
         check(
             expectedIssues =
                 """
-                    src/test/pkg/IntValue.kt:8: warning: Return type of unavailable type test.pkg.HiddenClass in test.pkg.Foo.usesHiddenTypeAndValueClass() [UnavailableSymbol]
                     src/test/pkg/IntValue.kt:8: error: Class test.pkg.HiddenClass is hidden but was referenced (in return type) from public method test.pkg.Foo.usesHiddenTypeAndValueClass(test.pkg.IntValue) [ReferencesHidden]
                 """,
             sourceFiles =
@@ -382,11 +380,10 @@ class ApiContentsTest : DriverTest() {
                     ),
                 ),
             expectedIssues =
-                // The `ReferencesHidden` and `UnavailableSymbol` checks look specifically at
-                // methods so the errors are for the getter.
+                // The `ReferencesHidden` check looks specifically at methods so the error is for
+                // the getter.
                 """
                     src/test/pkg/HiddenType.kt:5: error: Class test.pkg.HiddenType is hidden but was referenced (in parameter type) from public parameter hidden in test.pkg.Foo.getPropertyWithContext(test.pkg.HiddenType hidden) [ReferencesHidden]
-                    src/test/pkg/HiddenType.kt:6: warning: Parameter of unavailable type test.pkg.HiddenType in test.pkg.Foo.getPropertyWithContext() [UnavailableSymbol]
                 """,
         )
     }

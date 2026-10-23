@@ -24,7 +24,6 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.FilterPredicate
@@ -515,9 +514,9 @@ class ApiAnalyzer(
                         )
                     }
 
-                    checkTypeReferencesHiddenOrDeprecated(m.returnType(), m, cl, "Return type")
+                    checkTypeReferencesDeprecated(m.returnType(), m, cl, "Return type")
                     for (p in m.parameters()) {
-                        checkTypeReferencesHiddenOrDeprecated(p.type(), m, cl, "Parameter")
+                        checkTypeReferencesDeprecated(p.type(), m, cl, "Parameter")
                     }
                 }
 
@@ -548,10 +547,8 @@ class ApiAnalyzer(
         }
     }
 
-    /**
-     * Checks if the type (method parameter or return type) references a hidden or deprecated class.
-     */
-    private fun checkTypeReferencesHiddenOrDeprecated(
+    /** Checks if the type (method parameter or return type) references a deprecated class. */
+    private fun checkTypeReferencesDeprecated(
         type: TypeItem,
         containingMethod: MethodItem,
         containingClass: ClassItem,
@@ -571,23 +568,6 @@ class ApiAnalyzer(
                     }
                 }
             )
-        }
-
-        if (type is ClassTypeItem) {
-            val asClass = type.resolveClass(codebase)
-            if (
-                asClass != null &&
-                    asClass.origin != ClassOrigin.CLASS_PATH &&
-                    asClass.isHiddenOrRemoved() &&
-                    (asClass.modifiers.isPublic() || asClass.modifiers.isProtected())
-            ) {
-                // The type itself is hidden
-                reporter.report(
-                    Issues.UNAVAILABLE_SYMBOL,
-                    containingMethod,
-                    "$usage of unavailable type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}()"
-                )
-            }
         }
     }
 }
