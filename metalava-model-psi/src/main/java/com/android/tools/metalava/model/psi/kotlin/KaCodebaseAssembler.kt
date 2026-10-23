@@ -928,10 +928,10 @@ private constructor(
                 // used from Java without special casing certain situations.
                 methodItem.targetLanguages = TargetLanguageSet.ALL
             } else {
-                // There is an existing version of the method generated from UAST. Label that
-                // version as not usable from Kotlin (e.g. mapped collection method), while the one
-                // generated here is only usable from Kotlin.
-                existingMethod.targetLanguages -= TargetLanguage.KOTLIN
+                // There is an existing version of the method generated from UAST. Don't add a
+                // duplicate here, but make sure the existing one is marked as usable from Kotlin.
+                existingMethod.targetLanguages += TargetLanguage.KOTLIN
+                return
             }
         }
 
