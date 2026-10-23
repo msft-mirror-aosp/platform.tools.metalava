@@ -280,11 +280,7 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
             ),
         ) {
             val javaLangPkg = codebase.assertResolvedPackage("java.lang")
-            // TODO(b/568477816): PackageSourceSelectedApi unconditionally resets
-            //  rawItemApiVariants to EMPTY expecting child classes to propagate variants back, but
-            //  non-emitted classes do not propagate variants to their package, leaving non-emitted
-            //  packages with empty itemApiVariants.
-            javaLangPkg.assertItemApiVariants("ApiVariantSet[]")
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[main(C)]")
         }
     }
 }

@@ -41,10 +41,15 @@ internal class PackageSourceSelectedApi(
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
-        // Packages do not belong to an API surface in their own right. They belong to the union of
-        // the API surfaces to which their contained classes belong. So, reset this to empty to
-        // ignore the default values.
-        rawItemApiVariants = ApiVariantSet.EMPTY
+        if (item.emit) {
+            // Emitted packages do not belong to an API surface in their own right. They belong to
+            // the union of the API surfaces to which their contained emitted classes belong. So,
+            // reset this to empty to ignore the default values. Non-emitted packages (e.g.
+            // classpath packages) never have variants propagated from their classes because
+            // ClassSourceSelectedApi.propagateToContainingPackage ignores non-emitted classes, so
+            // they retain the variants computed by updateFromSelectableItem().
+            rawItemApiVariants = ApiVariantSet.EMPTY
+        }
         rawContentApiVariants = ApiVariantSet.EMPTY
     }
 
