@@ -469,6 +469,11 @@ class ApiAnalyzer(
     }
 
     fun handleStripping() {
+        if (codebase.trustedApi()) {
+            // The codebase is already an API; no consistency checks to be performed
+            return
+        }
+
         val notStrippable = ApiContents.computeContents(codebase)
 
         // complain about anything that looks includeable but is not supposed to

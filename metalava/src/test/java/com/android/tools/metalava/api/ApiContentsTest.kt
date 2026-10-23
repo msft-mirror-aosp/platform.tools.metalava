@@ -477,6 +477,7 @@ class ApiContentsTest : DriverTest() {
             hideAnnotations = arrayOf("test.pkg.Hide"),
             expectedIssues =
                 """
+                nativeMain/src/test/pkg/Native.kt:2: error: Class test.pkg.Hidden is hidden but was referenced (aliased type) from public typealias test.pkg.Public [ReferencesHidden]
                 """
         )
     }
