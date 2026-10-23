@@ -323,16 +323,14 @@ class CommonSelectedApiVariantsTest : BaseModelTest() {
             val unannotatedClass = codebase.assertClass("test.pkg.Unannotated")
             unannotatedClass.assertItemApiVariants("ApiVariantSet[]")
 
-            // TODO(b/568477816): When unannotatedApiSurface is null, unannotated classpath
-            //  packages, classes, and members use SelectedApiUpdater.defaultVariantSet (EMPTY),
-            //  even though compiled .class files on the classpath do not retain SOURCE-retention
-            //  show annotations and should belong to the base API surface.
             val javaLangPkg = codebase.assertResolvedPackage("java.lang")
-            javaLangPkg.assertItemApiVariants("ApiVariantSet[]")
+            javaLangPkg.assertItemApiVariants("ApiVariantSet[public(C)]")
 
             val stringClass = codebase.assertResolvedClass("java.lang.String")
-            stringClass.assertItemApiVariants("ApiVariantSet[]")
-            stringClass.assertMethod("length", emptyList()).assertItemApiVariants("ApiVariantSet[]")
+            stringClass.assertItemApiVariants("ApiVariantSet[public(C)]")
+            stringClass
+                .assertMethod("length", emptyList())
+                .assertItemApiVariants("ApiVariantSet[public(C)]")
         }
     }
 }

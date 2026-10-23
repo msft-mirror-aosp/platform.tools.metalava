@@ -44,11 +44,17 @@ internal class PackageSourceSelectedApi(
         if (item.emit) {
             // Emitted packages do not belong to an API surface in their own right. They belong to
             // the union of the API surfaces to which their contained emitted classes belong. So,
-            // reset this to empty to ignore the default values. Non-emitted packages (e.g.
-            // classpath packages) never have variants propagated from their classes because
-            // ClassSourceSelectedApi.propagateToContainingPackage ignores non-emitted classes, so
-            // they retain the variants computed by updateFromSelectableItem().
+            // reset this to empty to ignore the default values.
             rawItemApiVariants = ApiVariantSet.EMPTY
+        } else if (!explicitlyHidden && rawItemApiVariants.isEmpty()) {
+            // Non-emitted packages (e.g. classpath packages) never have variants propagated from
+            // their classes because ClassSourceSelectedApi.propagateToContainingPackage ignores
+            // non-emitted classes. When unannotatedApiSurface is null, updateFromSelectableItem()
+            // leaves rawItemApiVariants empty for unannotated packages while keeping
+            // inheritableApiVariants empty so emitted subpackages do not inherit variants. Set
+            // rawItemApiVariants to classPathDefaultVariantSet so non-emitted packages are still
+            // recognized as belonging to the base API surface.
+            rawItemApiVariants = selectedApiUpdater.classPathDefaultVariantSet
         }
         rawContentApiVariants = ApiVariantSet.EMPTY
     }
