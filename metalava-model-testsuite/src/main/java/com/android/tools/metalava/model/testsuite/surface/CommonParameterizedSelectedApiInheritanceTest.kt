@@ -881,11 +881,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
             ) {
                 surfaceTest(
                     surface = "module",
-                    // TODO(b/577403875): Unannotated overriding methods in ModuleClass currently
-                    //  inherit public(C) from the overridden methods instead of adopting
-                    //  ModuleClass's module(C) variant, causing non-elidable methods (such as
-                    //  interfaceMethod, abstractMethod, and finalMethod) to be omitted from the
-                    //  module delta signature file.
                     expected =
                         """
                             package test.pkg
@@ -909,14 +904,14 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.ModuleClass()
                                        self - ApiVariantSet[]
                                 method test.pkg.ModuleClass.interfaceMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                                 method test.pkg.ModuleClass.abstractMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                                 method test.pkg.ModuleClass.concreteMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                                    elidable - ApiVariantSet[public(C),system(C),module(C)]
                                 method test.pkg.ModuleClass.finalMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                         """,
                 )
             }

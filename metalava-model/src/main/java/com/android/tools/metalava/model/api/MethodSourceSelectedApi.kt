@@ -89,9 +89,13 @@ internal class MethodSourceSelectedApi(
                 }
             }
 
-            // Adopt the API variants from the super method in the widest surface found.
+            // Adopt the API variants from the super method in the widest surface found, or if the
+            // method was not explicitly hidden (e.g. an unannotated method in a class annotated
+            // with a non-recursive show annotation), adopt the containing class's API variants so
+            // that non-elidable overrides are included in the containing class's API surface.
             if (maxSuperSurface != null) {
-                rawItemApiVariants = maxSuperVariants
+                rawItemApiVariants =
+                    if (explicitlyHidden) maxSuperVariants else parent.rawItemApiVariants
             } else {
                 handleHidingApiMethodOverride()
             }
