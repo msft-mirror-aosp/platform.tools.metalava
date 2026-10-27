@@ -26,41 +26,12 @@ internal class ClassSourceSelectedApi(
 ) : SourceSelectedApi<ClassItem>(selectedApiUpdater, item) {
     override var superClassApiVariants = ApiVariantSet.EMPTY
 
-    /** Whether the members in [item] have had their [SelectedApi] initialized. */
-    private var membersInitialized = false
-
-    /** Ensure that all members of [item] have had their [SelectedApi] initialized. */
-    private fun ensureMembersInitialized() {
-        if (!membersInitialized) {
-            membersInitialized = true
-            if (!areChildrenCompletelyHidden()) {
-                for (member in item.members()) {
-                    member.selectedApi
-                }
-            }
-        }
-    }
-
-    override val itemApiVariants: ApiVariantSet
-        get() {
-            if (item.isFileFacade) {
-                ensureMembersInitialized()
-            }
-            return rawItemApiVariants
-        }
-
-    override val contentApiVariants: ApiVariantSet
-        get() {
-            ensureMembersInitialized()
-            return rawContentApiVariants
-        }
-
     override fun itemSpecificInitialization() {
         updateFromSelectableItem()
 
         // Propagate variants to the containing package, skipping any intermediate nested classes
         // as they will be flattened when generating signature files.
-        propagateToContainingPackage(rawItemApiVariants)
+        propagateToContainingPackage(itemApiVariants)
 
         // A class must be included in delta signature files for a wider API surface if its
         // superclass belongs to that surface, even if this class belongs to a narrower surface, in
@@ -72,7 +43,7 @@ internal class ClassSourceSelectedApi(
             // Get the narrowest surface to which the super class belongs and the widest surface to
             // which this class belongs.
             val superClassSurface = superClassVariants.narrowestSurfaceFor(apiSurfaces)
-            val itemSurface = rawItemApiVariants.widestSurfaceFor(apiSurfaces)
+            val itemSurface = itemApiVariants.widestSurfaceFor(apiSurfaces)
             if (superClassSurface == null || itemSurface == null) return@let
 
             // If the super class' surface is wider than this class' surface then add the super
@@ -83,7 +54,7 @@ internal class ClassSourceSelectedApi(
                 // This acts as a mask containing only the variant types that this class belongs to,
                 // but situated in the super class's surface.
                 val superVariantsMask =
-                    rawItemApiVariants.moveVariantsBetweenSurfaces(itemSurface, superClassSurface)
+                    itemApiVariants.moveVariantsBetweenSurfaces(itemSurface, superClassSurface)
 
                 // Only add super class variants whose types match this class's own variant types
                 // (e.g. only inherit system(C) if this class has public(C)).
@@ -114,17 +85,17 @@ internal class ClassSourceSelectedApi(
     override fun propagateFromChild(childVariants: ApiVariantSet) {
         // Include every variant to which the child belongs except those to which this already
         // belongs.
-        val propagateVariants = childVariants - rawItemApiVariants
+        val propagateVariants = childVariants - itemApiVariants
 
         // If there are no variants to propagate then return immediately.
         if (propagateVariants.isEmpty()) return
 
         if (item.isFileFacade) {
             // A file facade class only belongs to the surfaces to which its members belong.
-            rawItemApiVariants += propagateVariants
+            itemApiVariants += propagateVariants
         } else {
             // Add them to the class.
-            rawContentApiVariants += propagateVariants
+            contentApiVariants += propagateVariants
         }
 
         // Propagate to containing package.
@@ -132,5 +103,5 @@ internal class ClassSourceSelectedApi(
     }
 
     override fun areChildrenCompletelyHidden() =
-        if (item.isFileFacade) explicitlyHidden else rawItemApiVariants.isEmpty()
+        if (item.isFileFacade) explicitlyHidden else itemApiVariants.isEmpty()
 }

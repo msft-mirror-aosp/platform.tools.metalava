@@ -112,7 +112,7 @@ abstract class CustomizableParameterizedRunner<A : Any>(
                     if (
                         it is Array<*> &&
                             it.javaClass.isArray &&
-                            it.javaClass.componentType == Any::class.java
+                            it.javaClass.componentType == Object::class.java
                     ) {
                         @Suppress("UNCHECKED_CAST")
                         it as Array<Any>

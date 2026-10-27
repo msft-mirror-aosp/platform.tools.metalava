@@ -104,7 +104,6 @@ abstract class BaseDocCommentTest {
     }
 
     @Before
-    @Suppress("UNUSED_EXPRESSION")
     fun initializeTestTagTypes() {
         // Make sure that the test tag types are registered.
         TestTagTypes

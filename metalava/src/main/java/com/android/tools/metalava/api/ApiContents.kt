@@ -27,7 +27,6 @@ import com.android.tools.metalava.model.Codebase
 import com.android.tools.metalava.model.EmittedOnlyPredicate
 import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.Item
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.SelectableItem
 import com.android.tools.metalava.model.TargetLanguageSet
 import com.android.tools.metalava.model.TypeItem
@@ -240,23 +239,6 @@ internal class ApiContents(
             return
         }
         checkTypeReferences(field.type(), field, "in field type")
-    }
-
-    /**
-     * Check all the references from [property] to [ClassItem]s when the property is not already
-     * covered by a getter method or backing field (e.g. in non-JVM multiplatform source sets or for
-     * Kotlin properties with inline value class types).
-     */
-    override fun visitProperty(property: PropertyItem) {
-        if (property.getter != null || property.backingField != null) {
-            return
-        }
-        if (!filter.test(property)) {
-            return
-        }
-        checkTypeParameterListReferences(property.typeParameterList, property)
-        property.receiver?.let { checkTypeReferences(it, property, "in receiver type") }
-        checkTypeReferences(property.type(), property, "in property type")
     }
 
     /** Check all the references from [callable] to [ClassItem]s. */

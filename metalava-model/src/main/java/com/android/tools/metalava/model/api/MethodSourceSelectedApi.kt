@@ -48,15 +48,15 @@ internal class MethodSourceSelectedApi(
         super.itemSpecificInitialization()
 
         // If the parent is not part of any API then the method cannot be either.
-        if (parent.rawItemApiVariants.isEmpty()) return
+        if (parent.itemApiVariants.isEmpty()) return
 
         // Unlike classes and fields, methods implicitly inherit API surface membership from the
         // methods they override (e.g. an unannotated or @Hide method implementing a public
         // interface method). If this method did not directly specify any API variants, find the
         // widest API surface inherited from overridden super methods.
-        if (rawItemApiVariants.isEmpty()) {
+        if (itemApiVariants.isEmpty()) {
             val apiSurfaces = selectedApiUpdater.apiSurfaces
-            val parentSurface = parent.rawItemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
+            val parentSurface = parent.itemApiVariants.widestSurfaceFor(apiSurfaces) ?: return
             var maxSuperSurface: ApiSurface? = null
             var maxSuperVariants = ApiVariantSet.EMPTY
 
@@ -89,13 +89,9 @@ internal class MethodSourceSelectedApi(
                 }
             }
 
-            // Adopt the API variants from the super method in the widest surface found, or if the
-            // method was not explicitly hidden (e.g. an unannotated method in a class annotated
-            // with a non-recursive show annotation), adopt the containing class's API variants so
-            // that non-elidable overrides are included in the containing class's API surface.
+            // Adopt the API variants from the super method in the widest surface found.
             if (maxSuperSurface != null) {
-                rawItemApiVariants =
-                    if (explicitlyHidden) maxSuperVariants else parent.rawItemApiVariants
+                itemApiVariants = maxSuperVariants
             } else {
                 handleHidingApiMethodOverride()
             }
@@ -143,8 +139,8 @@ internal class MethodSourceSelectedApi(
      *
      * If such an overridden method is found, this unhides the method (when their erased parameter
      * types match) by adopting the overridden method's [itemApiVariants], reports an
-     * [Issues.HIDING_API_METHOD_OVERRIDE]/[Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH] issue if
-     * appropriate, and returns `true`. Otherwise, this returns `false`.
+     * [Issues.HIDING_API_METHOD_OVERRIDE] issue if appropriate, and returns `true`. Otherwise, this
+     * returns `false`.
      */
     private inline fun handleHidingApiMethodOverride(
         predicate: FilterPredicate,
@@ -158,32 +154,29 @@ internal class MethodSourceSelectedApi(
         // method with specialized type arguments), unhide this method by adopting the overridden
         // method's API variants.
         if (MethodItem.overridesMethod(item, overriddenMethod)) {
-            rawItemApiVariants = overriddenMethod.selectedApi.itemApiVariants
+            itemApiVariants = overriddenMethod.selectedApi.itemApiVariants
         }
 
         // Report an issue unless:
         // - The method is being reverted (e.g. via a disabled `@FlaggedApi`), as it was hidden by
         //   the revert rather than an explicit `@hide`.
         // - The issue is suppressed.
+        // - The overridden method comes from the classpath, as it may not be possible to determine
+        //   if a method in a jar matches a specific API version.
         // - A final class is hiding a protected method from its superclass, as there is no way to
         //   call a method of a final class through a protected method of the superclass.
         if (
             !revert &&
+                !item.codebase.reporter.isSuppressed(Issues.HIDING_API_METHOD_OVERRIDE) &&
+                overriddenMethod.origin != ClassOrigin.CLASS_PATH &&
                 !(item.containingClass().modifiers.isFinal() &&
                     overriddenMethod.modifiers.isProtected())
         ) {
-            val issue =
-                when (overriddenMethod.origin) {
-                    ClassOrigin.CLASS_PATH -> Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH
-                    else -> Issues.HIDING_API_METHOD_OVERRIDE
-                }
-            if (!item.codebase.reporter.isSuppressed(issue)) {
-                item.codebase.reporter.report(
-                    issue,
-                    item,
-                    reportMessageProvider(item, overriddenMethod),
-                )
-            }
+            item.codebase.reporter.report(
+                Issues.HIDING_API_METHOD_OVERRIDE,
+                item,
+                reportMessageProvider(item, overriddenMethod),
+            )
         }
         return true
     }
@@ -227,7 +220,7 @@ internal class MethodSourceSelectedApi(
                 if (variant.type == ApiVariantType.REMOVED) {
                     val allRemoved = ApiVariantSet.ALL_REMOVED
                     if (
-                        !rawItemApiVariants.containsAny(allRemoved) &&
+                        !itemApiVariants.containsAny(allRemoved) &&
                             !duplicateSuper.selectedApi.itemApiVariants.containsAny(allRemoved)
                     ) {
                         continue

@@ -740,11 +740,7 @@ abstract class DriverTest :
         // an error without forcing external users of Metalava to treat it as an error. This is
         // added at the start of extraArguments so individual tests can override it (e.g. via
         // hideIssues) if needed.
-        val extraArguments =
-            errorIssues(
-                Issues.HIDING_API_METHOD_OVERRIDE,
-                Issues.HIDING_API_METHOD_OVERRIDE_CLASSPATH
-            ) + extraArguments
+        val extraArguments = errorIssues(Issues.HIDING_API_METHOD_OVERRIDE) + extraArguments
 
         val apiLintArgs =
             if (apiLintList.isNotEmpty()) {
