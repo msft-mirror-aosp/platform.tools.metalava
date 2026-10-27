@@ -924,13 +924,6 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                 name =
                     "non-recursive module class with unannotated methods overriding public methods via package-private class",
                 surfaceRules = publicSystemModuleRules,
-                // TODO(b/577403875): Should not report an issue when overriding a public method via
-                //  a package-private class.
-                expectedIssues =
-                    """
-                        MAIN_SRC/src/test/pkg/ModuleClass.java: hidden: Attempting to hide method test.pkg.ModuleClass.concreteMethod() which overrides method test.pkg.PublicClass.concreteMethod() which is already part of the API [HidingApiMethodOverride]
-                        MAIN_SRC/src/test/pkg/ModuleClass.java: hidden: Attempting to hide method test.pkg.ModuleClass.reabstractedMethod() which overrides method test.pkg.PublicClass.reabstractedMethod() which is already part of the API [HidingApiMethodOverride]
-                    """,
                 sources =
                     listOf(
                         java(
@@ -1008,10 +1001,10 @@ class CommonParameterizedSelectedApiInheritanceTest : BaseCommonParameterizedSel
                                 constructor test.pkg.ModuleClass()
                                        self - ApiVariantSet[]
                                 method test.pkg.ModuleClass.concreteMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                                    elidable - ApiVariantSet[public(C),system(C),module(C)]
                                 method test.pkg.ModuleClass.reabstractedMethod()
-                                       self - ApiVariantSet[public(C)]
+                                       self - ApiVariantSet[module(C)]
                         """,
                 )
             }
