@@ -149,14 +149,29 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         internal set
 
     /**
+     * Backing property for [itemApiVariants] so internal updates and checks during initialization
+     * do not trigger lazy child initialization in [PackageSourceSelectedApi] or
+     * [ClassSourceSelectedApi].
+     */
+    internal var rawItemApiVariants = ApiVariantSet.EMPTY
+
+    /**
      * The [ApiVariantSet] for the [item].
      *
      * This is initialized in [initialize] which must have been called and which must initialize
      * this before it is accessed.
      */
-    override var itemApiVariants = ApiVariantSet.EMPTY
+    override val itemApiVariants: ApiVariantSet
+        get() = rawItemApiVariants
 
-    override var contentApiVariants = ApiVariantSet.EMPTY
+    /**
+     * Backing property for [contentApiVariants] so internal updates during initialization do not
+     * trigger lazy child initialization in [ClassSourceSelectedApi].
+     */
+    internal var rawContentApiVariants = ApiVariantSet.EMPTY
+
+    override val contentApiVariants: ApiVariantSet
+        get() = rawContentApiVariants
 
     /**
      * The [ApiVariantSet] that will be inherited by [SelectableItem]s enclosed within [item].
@@ -211,7 +226,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         // status until an item is determined to be part of an API surface, and only for emitted
         // items (avoiding Javadoc parsing for non-emitted items like classpath dependencies or
         // skipped packages).
-        if (item.emit && itemApiVariants.isNotEmpty()) {
+        if (item.emit && rawItemApiVariants.isNotEmpty()) {
             item.updateDeprecatedFromJavadocIfNeeded()
         }
     }
@@ -247,7 +262,7 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
 
     /** Adopt the status from [other]. */
     fun adoptStatusFrom(other: SourceSelectedApi<*>) {
-        itemApiVariants = other.itemApiVariants
+        rawItemApiVariants = other.rawItemApiVariants
         inheritableApiVariants = other.inheritableApiVariants
         docOnly = other.docOnly
         removed = other.removed
@@ -295,11 +310,11 @@ internal sealed class SourceSelectedApi<S : SelectableItem>(
         append(", accessible=")
         append(accessible)
         append(", itemApiVariants=")
-        append(itemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(rawItemApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", inheritableApiVariants=")
         append(inheritableApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         append(", contentApiVariants=")
-        append(contentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
+        append(rawContentApiVariants.formatFor(selectedApiUpdater.apiSurfaces))
         if (superClassApiVariants.isNotEmpty()) {
             append(", superClassApiVariants=")
             append(superClassApiVariants.formatFor(selectedApiUpdater.apiSurfaces))

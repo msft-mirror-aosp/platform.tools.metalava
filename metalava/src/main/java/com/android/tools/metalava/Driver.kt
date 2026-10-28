@@ -590,6 +590,7 @@ class Driver(
             tracer.trace("handleFileFacadeClassesAndExperimentalPackages") {
                 analyzer.handleFileFacadeClassesAndExperimentalPackages(apiPredicate)
             }
+            tracer.trace("handleStripping") { analyzer.handleStripping() }
             tracer.trace("performChecks") { analyzer.performChecks() }
         }
 

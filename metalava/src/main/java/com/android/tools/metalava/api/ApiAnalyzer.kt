@@ -24,10 +24,8 @@ import com.android.tools.metalava.model.BaseItemVisitor
 import com.android.tools.metalava.model.BaseTypeVisitor
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.ClassKind
-import com.android.tools.metalava.model.ClassOrigin
 import com.android.tools.metalava.model.ClassTypeItem
 import com.android.tools.metalava.model.Codebase
-import com.android.tools.metalava.model.FieldItem
 import com.android.tools.metalava.model.FilterPredicate
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.ItemDocumentation
@@ -35,7 +33,6 @@ import com.android.tools.metalava.model.MethodItem
 import com.android.tools.metalava.model.PackageItem
 import com.android.tools.metalava.model.PackageList
 import com.android.tools.metalava.model.ParameterItem
-import com.android.tools.metalava.model.PropertyItem
 import com.android.tools.metalava.model.RecordComponentItem
 import com.android.tools.metalava.model.SUPPRESS_COMPATIBILITY_ANNOTATION_QUALIFIED
 import com.android.tools.metalava.model.SelectableItem
@@ -48,7 +45,6 @@ import com.android.tools.metalava.model.doc.DocContentPredicate
 import com.android.tools.metalava.model.hasAnnotation
 import com.android.tools.metalava.model.source.SourceParser
 import com.android.tools.metalava.model.source.doc.DocContentPredicates
-import com.android.tools.metalava.model.testOrTrue
 import com.android.tools.metalava.model.value.asString
 import com.android.tools.metalava.model.visitors.ApiFilters
 import com.android.tools.metalava.model.visitors.ApiFiltersVisitor
@@ -402,11 +398,11 @@ class ApiAnalyzer(
                 .forTargetLanguages(TargetLanguageSet.SOURCE)
 
         codebase.accept(
-            object : ApiFiltersVisitor(apiFilters = apiFilters) {
-                override fun visitParameter(parameter: ParameterItem) {
-                    checkTypeReferencesHidden(parameter, parameter.type())
-                }
-
+            object :
+                ApiFiltersVisitor(
+                    apiFilters = apiFilters,
+                    visitParameterItems = false,
+                ) {
                 /**
                  * Visit all [SelectableItem]s, i.e. all [Item]s apart from [ParameterItem]s.
                  *
@@ -467,52 +463,17 @@ class ApiAnalyzer(
                             }
                         }
                     }
-
-                    if (cls.classKind == ClassKind.TYPEALIAS) {
-                        checkTypeReferencesHidden(cls, cls.aliasedType)
-                    }
-                }
-
-                override fun visitField(field: FieldItem) {
-                    checkTypeReferencesHidden(field, field.type())
-                }
-
-                override fun visitProperty(property: PropertyItem) {
-                    checkTypeReferencesHidden(property, property.type())
-                }
-
-                override fun visitMethod(method: MethodItem) {
-                    checkTypeReferencesHidden(
-                        method,
-                        method.returnType()
-                    ) // returnType is nullable only for constructors
-                }
-
-                /** Check that the type doesn't refer to any hidden classes. */
-                private fun checkTypeReferencesHidden(item: Item, type: TypeItem) {
-                    type.accept(
-                        object : BaseTypeVisitor() {
-                            override fun visitClassType(classType: ClassTypeItem) {
-                                val cls = classType.resolveClass(codebase) ?: return
-                                if (
-                                    !filterReference.testOrTrue(cls) &&
-                                        cls.origin != ClassOrigin.CLASS_PATH
-                                ) {
-                                    reporter.report(
-                                        Issues.HIDDEN_TYPE_PARAMETER,
-                                        item,
-                                        "${item.toString().capitalize()} references hidden type $classType."
-                                    )
-                                }
-                            }
-                        }
-                    )
                 }
             }
         )
     }
 
     fun handleStripping() {
+        if (codebase.trustedApi()) {
+            // The codebase is already an API; no consistency checks to be performed
+            return
+        }
+
         val notStrippable = ApiContents.computeContents(codebase)
 
         // complain about anything that looks includeable but is not supposed to
@@ -558,9 +519,9 @@ class ApiAnalyzer(
                         )
                     }
 
-                    checkTypeReferencesHiddenOrDeprecated(m.returnType(), m, cl, "Return type")
+                    checkTypeReferencesDeprecated(m.returnType(), m, cl, "Return type")
                     for (p in m.parameters()) {
-                        checkTypeReferencesHiddenOrDeprecated(p.type(), m, cl, "Parameter")
+                        checkTypeReferencesDeprecated(p.type(), m, cl, "Parameter")
                     }
                 }
 
@@ -591,10 +552,8 @@ class ApiAnalyzer(
         }
     }
 
-    /**
-     * Checks if the type (method parameter or return type) references a hidden or deprecated class.
-     */
-    private fun checkTypeReferencesHiddenOrDeprecated(
+    /** Checks if the type (method parameter or return type) references a deprecated class. */
+    private fun checkTypeReferencesDeprecated(
         type: TypeItem,
         containingMethod: MethodItem,
         containingClass: ClassItem,
@@ -615,62 +574,6 @@ class ApiAnalyzer(
                 }
             )
         }
-
-        val hiddenClasses = findHiddenClasses(type)
-        val typeClassName = (type as? ClassTypeItem)?.qualifiedName
-        for (hiddenClass in hiddenClasses) {
-            if (hiddenClass.origin == ClassOrigin.CLASS_PATH) continue
-            if (hiddenClass.qualifiedName() == typeClassName) {
-                // The type itself is hidden
-                reporter.report(
-                    Issues.UNAVAILABLE_SYMBOL,
-                    containingMethod,
-                    "$usage of unavailable type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}()"
-                )
-            } else {
-                // The type contains a hidden type
-                reporter.report(
-                    Issues.HIDDEN_TYPE_PARAMETER,
-                    containingMethod,
-                    "$usage uses type parameter of unavailable type $type in ${containingClass.qualifiedName()}.${containingMethod.name()}()"
-                )
-            }
-        }
-    }
-
-    /**
-     * Find references to hidden classes.
-     *
-     * This finds hidden classes that are used by public parts of the API in order to ensure the API
-     * is self-consistent and does not reference classes that are not included in the stubs. Any
-     * such references cause an error to be reported.
-     *
-     * A reference to an imported class is not treated as an error, even though imported classes are
-     * hidden from the stub generation. That is because imported classes are, by definition,
-     * excluded from the set of classes for which stubs are required.
-     *
-     * @param ti the type information to examine for references to hidden classes.
-     * @return all references to hidden classes referenced by the type
-     */
-    private fun findHiddenClasses(ti: TypeItem): Set<ClassItem> {
-        val hiddenClasses = mutableSetOf<ClassItem>()
-        ti.accept(
-            object : BaseTypeVisitor() {
-                override fun visitClassType(classType: ClassTypeItem) {
-                    val asClass = classType.resolveClass(codebase) ?: return
-                    // Only public and protected classes are considered "hidden" from an API
-                    // surface. Package-private and private classes are "not public" and are
-                    // handled separately by ReferencesHidden.
-                    if (
-                        asClass.isHiddenOrRemoved() &&
-                            (asClass.modifiers.isPublic() || asClass.modifiers.isProtected())
-                    ) {
-                        hiddenClasses.add(asClass)
-                    }
-                }
-            }
-        )
-        return hiddenClasses
     }
 }
 
